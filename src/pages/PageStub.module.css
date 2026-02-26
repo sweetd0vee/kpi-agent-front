@@ -1,0 +1,26 @@
+.page {
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.heading {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.description {
+  margin: 0 0 1.5rem;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.placeholder {
+  background: #fff;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  color: #94a3b8;
+}
