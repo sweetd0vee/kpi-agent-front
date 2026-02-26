@@ -31,6 +31,15 @@ function PaperclipIcon({ className }: { className?: string }) {
   )
 }
 
+function PersonIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M20 21a8 8 0 1 0-16 0" />
+    </svg>
+  )
+}
+
 export function ImportPage() {
   const [collections, setCollections] = useState<CollectionMeta[]>([])
   const [collectionName, setCollectionName] = useState('')
@@ -315,6 +324,7 @@ export function ImportPage() {
               className={filterMode === 'mine' ? styles.filterBtnActive : styles.filterBtn}
               onClick={() => setFilterMode('mine')}
             >
+              <PersonIcon className={styles.filterBtnIcon} />
               Мои
             </button>
             <button
