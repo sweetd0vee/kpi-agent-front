@@ -16,7 +16,7 @@
   margin: 0 0 0.5rem;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #1e3a8a;
   letter-spacing: -0.02em;
 }
 
@@ -70,6 +70,8 @@
 
 /* --- Create card --- */
 .createCard {
+  display: flex;
+  flex-direction: column;
   padding: 2.5rem 2.5rem 3rem;
   margin-bottom: 2.5rem;
   min-height: 320px;
@@ -288,7 +290,10 @@
 }
 
 .createActions {
-  padding-top: 0.5rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .createBtn {

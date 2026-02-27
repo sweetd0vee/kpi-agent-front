@@ -20,7 +20,7 @@ const SLOT_TYPES: { id: SlotTypeId; label: string }[] = [
   { id: 'strategy_checklist', label: 'Стратегия' },
   { id: 'reglament_checklist', label: 'Регламент' },
   { id: 'department_goals_checklist', label: 'Положение о департаменте' },
-  { id: 'chairman_goals', label: 'Цели председателя' },
+  { id: 'chairman_goals', label: 'Свои цели' },
 ]
 
 function PaperclipIcon({ className }: { className?: string }) {
@@ -230,15 +230,12 @@ export function ImportPage() {
     <div className={styles.page}>
       <header className={styles.hero}>
         <h1 className={styles.title}>База знаний</h1>
-        <p className={styles.subtitle}>
-          Создайте коллекцию: введите название и прикрепите по одному файлу в каждую ячейку. После загрузки файлы можно обработать LLM в JSON (имя_json).
-        </p>
       </header>
 
       <section className={styles.createCard}>
         <h2 className={styles.createTitle}>Новая коллекция</h2>
         <label className={styles.nameLabel}>
-          Название коллекции
+          Название
           <input
             type="text"
             className={styles.nameInput}

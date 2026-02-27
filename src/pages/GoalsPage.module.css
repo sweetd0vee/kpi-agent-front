@@ -10,17 +10,18 @@
 
 .hero {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
   gap: 1rem;
   flex-wrap: wrap;
+  text-align: center;
 }
 
 .title {
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #1e3a8a;
   letter-spacing: -0.02em;
 }
 
