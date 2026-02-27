@@ -33,6 +33,7 @@ export type GoalRow = {
   q2: string
   q3: string
   q4: string
+  year: string
 }
 
 export type GoalsState = {
@@ -116,6 +117,7 @@ function normalizeGoalRows(value: unknown): GoalRow[] {
       q2: typeof item.q2 === 'string' ? item.q2 : '',
       q3: typeof item.q3 === 'string' ? item.q3 : '',
       q4: typeof item.q4 === 'string' ? item.q4 : '',
+      year: typeof item.year === 'string' ? item.year : '',
     }
   })
 }

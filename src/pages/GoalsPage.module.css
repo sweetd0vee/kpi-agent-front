@@ -5,7 +5,7 @@
   padding: 1rem 0 2.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.25rem;
 }
 
 .hero {
@@ -60,20 +60,27 @@
 }
 
 .addBtn {
-  padding: 0.5rem 0.95rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #fff;
-  background: #1e3a8a;
-  border: none;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 2px solid #1e3a8a;
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .addBtn:hover {
-  background: #1e40af;
-  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.25);
+  background: rgba(30, 58, 138, 0.1);
+}
+
+.addBtnIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: #1e3a8a;
 }
 
 .tableWrap {
@@ -243,19 +250,20 @@
 }
 
 .colSurname {
-  width: 11rem;
+  width: 13rem;
 }
 
 .colGoal {
-  width: 42%;
+  width: 28%;
 }
 
 .colQuarter {
-  width: 8rem;
+  width: 11rem;
 }
 
 .actionsCol {
-  width: 4.6rem;
+  width: 6.5rem;
+  min-width: 6.5rem;
 }
 
 .actionsCell {
@@ -315,7 +323,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .editBtn,
