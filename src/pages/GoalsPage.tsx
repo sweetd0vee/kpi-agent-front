@@ -596,17 +596,17 @@ export function GoalsPage() {
             </button>
             {exportDropdownOpen && (
               <div className={styles.exportDropdown}>
-                <button type="button" className={styles.exportOption} onClick={() => handleExport('csv')}>
-                  CSV
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('pdf')}>
+                  PDF
                 </button>
                 <button type="button" className={styles.exportOption} onClick={() => handleExport('xlsx')}>
                   Excel
                 </button>
-                <button type="button" className={styles.exportOption} onClick={() => handleExport('pdf')}>
-                  PDF
-                </button>
                 <button type="button" className={styles.exportOption} onClick={() => handleExport('docx')}>
                   DOCX
+                </button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('csv')}>
+                  CSV
                 </button>
               </div>
             )}
