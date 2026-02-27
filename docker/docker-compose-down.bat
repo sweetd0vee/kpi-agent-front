@@ -3,7 +3,7 @@ setlocal
 
 set "script_dir=%~dp0"
 pushd "%script_dir%"
-set "COMPOSE_PROJECT_NAME=sokol-fe"
+set "COMPOSE_PROJECT_NAME=ai-kpi-fe"
 
 docker-compose -f docker-compose.yml --env-file .env down
 

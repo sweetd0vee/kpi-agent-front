@@ -10,7 +10,7 @@ function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/goals" replace />} />
+        <Route path="/" element={<Navigate to="/kpi" replace />} />
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/kpi" element={<KpiPage />} />
         <Route path="/knowledge" element={<ImportPage />} />
