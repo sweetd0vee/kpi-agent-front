@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { generateId, getGoalsState, saveGoalsState, type GoalRow } from '@/lib/storage'
 import styles from './GoalsPage.module.css'
 
@@ -27,26 +27,26 @@ const createRow = (): GoalRow => ({
 })
 
 const DEMO_ROWS: Array<Omit<GoalRow, 'id'>> = [
-  { lastName: 'Иванов', goal: 'Рост чистой прибыли', q1: '+5%', q2: '+7%', q3: '+9%', q4: '+12%' },
-  { lastName: 'Петров', goal: 'Снижение просроченной задолженности', q1: '-0.3%', q2: '-0.5%', q3: '-0.7%', q4: '-1%' },
-  { lastName: 'Сидоров', goal: 'Увеличение доли цифровых продаж', q1: '35%', q2: '40%', q3: '45%', q4: '50%' },
-  { lastName: 'Кузнецов', goal: 'Рост операционной эффективности', q1: '+2%', q2: '+4%', q3: '+6%', q4: '+8%' },
-  { lastName: 'Смирнов', goal: 'Оптимизация затрат на персонал', q1: '-1%', q2: '-2%', q3: '-3%', q4: '-4%' },
-  { lastName: 'Попов', goal: 'Развитие корпоративного портфеля', q1: '+4%', q2: '+6%', q3: '+8%', q4: '+10%' },
-  { lastName: 'Васильев', goal: 'Рост клиентской удовлетворенности', q1: 'NPS 48', q2: 'NPS 52', q3: 'NPS 55', q4: 'NPS 58' },
-  { lastName: 'Новиков', goal: 'Сокращение сроков кредитного решения', q1: '5 дн.', q2: '4 дн.', q3: '3 дн.', q4: '2 дн.' },
-  { lastName: 'Федоров', goal: 'Увеличение комиссионного дохода', q1: '+6%', q2: '+8%', q3: '+10%', q4: '+12%' },
-  { lastName: 'Морозов', goal: 'Рост доли ESG-проектов', q1: '8%', q2: '10%', q3: '12%', q4: '15%' },
-  { lastName: 'Волков', goal: 'Повышение точности скоринга', q1: '85%', q2: '88%', q3: '90%', q4: '92%' },
-  { lastName: 'Алексеев', goal: 'Оптимизация процессов KYC', q1: '90%', q2: '92%', q3: '94%', q4: '96%' },
-  { lastName: 'Лебедев', goal: 'Развитие продуктовой линейки МСБ', q1: '+2 продукта', q2: '+3 продукта', q3: '+4 продукта', q4: '+5 продукта' },
-  { lastName: 'Семенов', goal: 'Снижение операционных рисков', q1: '-5%', q2: '-8%', q3: '-10%', q4: '-12%' },
-  { lastName: 'Егоров', goal: 'Рост портфеля ипотеки', q1: '+3%', q2: '+5%', q3: '+7%', q4: '+9%' },
-  { lastName: 'Павлов', goal: 'Развитие партнерских каналов', q1: '4 партнера', q2: '6 партнеров', q3: '8 партнеров', q4: '10 партнеров' },
-  { lastName: 'Козлов', goal: 'Снижение time-to-market', q1: '8 нед.', q2: '7 нед.', q3: '6 нед.', q4: '5 нед.' },
-  { lastName: 'Степанов', goal: 'Рост конверсии лидов', q1: '18%', q2: '20%', q3: '22%', q4: '25%' },
-  { lastName: 'Николаев', goal: 'Повышение киберустойчивости', q1: '95%', q2: '96%', q3: '97%', q4: '98%' },
-  { lastName: 'Орлов', goal: 'Увеличение доли безналичных операций', q1: '62%', q2: '65%', q3: '68%', q4: '70%' },
+  { lastName: 'Иванов Иван Иванович', goal: 'Рост чистой прибыли', q1: '+5%', q2: '+7%', q3: '+9%', q4: '+12%' },
+  { lastName: 'Петров Петр Петрович', goal: 'Снижение просроченной задолженности', q1: '-0.3%', q2: '-0.5%', q3: '-0.7%', q4: '-1%' },
+  { lastName: 'Сидоров Сергей Сергеевич', goal: 'Увеличение доли цифровых продаж', q1: '35%', q2: '40%', q3: '45%', q4: '50%' },
+  { lastName: 'Кузнецов Максим Андреевич', goal: 'Рост операционной эффективности', q1: '+2%', q2: '+4%', q3: '+6%', q4: '+8%' },
+  { lastName: 'Смирнов Алексей Павлович', goal: 'Оптимизация затрат на персонал', q1: '-1%', q2: '-2%', q3: '-3%', q4: '-4%' },
+  { lastName: 'Попов Николай Викторович', goal: 'Развитие корпоративного портфеля', q1: '+4%', q2: '+6%', q3: '+8%', q4: '+10%' },
+  { lastName: 'Васильев Артем Николаевич', goal: 'Рост клиентской удовлетворенности', q1: 'NPS 48', q2: 'NPS 52', q3: 'NPS 55', q4: 'NPS 58' },
+  { lastName: 'Новиков Дмитрий Олегович', goal: 'Сокращение сроков кредитного решения', q1: '5 дн.', q2: '4 дн.', q3: '3 дн.', q4: '2 дн.' },
+  { lastName: 'Федоров Илья Сергеевич', goal: 'Увеличение комиссионного дохода', q1: '+6%', q2: '+8%', q3: '+10%', q4: '+12%' },
+  { lastName: 'Морозов Константин Евгеньевич', goal: 'Рост доли ESG-проектов', q1: '8%', q2: '10%', q3: '12%', q4: '15%' },
+  { lastName: 'Волков Антон Игоревич', goal: 'Повышение точности скоринга', q1: '85%', q2: '88%', q3: '90%', q4: '92%' },
+  { lastName: 'Алексеев Павел Дмитриевич', goal: 'Оптимизация процессов KYC', q1: '90%', q2: '92%', q3: '94%', q4: '96%' },
+  { lastName: 'Лебедев Кирилл Валерьевич', goal: 'Развитие продуктовой линейки МСБ', q1: '+2 продукта', q2: '+3 продукта', q3: '+4 продукта', q4: '+5 продукта' },
+  { lastName: 'Семенов Роман Николаевич', goal: 'Снижение операционных рисков', q1: '-5%', q2: '-8%', q3: '-10%', q4: '-12%' },
+  { lastName: 'Егоров Виталий Михайлович', goal: 'Рост портфеля ипотеки', q1: '+3%', q2: '+5%', q3: '+7%', q4: '+9%' },
+  { lastName: 'Павлов Денис Владимирович', goal: 'Развитие партнерских каналов', q1: '4 партнера', q2: '6 партнеров', q3: '8 партнеров', q4: '10 партнеров' },
+  { lastName: 'Козлов Аркадий Ильич', goal: 'Снижение time-to-market', q1: '8 нед.', q2: '7 нед.', q3: '6 нед.', q4: '5 нед.' },
+  { lastName: 'Степанов Игорь Семенович', goal: 'Рост конверсии лидов', q1: '18%', q2: '20%', q3: '22%', q4: '25%' },
+  { lastName: 'Николаев Владислав Петрович', goal: 'Повышение киберустойчивости', q1: '95%', q2: '96%', q3: '97%', q4: '98%' },
+  { lastName: 'Орлов Тимофей Алексеевич', goal: 'Увеличение доли безналичных операций', q1: '62%', q2: '65%', q3: '68%', q4: '70%' },
 ]
 
 const buildDemoRows = (): GoalRow[] => DEMO_ROWS.map((row) => ({ id: generateId(), ...row }))
@@ -96,6 +96,8 @@ export function GoalsPage() {
   const [page, setPage] = useState(1)
   const [searchLastName, setSearchLastName] = useState('')
   const [searchGoal, setSearchGoal] = useState('')
+  const [sortKey, setSortKey] = useState<GoalField | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   useEffect(() => {
     saveGoalsState(goalsState)
@@ -109,9 +111,30 @@ export function GoalsPage() {
     return matchesLastName && matchesGoal
   })
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE))
+  const collator = useMemo(() => new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }), [])
+
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return filteredRows
+    return filteredRows
+      .map((row, index) => ({ row, index }))
+      .sort((a, b) => {
+        const valueA = String(a.row[sortKey] ?? '').trim()
+        const valueB = String(b.row[sortKey] ?? '').trim()
+        const emptyA = valueA.length === 0
+        const emptyB = valueB.length === 0
+        if (emptyA && emptyB) return a.index - b.index
+        if (emptyA) return 1
+        if (emptyB) return -1
+        const result = collator.compare(valueA, valueB)
+        if (result === 0) return a.index - b.index
+        return sortDirection === 'asc' ? result : -result
+      })
+      .map((item) => item.row)
+  }, [collator, filteredRows, sortDirection, sortKey])
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE))
   const pageStart = (page - 1) * PAGE_SIZE
-  const pageRows = filteredRows.slice(pageStart, pageStart + PAGE_SIZE)
+  const pageRows = sortedRows.slice(pageStart, pageStart + PAGE_SIZE)
 
   useEffect(() => {
     setPage((prev) => Math.min(prev, totalPages))
@@ -119,13 +142,13 @@ export function GoalsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [searchLastName, searchGoal])
+  }, [searchLastName, searchGoal, sortKey, sortDirection])
 
   const columns: Column[] = [
     {
       key: 'lastName',
-      label: 'Фамилия',
-      placeholder: 'Иванов',
+      label: 'ФИО',
+      placeholder: 'Иванов Иван Иванович',
       cellClassName: styles.colSurname,
       inputClassName: styles.input,
     },
@@ -182,6 +205,17 @@ export function GoalsPage() {
     setEditingDraft(newRow)
     setPage(Math.ceil((goalsState.rows.length + 1) / PAGE_SIZE))
   }, [goalsState.rows.length])
+
+  const handleSort = useCallback((key: GoalField) => {
+    setSortKey((prevKey) => {
+      if (prevKey === key) {
+        setSortDirection((prevDirection) => (prevDirection === 'asc' ? 'desc' : 'asc'))
+        return prevKey
+      }
+      setSortDirection('asc')
+      return key
+    })
+  }, [])
 
   const startEdit = useCallback((row: GoalRow) => {
     setEditingRowId(row.id)
@@ -247,7 +281,28 @@ export function GoalsPage() {
                   <th key={col.key} className={col.cellClassName}>
                     {col.key === 'lastName' ? (
                       <div className={styles.headerWithSearch}>
-                        <span className={styles.headerLabel}>{col.label}</span>
+                        <button
+                          type="button"
+                          className={styles.sortBtn}
+                          onClick={() => handleSort(col.key)}
+                          disabled={!!editingRowId}
+                          aria-label={`Сортировать по: ${col.label}`}
+                        >
+                          <span className={styles.headerLabel}>{col.label}</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              sortKey === col.key
+                                ? sortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            aria-hidden
+                          />
+                        </button>
                         <label className={`${styles.searchField} ${styles.searchFieldCompact}`}>
                           <SearchIcon className={styles.searchIcon} />
                           <input
@@ -256,14 +311,35 @@ export function GoalsPage() {
                             value={searchLastName}
                             onChange={(e) => setSearchLastName(e.target.value)}
                             placeholder="Поиск"
-                            aria-label="Поиск по фамилии"
+                          aria-label="Поиск по ФИО"
                             disabled={!!editingRowId}
                           />
                         </label>
                       </div>
                     ) : col.key === 'goal' ? (
                       <div className={styles.headerWithSearch}>
-                        <span className={styles.headerLabel}>{col.label}</span>
+                        <button
+                          type="button"
+                          className={styles.sortBtn}
+                          onClick={() => handleSort(col.key)}
+                          disabled={!!editingRowId}
+                          aria-label={`Сортировать по: ${col.label}`}
+                        >
+                          <span className={styles.headerLabel}>{col.label}</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              sortKey === col.key
+                                ? sortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            aria-hidden
+                          />
+                        </button>
                         <label className={`${styles.searchField} ${styles.searchFieldWide}`}>
                           <SearchIcon className={styles.searchIcon} />
                           <input
@@ -278,7 +354,28 @@ export function GoalsPage() {
                         </label>
                       </div>
                     ) : (
-                      col.label
+                      <button
+                        type="button"
+                        className={styles.sortBtn}
+                        onClick={() => handleSort(col.key)}
+                        disabled={!!editingRowId}
+                        aria-label={`Сортировать по: ${col.label}`}
+                      >
+                        <span className={styles.headerLabel}>{col.label}</span>
+                        <span
+                          className={[
+                            styles.sortIndicator,
+                            sortKey === col.key
+                              ? sortDirection === 'asc'
+                                ? styles.sortIndicatorAsc
+                                : styles.sortIndicatorDesc
+                              : styles.sortIndicatorInactive,
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          aria-hidden
+                        />
+                      </button>
                     )}
                   </th>
                 ))}

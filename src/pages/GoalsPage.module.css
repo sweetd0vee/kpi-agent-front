@@ -120,38 +120,101 @@
   font-weight: 600;
 }
 
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sortBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sortIndicator {
+  position: relative;
+  width: 10px;
+  height: 14px;
+  display: inline-block;
+}
+
+.sortIndicator::before,
+.sortIndicator::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+}
+
+.sortIndicator::before {
+  top: 1px;
+  border-bottom: 5px solid rgba(255, 255, 255, 0.55);
+}
+
+.sortIndicator::after {
+  bottom: 1px;
+  border-top: 5px solid rgba(255, 255, 255, 0.55);
+}
+
+.sortIndicatorInactive::before,
+.sortIndicatorInactive::after {
+  border-bottom-color: rgba(255, 255, 255, 0.45);
+  border-top-color: rgba(255, 255, 255, 0.45);
+}
+
+.sortIndicatorAsc::before {
+  border-bottom-color: #fff;
+}
+
+.sortIndicatorAsc::after {
+  border-top-color: rgba(255, 255, 255, 0.35);
+}
+
+.sortIndicatorDesc::before {
+  border-bottom-color: rgba(255, 255, 255, 0.35);
+}
+
+.sortIndicatorDesc::after {
+  border-top-color: #fff;
+}
+
 .searchField {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   padding: 0.15rem 0.35rem;
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: #102a66;
+  border: 1px solid #2a4fa3;
   border-radius: 6px;
   min-height: 1.5rem;
 }
 
 .searchFieldCompact {
-  width: 100%;
-  min-width: 0;
-  justify-self: stretch;
+  width: 9.5rem;
+  justify-self: end;
 }
 
 .searchFieldWide {
-  width: 100%;
-  min-width: 10rem;
-  justify-self: stretch;
+  width: 18rem;
+  justify-self: end;
 }
 
 .searchField:focus-within {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
 }
 
 .searchIcon {
   width: 12px;
   height: 12px;
-  color: #64748b;
+  color: #e2e8f0;
 }
 
 .searchInput {
@@ -159,7 +222,7 @@
   border: none;
   outline: none;
   font-size: 0.75rem;
-  color: #0f172a;
+  color: #f8fafc;
   background: transparent;
 }
 
@@ -172,11 +235,11 @@
 }
 
 .searchInput::placeholder {
-  color: #94a3b8;
+  color: rgba(226, 232, 240, 0.75);
 }
 
 .searchInput:disabled {
-  color: #94a3b8;
+  color: rgba(226, 232, 240, 0.55);
 }
 
 .colSurname {
