@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { generateId, getKpiState, saveKpiState, type GoalRow } from '@/lib/storage'
-import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsPDF } from '@/lib/exportGoals'
+import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exportGoalsPDF } from '@/lib/exportGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import styles from './GoalsPage.module.css'
 
@@ -163,11 +163,12 @@ export function KpiPage() {
   }, [exportDropdownOpen])
 
   const handleExport = useCallback(
-    (format: 'csv' | 'xlsx' | 'pdf' | 'docx') => {
+    (format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
       setExportDropdownOpen(false)
       const rows = sortedRows
       if (format === 'csv') exportGoalsCSV(rows, 'кпэ')
       else if (format === 'xlsx') exportGoalsExcel(rows, 'кпэ')
+      else if (format === 'html') exportGoalsHTML(rows, 'кпэ')
       else if (format === 'pdf') {
         exportGoalsPDF(rows, 'кпэ').catch((err) => {
           console.error('Ошибка экспорта PDF:', err)
@@ -398,6 +399,7 @@ export function KpiPage() {
                 <button type="button" className={styles.exportOption} onClick={() => handleExport('xlsx')}>EXCEL</button>
                 <button type="button" className={styles.exportOption} onClick={() => handleExport('docx')}>DOCX</button>
                 <button type="button" className={styles.exportOption} onClick={() => handleExport('csv')}>CSV</button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('html')}>HTML</button>
               </div>
             )}
           </div>

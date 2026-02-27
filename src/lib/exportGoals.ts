@@ -152,3 +152,45 @@ export async function exportGoalsDOCX(rows: GoalRow[], filenamePrefix = 'ппр'
   const blob = await Packer.toBlob(doc)
   downloadBlob(blob, `${filenamePrefix}.docx`)
 }
+
+function escapeHtml(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+export function exportGoalsHTML(rows: GoalRow[], filenamePrefix = 'ппр'): void {
+  const headersHtml = EXPORT_HEADERS.map((h) => `<th>${escapeHtml(h)}</th>`).join('')
+  const rowsHtml = rows
+    .map(
+      (row) =>
+        `<tr>${rowToCells(row)
+          .map((cell) => `<td>${escapeHtml(cell)}</td>`)
+          .join('')}</tr>`
+    )
+    .join('')
+  const html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(filenamePrefix)}</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #1e3a8a; color: #fff; font-weight: 600; }
+    tr:nth-child(even) { background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <table>
+    <thead><tr>${headersHtml}</tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+</body>
+</html>`
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  downloadBlob(blob, `${filenamePrefix}.html`)
+}
