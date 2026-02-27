@@ -5,6 +5,7 @@ const SETTINGS_KEY = 'kpi-cascading-settings'
 const UPLOADED_FILES_KEY = 'kpi-cascading-uploaded-files'
 const COLLECTIONS_KEY = 'kpi-cascading-collections'
 const GOALS_KEY = 'kpi-cascading-goals'
+const KPI_GOALS_KEY = 'kpi-cascading-kpi-goals'
 
 export type StoredUploadedFile = {
   fileId: string
@@ -29,6 +30,8 @@ export type GoalRow = {
   id: string
   lastName: string
   goal: string
+  weightQ: string
+  weightYear: string
   q1: string
   q2: string
   q3: string
@@ -113,6 +116,8 @@ function normalizeGoalRows(value: unknown): GoalRow[] {
       id: typeof item.id === 'string' ? item.id : generateId(),
       lastName: typeof item.lastName === 'string' ? item.lastName : '',
       goal: typeof item.goal === 'string' ? item.goal : '',
+      weightQ: typeof item.weightQ === 'string' ? item.weightQ : '',
+      weightYear: typeof item.weightYear === 'string' ? item.weightYear : '',
       q1: typeof item.q1 === 'string' ? item.q1 : '',
       q2: typeof item.q2 === 'string' ? item.q2 : '',
       q3: typeof item.q3 === 'string' ? item.q3 : '',
@@ -149,4 +154,22 @@ export function saveGoalsState(state: GoalsState): void {
 
 export function hasGoalsState(): boolean {
   return localStorage.getItem(GOALS_KEY) !== null
+}
+
+export function getKpiState(): GoalsState {
+  try {
+    const raw = localStorage.getItem(KPI_GOALS_KEY)
+    if (!raw) return EMPTY_GOALS_STATE
+    const parsedJson = JSON.parse(raw)
+    if (!parsedJson || typeof parsedJson !== 'object') return EMPTY_GOALS_STATE
+    const parsed = parsedJson as Partial<GoalsState>
+    const rows = normalizeGoalRows(parsed?.rows)
+    return { rows }
+  } catch {
+    return EMPTY_GOALS_STATE
+  }
+}
+
+export function saveKpiState(state: GoalsState): void {
+  localStorage.setItem(KPI_GOALS_KEY, JSON.stringify(state))
 }

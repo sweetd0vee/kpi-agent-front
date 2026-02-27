@@ -2,7 +2,8 @@ import { Outlet, NavLink } from 'react-router-dom'
 import styles from './Layout.module.css'
 
 const navItems = [
-  { to: '/goals', label: 'Цели' },
+  { to: '/kpi', label: 'КПЭ' },
+  { to: '/goals', label: 'ППР' },
   { to: '/knowledge', label: 'База знаний' },
   { to: '/chat', label: 'Чат с моделью' },
   { to: '/dashboards', label: 'Дашборды' },
