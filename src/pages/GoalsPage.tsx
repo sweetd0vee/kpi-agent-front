@@ -600,7 +600,7 @@ export function GoalsPage() {
                   PDF
                 </button>
                 <button type="button" className={styles.exportOption} onClick={() => handleExport('xlsx')}>
-                  Excel
+                  EXCEL
                 </button>
                 <button type="button" className={styles.exportOption} onClick={() => handleExport('docx')}>
                   DOCX
