@@ -1,0 +1,19 @@
+name: ai-kpi
+
+services:
+  ui:
+    image: sber/ai-kpi-fe:master
+    container_name: ai-kpi-fe
+    hostname: ai-kpi-fe
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    networks:
+      - ai-kpi
+
+
+networks:
+  ai-kpi:
+    name: ai-kpi
+    external: true
