@@ -79,6 +79,74 @@ export function DashboardsPage() {
     })
   }, [donutSegments, donutTotal])
 
+  const goalsByEmployee = useMemo(() => {
+    const map = new Map<string, number>()
+    rows.forEach((r) => {
+      const name = r.lastName?.trim() || '—'
+      map.set(name, (map.get(name) ?? 0) + 1)
+    })
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+  }, [rows])
+
+  const maxEmployeeCount = useMemo(() => Math.max(1, ...goalsByEmployee.map((e) => e.count)), [goalsByEmployee])
+
+  const completeness = useMemo(() => {
+    const fields: { key: string; label: string; count: number }[] = [
+      { key: 'lastName', label: 'ФИО', count: 0 },
+      { key: 'goal', label: 'SCAI Цель', count: 0 },
+      { key: 'metricGoals', label: 'Метрические цели', count: 0 },
+      { key: 'weightQ', label: 'вес квартал', count: 0 },
+      { key: 'weightYear', label: 'вес год', count: 0 },
+      { key: 'q1', label: '1 квартал', count: 0 },
+      { key: 'q2', label: '2 квартал', count: 0 },
+      { key: 'q3', label: '3 квартал', count: 0 },
+      { key: 'q4', label: '4 квартал', count: 0 },
+      { key: 'year', label: 'Год', count: 0 },
+    ]
+    const n = rows.length || 1
+    fields.forEach((f) => {
+      const key = f.key as keyof typeof rows[0]
+      f.count = rows.filter((r) => String(r[key] ?? '').trim() !== '').length
+    })
+    return fields.map((f) => ({ ...f, pct: Math.round((f.count / n) * 100) }))
+  }, [rows])
+
+  const heatmapRows = useMemo(() => rows.slice(0, 12), [rows])
+
+  const quarterlyMetric = useMemo(() => {
+    const withNums = rows.find((r) =>
+      [r.q1, r.q2, r.q3, r.q4].some((q) => parseNum(q ?? '') != null)
+    )
+    if (!withNums) return null
+    const vals = [withNums.q1, withNums.q2, withNums.q3, withNums.q4].map((q) => parseNum(q ?? ''))
+    const max = Math.max(1, ...vals.filter((v): v is number => v != null))
+    return {
+      label: (withNums.metricGoals || withNums.goal || '').slice(0, 35),
+      values: vals as (number | null)[],
+      raw: [withNums.q1, withNums.q2, withNums.q3, withNums.q4],
+      max,
+    }
+  }, [rows])
+
+  const byGoal = useMemo(() => {
+    const map = new Map<string, { count: number; totalWeight: number }>()
+    rows.forEach((r) => {
+      const g = r.goal?.trim() || '—'
+      const cur = map.get(g) ?? { count: 0, totalWeight: 0 }
+      cur.count += 1
+      const w = parseWeightYear(r.weightYear ?? '')
+      if (w != null) cur.totalWeight += w
+      map.set(g, cur)
+    })
+    return Array.from(map.entries())
+      .map(([goal, data]) => ({ goal, ...data }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8)
+  }, [rows])
+
   return (
     <div className={styles.page}>
       <h1 className={styles.heading}>Дашборды КПЭ</h1>
@@ -87,15 +155,16 @@ export function DashboardsPage() {
       </p>
 
       <div className={styles.ideasList}>
-        <strong>Идеи дашбордов для целей КПЭ банка</strong>
+        <strong>Дашборды КПЭ: что уже есть и идеи</strong>
         <ul>
-          <li>Сводные карточки: количество целей, сотрудников, заполненность года и весов</li>
-          <li>Распределение весов по метрическим целям (горизонтальные полосы)</li>
-          <li>Динамика по кварталам: столбчатая диаграмма по выбранным показателям (прибыль, CIR, ROE и т.д.)</li>
-          <li>Сводная таблица: метрика, вес года, годовой результат</li>
-          <li>Фильтр по ФИО / по цели (SCAI) с последующей визуализацией</li>
-          <li>Дерево целей: каскад руководитель → подразделения с весами</li>
-          <li>Сравнение плана и факта при появлении фактических данных</li>
+          <li>Сводка: карточки (цели, сотрудники, заполненность года и весов)</li>
+          <li>Распределение весов: горизонтальные полосы и круговая диаграмма</li>
+          <li>Тепловая карта: наличие данных по кварталам по каждой метрике</li>
+          <li>Цели по сотрудникам: число целей на каждого ФИО (топ-10)</li>
+          <li>Заполненность данных: % заполнения по каждому полю (качество ввода)</li>
+          <li>Квартальная динамика: столбчатая диаграмма для примера одной метрики</li>
+          <li>Группировка по SCAI-цели: число метрик и сумма весов по каждой цели</li>
+          <li>Идеи: фильтр по ФИО/цели, дерево целей, план vs факт при появлении факта</li>
         </ul>
       </div>
 
@@ -234,6 +303,139 @@ export function DashboardsPage() {
                     ))}
                   </div>
                 </>
+              )}
+            </div>
+          </div>
+
+          <h2 className={styles.sectionTitle}>Аналитика</h2>
+          <div className={styles.dashboardsGrid}>
+            <div className={`${styles.chartCard} ${styles.chartCardWide}`}>
+              <h3 className={styles.chartCardTitle}>Тепловая карта: наличие данных по кварталам</h3>
+              <div className={styles.heatmapWrap}>
+                <table className={styles.heatmap}>
+                  <thead>
+                    <tr>
+                      <th>Метрика</th>
+                      <th className={styles.heatmapCell}>Q1</th>
+                      <th className={styles.heatmapCell}>Q2</th>
+                      <th className={styles.heatmapCell}>Q3</th>
+                      <th className={styles.heatmapCell}>Q4</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {heatmapRows.map((r, i) => (
+                      <tr key={r.id ?? i}>
+                        <td className={styles.metricLabel} title={r.metricGoals || r.goal || ''}>
+                          {(r.metricGoals || r.goal || '—').slice(0, 30)}
+                          {(r.metricGoals?.length || r.goal?.length || 0) > 30 ? '…' : ''}
+                        </td>
+                        {(['q1', 'q2', 'q3', 'q4'] as const).map((q) => {
+                          const v = (r[q] ?? '').trim()
+                          return (
+                            <td
+                              key={q}
+                              className={v ? styles.heatmapCellFilled : styles.heatmapCellEmpty}
+                              title={v || 'нет данных'}
+                            >
+                              {v ? (v.length > 8 ? v.slice(0, 8) + '…' : v) : '—'}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartCardTitle}>Цели по сотрудникам (ФИО)</h3>
+              {goalsByEmployee.length === 0 ? (
+                <p className={styles.barValue}>Нет данных</p>
+              ) : (
+                <div className={styles.employeeBars}>
+                  {goalsByEmployee.map((e, i) => (
+                    <div key={i} className={styles.employeeRow}>
+                      <span className={styles.employeeName} title={e.name}>
+                        {e.name}
+                      </span>
+                      <div className={styles.employeeBarWrap}>
+                        <div
+                          className={styles.employeeBar}
+                          style={{ width: `${(e.count / maxEmployeeCount) * 100}%` }}
+                        />
+                      </div>
+                      <span className={styles.employeeCount}>{e.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartCardTitle}>Заполненность данных (%)</h3>
+              <div className={styles.completenessList}>
+                {completeness.map((f, i) => (
+                  <div key={i} className={styles.completenessRow}>
+                    <span className={styles.completenessLabel}>{f.label}</span>
+                    <div className={styles.completenessBarWrap}>
+                      <div
+                        className={`${styles.completenessBar} ${f.pct >= 80 ? styles.completenessBarHigh : f.pct >= 40 ? styles.completenessBarMid : styles.completenessBarLow}`}
+                        style={{ width: `${f.pct}%` }}
+                      />
+                    </div>
+                    <span className={styles.completenessPct}>{f.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartCardTitle}>Динамика по кварталам (пример)</h3>
+              {quarterlyMetric ? (
+                <>
+                  <div className={styles.quarterChart}>
+                    {(['Q1', 'Q2', 'Q3', 'Q4'] as const).map((q, qi) => {
+                      const val = quarterlyMetric.values[qi]
+                      const pct = val != null ? (val / quarterlyMetric.max) * 100 : 0
+                      return (
+                        <div key={q} className={styles.quarterBarCol}>
+                          <div
+                            className={styles.quarterBar}
+                            style={{ height: `${Math.max(4, pct)}%` }}
+                            title={quarterlyMetric.raw[qi] ?? ''}
+                          />
+                          <span className={styles.quarterBarLabel}>{q}</span>
+                          <span className={styles.quarterBarVal}>{quarterlyMetric.raw[qi] || '—'}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <p className={styles.barValue} style={{ marginTop: '0.5rem' }}>
+                    {quarterlyMetric.label}
+                  </p>
+                </>
+              ) : (
+                <p className={styles.barValue}>Нет числовых данных по кварталам</p>
+              )}
+            </div>
+
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartCardTitle}>Группировка по SCAI-цели</h3>
+              {byGoal.length === 0 ? (
+                <p className={styles.barValue}>Нет данных</p>
+              ) : (
+                byGoal.map((g, i) => (
+                  <div key={i} className={styles.goalGroupCard}>
+                    <div className={styles.goalGroupTitle}>
+                      {g.goal.length > 40 ? g.goal.slice(0, 40) + '…' : g.goal}
+                    </div>
+                    <div className={styles.goalGroupMeta}>
+                      метрик: {g.count}
+                      {g.totalWeight > 0 ? ` · сумма весов: ${g.totalWeight}%` : ''}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>

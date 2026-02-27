@@ -241,6 +241,25 @@
   color: #2563eb;
 }
 
+.cellTemplateBtn {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cellTemplateBtn:hover {
+  color: #1e3a8a;
+  background: #f0f9ff;
+}
+
 .cellFile {
   margin-top: 0.75rem;
   width: 100%;

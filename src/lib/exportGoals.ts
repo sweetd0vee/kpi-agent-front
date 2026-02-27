@@ -13,7 +13,34 @@ import {
 } from 'docx'
 import * as XLSX from 'xlsx'
 
-const EXPORT_HEADERS = ['ФИО', 'SCAI Цель', 'Метрические цели', 'вес квартал', 'вес год', '1 квартал', '2 квартал', '3 квартал', '4 квартал', 'Год']
+export const EXPORT_HEADERS = ['ФИО', 'SCAI Цель', 'Метрические цели', 'вес квартал', 'вес год', '1 квартал', '2 квартал', '3 квартал', '4 квартал', 'Год']
+
+/** Шаблон заполняемой таблицы целей (ППР): заголовки + пустые строки для заполнения */
+const GOALS_TEMPLATE_ROWS: string[][] = [
+  EXPORT_HEADERS,
+  ['', '', '', '', '', '', '', '', '', ''],
+  ['', '', '', '', '', '', '', '', '', ''],
+  ['', '', '', '', '', '', '', '', '', ''],
+  ['', '', '', '', '', '', '', '', '', ''],
+  ['', '', '', '', '', '', '', '', '', ''],
+]
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/** Скачать шаблон таблицы целей (Excel) для заполнения */
+export function downloadGoalsTemplate(): void {
+  const ws = XLSX.utils.aoa_to_sheet(GOALS_TEMPLATE_ROWS)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Цели')
+  XLSX.writeFile(wb, 'шаблон_целей.xlsx')
+}
 
 function rowToCells(row: GoalRow): string[] {
   return [
@@ -28,15 +55,6 @@ function rowToCells(row: GoalRow): string[] {
     row.q4 ?? '',
     row.year ?? '',
   ]
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
 }
 
 const FONT_NAME = 'Roboto'

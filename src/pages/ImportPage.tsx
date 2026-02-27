@@ -11,6 +11,7 @@ import {
   type DocumentMeta,
   type CollectionMeta,
 } from '@/api/documents'
+import { downloadGoalsTemplate } from '@/lib/exportGoals'
 import styles from './ImportPage.module.css'
 
 type SlotTypeId = 'business_plan_checklist' | 'strategy_checklist' | 'reglament_checklist' | 'department_goals_checklist' | 'chairman_goals'
@@ -268,6 +269,16 @@ export function ImportPage() {
                   <PaperclipIcon />
                 </div>
                 <span className={styles.cellLabel}>{slot.label}</span>
+                {slot.id === 'chairman_goals' && (
+                  <button
+                    type="button"
+                    className={styles.cellTemplateBtn}
+                    onClick={() => downloadGoalsTemplate()}
+                    title="Скачать шаблон таблицы целей (ППР)"
+                  >
+                    Скачать шаблон
+                  </button>
+                )}
               </div>
               <input
                 ref={(el) => { fileInputRefs.current[slot.id] = el }}
@@ -295,13 +306,15 @@ export function ImportPage() {
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  className={styles.cellAttach}
-                  onClick={() => fileInputRefs.current[slot.id]?.click()}
-                >
-                  Прикрепить файл
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className={styles.cellAttach}
+                    onClick={() => fileInputRefs.current[slot.id]?.click()}
+                  >
+                    Прикрепить файл
+                  </button>
+                </>
               )}
             </div>
           ))}

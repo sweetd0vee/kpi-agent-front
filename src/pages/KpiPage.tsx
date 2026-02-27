@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { generateId, getKpiState, saveKpiState, type GoalRow } from '@/lib/storage'
 import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exportGoalsPDF } from '@/lib/exportGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
+import { EditRowModal, type EditRowField } from '@/components/EditRowModal/EditRowModal'
 import styles from './GoalsPage.module.css'
 
 type GoalField = keyof Omit<GoalRow, 'id'>
@@ -103,6 +104,7 @@ export function KpiPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -184,6 +186,19 @@ export function KpiPage() {
     [sortedRows]
   )
 
+  const editFields: EditRowField[] = [
+    { key: 'lastName', label: 'ФИО', placeholder: 'Иванов Иван Иванович' },
+    { key: 'goal', label: 'SCAI Цель', placeholder: 'Например: рост эффективности операционных затрат', multiline: true },
+    { key: 'metricGoals', label: 'Метрические цели', placeholder: 'Например: снижение CIR на 2 п.п.', multiline: true },
+    { key: 'weightQ', label: 'вес квартал', placeholder: '' },
+    { key: 'weightYear', label: 'вес год', placeholder: '' },
+    { key: 'q1', label: '1 квартал', placeholder: 'KPI' },
+    { key: 'q2', label: '2 квартал', placeholder: 'KPI' },
+    { key: 'q3', label: '3 квартал', placeholder: 'KPI' },
+    { key: 'q4', label: '4 квартал', placeholder: 'KPI' },
+    { key: 'year', label: 'Год', placeholder: '2026' },
+  ]
+
   const columns: Column[] = [
     { key: 'lastName', label: 'ФИО', placeholder: 'Иванов Иван Иванович', cellClassName: styles.colSurname, inputClassName: styles.input },
     {
@@ -218,6 +233,7 @@ export function KpiPage() {
     setGoalsState((prev) => ({ ...prev, rows: [...prev.rows, newRow] }))
     setEditingRowId(newRow.id)
     setEditingDraft(newRow)
+    setIsAddingNewRow(true)
     setPage(Math.ceil((goalsState.rows.length + 1) / PAGE_SIZE))
   }, [goalsState.rows.length])
 
@@ -237,24 +253,28 @@ export function KpiPage() {
     setEditingDraft({ ...row })
   }, [])
 
-  const updateDraft = useCallback((field: GoalField, value: string) => {
-    setEditingDraft((prev) => (prev ? { ...prev, [field]: value } : prev))
-  }, [])
-
   const cancelEdit = useCallback(() => {
+    if (isAddingNewRow && editingRowId) {
+      setGoalsState((prev) => ({ ...prev, rows: prev.rows.filter((r) => r.id !== editingRowId) }))
+    }
+    setIsAddingNewRow(false)
     setEditingRowId(null)
     setEditingDraft(null)
-  }, [])
+  }, [isAddingNewRow, editingRowId])
 
-  const saveEdit = useCallback(() => {
-    if (!editingRowId || !editingDraft) return
-    setGoalsState((prev) => ({
-      ...prev,
-      rows: prev.rows.map((row) => (row.id === editingRowId ? editingDraft : row)),
-    }))
-    setEditingRowId(null)
-    setEditingDraft(null)
-  }, [editingDraft, editingRowId])
+  const saveEdit = useCallback(
+    (draft: GoalRow) => {
+      if (!editingRowId) return
+      setGoalsState((prev) => ({
+        ...prev,
+        rows: prev.rows.map((row) => (row.id === editingRowId ? draft : row)),
+      }))
+      setIsAddingNewRow(false)
+      setEditingRowId(null)
+      setEditingDraft(null)
+    },
+    [editingRowId]
+  )
 
   const deleteRow = useCallback((id: string) => {
     setGoalsState((prev) => ({ ...prev, rows: prev.rows.filter((row) => row.id !== id) }))
@@ -340,49 +360,29 @@ export function KpiPage() {
                   </td>
                 </tr>
               ) : (
-                pageRows.map((row, index) => {
-                  const isEditing = row.id === editingRowId
-                  const activeRow = isEditing && editingDraft ? editingDraft : row
-                  const rowNumber = pageStart + index + 1
-                  return (
-                    <tr key={row.id}>
-                      {columns.map((col) => {
-                        const value = activeRow[col.key] ?? ''
-                        const isEmpty = !value.trim()
-                        return (
-                          <td key={col.key} className={col.cellClassName}>
-                            {isEditing ? (
-                              col.multiline ? (
-                                <textarea className={col.inputClassName} value={value} rows={2} placeholder={col.placeholder} onChange={(e) => updateDraft(col.key, e.target.value)} aria-label={`${col.label}, строка ${rowNumber}`} />
-                              ) : (
-                                <input type="text" className={col.inputClassName} value={value} placeholder={col.placeholder} onChange={(e) => updateDraft(col.key, e.target.value)} aria-label={`${col.label}, строка ${rowNumber}`} />
-                              )
-                            ) : (
-                              <span className={[styles.valueText, col.valueClassName ?? '', isEmpty ? styles.valueMuted : ''].filter(Boolean).join(' ')}>{isEmpty ? '' : value}</span>
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className={styles.actionsCell}>
-                        <div className={styles.actionGroup}>
-                          {isEditing ? (
-                            <>
-                              <button type="button" className={styles.saveBtn} onClick={saveEdit} disabled={!editingDraft}>Сохранить</button>
-                              <button type="button" className={styles.cancelBtn} onClick={cancelEdit}>Отмена</button>
-                            </>
-                          ) : (
-                            <button type="button" className={`${styles.iconBtn} ${styles.iconBtnEdit}`} onClick={() => startEdit(row)} disabled={!!editingRowId && editingRowId !== row.id} aria-label="Редактировать строку" title="Редактировать">
-                              <PencilIcon className={styles.pencilIcon} />
-                            </button>
-                          )}
-                          <button type="button" className={`${styles.iconBtn} ${styles.iconBtnDanger}`} onClick={() => setPendingDeleteId(row.id)} aria-label="Удалить строку">
-                            <TrashIcon className={styles.trashIcon} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
+                pageRows.map((row) => (
+                  <tr key={row.id}>
+                    {columns.map((col) => {
+                      const value = row[col.key] ?? ''
+                      const isEmpty = !value.trim()
+                      return (
+                        <td key={col.key} className={col.cellClassName}>
+                          <span className={[styles.valueText, col.valueClassName ?? '', isEmpty ? styles.valueMuted : ''].filter(Boolean).join(' ')}>{isEmpty ? '' : value}</span>
+                        </td>
+                      )
+                    })}
+                    <td className={styles.actionsCell}>
+                      <div className={styles.actionGroup}>
+                        <button type="button" className={`${styles.iconBtn} ${styles.iconBtnEdit}`} onClick={() => startEdit(row)} disabled={!!editingRowId} aria-label="Редактировать строку" title="Редактировать">
+                          <PencilIcon className={styles.pencilIcon} />
+                        </button>
+                        <button type="button" className={`${styles.iconBtn} ${styles.iconBtnDanger}`} onClick={() => setPendingDeleteId(row.id)} aria-label="Удалить строку">
+                          <TrashIcon className={styles.trashIcon} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -426,6 +426,15 @@ export function KpiPage() {
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
         danger
+      />
+
+      <EditRowModal
+        open={editingRowId !== null}
+        title={isAddingNewRow ? 'Новая запись' : 'Редактирование записи'}
+        row={editingDraft}
+        fields={editFields}
+        onSave={saveEdit}
+        onCancel={cancelEdit}
       />
     </div>
   )
