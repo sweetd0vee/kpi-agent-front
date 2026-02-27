@@ -107,6 +107,8 @@ export function ImportPage() {
       const col = await createCollection(name)
       setCollections((prev) => [col, ...prev])
       setDocsByCollection((prev) => ({ ...prev, [col.id]: {} }))
+      setFilterMode('mine')
+      setSearchQuery('')
       setUploading(true)
       for (const slot of SLOT_TYPES) {
         const file = files[slot.id]
@@ -131,7 +133,11 @@ export function ImportPage() {
       }))
       await loadDocumentsForCollection(col.id)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка создания коллекции')
+      const msg = e instanceof Error ? e.message : 'Ошибка создания коллекции'
+      const isNetwork =
+        typeof msg === 'string' &&
+        (msg.includes('Failed to fetch') || msg.includes('Load failed') || msg.includes('NetworkError'))
+      setError(isNetwork ? 'Не удалось подключиться к серверу. Запустите бэкенд (порт 8000).' : msg)
       setCreating(false)
       setUploading(false)
     } finally {
@@ -235,6 +241,22 @@ export function ImportPage() {
 
       <section className={styles.createCard}>
         <h2 className={styles.createTitle}>Новая коллекция</h2>
+        {error && (
+          <div className={styles.error} role="alert">
+            <p style={{ margin: 0 }}>{error}</p>
+            <p className={styles.errorHint}>
+              Убедитесь, что бэкенд запущен (например, порт 8000) и доступен по адресу из настроек.
+            </p>
+            <button
+              type="button"
+              className={styles.errorRetry}
+              onClick={() => setError(null)}
+              aria-label="Закрыть"
+            >
+              Закрыть
+            </button>
+          </div>
+        )}
         <label className={styles.nameLabel}>
           Название
           <input
