@@ -134,6 +134,10 @@
   font-weight: 600;
 }
 
+.headerNowrap .headerLabel {
+  white-space: nowrap;
+}
+
 .sortBtn {
   display: inline-flex;
   align-items: center;
@@ -267,6 +271,10 @@
 
 .colQuarter {
   width: 11rem;
+}
+
+.colWeight {
+  width: 6.5rem;
 }
 
 .actionsCol {

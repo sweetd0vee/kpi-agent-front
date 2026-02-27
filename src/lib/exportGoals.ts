@@ -13,12 +13,13 @@ import {
 } from 'docx'
 import * as XLSX from 'xlsx'
 
-const EXPORT_HEADERS = ['ФИО', 'SCAI Цель', 'вес квартал', 'вес год', '1 квартал', '2 квартал', '3 квартал', '4 квартал', 'Год']
+const EXPORT_HEADERS = ['ФИО', 'SCAI Цель', 'Метрические цели', 'вес квартал', 'вес год', '1 квартал', '2 квартал', '3 квартал', '4 квартал', 'Год']
 
 function rowToCells(row: GoalRow): string[] {
   return [
     row.lastName ?? '',
     row.goal ?? '',
+    row.metricGoals ?? '',
     row.weightQ ?? '',
     row.weightYear ?? '',
     row.q1 ?? '',

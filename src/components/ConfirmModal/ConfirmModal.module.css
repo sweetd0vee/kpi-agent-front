@@ -1,0 +1,107 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  opacity: 0;
+  animation: overlayIn 0.2s ease forwards;
+}
+
+.overlay.overlayOut {
+  animation: overlayOut 0.2s ease forwards;
+}
+
+@keyframes overlayIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlayOut {
+  to {
+    opacity: 0;
+  }
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  max-width: 22rem;
+  width: 100%;
+  padding: 1.5rem;
+  transform: scale(0.95);
+  animation: cardIn 0.2s ease forwards;
+}
+
+.overlay.overlayOut .card {
+  animation: cardOut 0.2s ease forwards;
+}
+
+@keyframes cardIn {
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes cardOut {
+  to {
+    transform: scale(0.95);
+  }
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.message {
+  margin: 0 0 1.25rem;
+  font-size: 0.9375rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.btnCancel {
+  background: #fff;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.btnCancel:hover {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.btnConfirm {
+  background: #1e3a8a;
+  color: #fff;
+  border-color: #1e3a8a;
+}
+
+.btnConfirm:hover {
+  background: #1e40af;
+  border-color: #1e40af;
+}

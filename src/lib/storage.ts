@@ -30,6 +30,7 @@ export type GoalRow = {
   id: string
   lastName: string
   goal: string
+  metricGoals: string
   weightQ: string
   weightYear: string
   q1: string
@@ -116,6 +117,7 @@ function normalizeGoalRows(value: unknown): GoalRow[] {
       id: typeof item.id === 'string' ? item.id : generateId(),
       lastName: typeof item.lastName === 'string' ? item.lastName : '',
       goal: typeof item.goal === 'string' ? item.goal : '',
+      metricGoals: typeof item.metricGoals === 'string' ? item.metricGoals : '',
       weightQ: typeof item.weightQ === 'string' ? item.weightQ : '',
       weightYear: typeof item.weightYear === 'string' ? item.weightYear : '',
       q1: typeof item.q1 === 'string' ? item.q1 : '',

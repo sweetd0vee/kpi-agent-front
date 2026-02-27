@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { generateId, getKpiState, saveKpiState, type GoalRow } from '@/lib/storage'
 import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsPDF } from '@/lib/exportGoals'
+import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import styles from './GoalsPage.module.css'
 
 type GoalField = keyof Omit<GoalRow, 'id'>
@@ -21,6 +22,7 @@ const createRow = (): GoalRow => ({
   id: generateId(),
   lastName: '',
   goal: '',
+  metricGoals: '',
   weightQ: '',
   weightYear: '',
   q1: '',
@@ -31,26 +33,14 @@ const createRow = (): GoalRow => ({
 })
 
 const KPI_DEMO_ROWS: Array<Omit<GoalRow, 'id'>> = [
-  { lastName: 'Финансовые показатели', goal: 'Чистая прибыль (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '24,1', q2: '58,3', q3: '112,1', q4: '205,3', year: '205,3' },
-  { lastName: 'Финансовые показатели', goal: 'ЧОД до резервов (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '146,2', q2: '299,9', q3: '471,7', q4: '702,7', year: '702,7' },
-  { lastName: 'Финансовые показатели', goal: 'CIR (Холдинг)', weightQ: '15%', weightYear: '15%', q1: '54,4%', q2: '55,1%', q3: '53,1%', q4: '48,4%', year: '48,4%' },
-  { lastName: 'Финансовые показатели', goal: 'COR с учетом корпооблигаций (Холдинг)', weightQ: '10%', weightYear: '10%', q1: '2,8%', q2: '2,3%', q3: '1,9%', q4: '1,7%', year: '1,7%' },
-  { lastName: 'Финансовые показатели', goal: 'NPL default (Банк), млн BYN', weightQ: '5%', weightYear: '5%', q1: '310,69', q2: '317,19', q3: '359,50', q4: '378,91', year: '378,91' },
-  { lastName: 'Финансовые показатели', goal: 'Отсутствуют нарушения лимитов операционного риска, тыс. BYN', weightQ: 'М', weightYear: 'М', q1: '3584,5', q2: '', q3: '', q4: '', year: '' },
-  { lastName: 'Финансовые показатели', goal: 'ROE (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '7,6%', q2: '9,0%', q3: '11,3%', q4: '15,1%', year: '15,1%' },
-  { lastName: 'Финансовые показатели', goal: 'ROA (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '1,3%', q2: '1,6%', q3: '2,0%', q4: '2,7%', year: '2,7%' },
-  { lastName: 'Финансовые показатели', goal: 'Итого КПЭ', weightQ: '50%', weightYear: '50%', q1: '', q2: '', q3: '', q4: '', year: '' },
-  {
-    lastName: 'ВЭД',
-    goal: 'Поток ВЭД-платежей в валютах стран, не входящих в список недружественных государств',
-    weightQ: '',
-    weightYear: '',
-    q1: '158 млрд RUB',
-    q2: '327 млрд RUB',
-    q3: '518 млрд RUB',
-    q4: '726 млрд RUB',
-    year: '726 млрд RUB',
-  },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'Чистая прибыль (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '24,1', q2: '58,3', q3: '112,1', q4: '205,3', year: '205,3' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ЧОД до резервов (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '146,2', q2: '299,9', q3: '471,7', q4: '702,7', year: '702,7' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'CIR (Холдинг)', weightQ: '15%', weightYear: '15%', q1: '54,4%', q2: '55,1%', q3: '53,1%', q4: '48,4%', year: '48,4%' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'COR с учетом корпооблигаций (Холдинг)', weightQ: '10%', weightYear: '10%', q1: '2,8%', q2: '2,3%', q3: '1,9%', q4: '1,7%', year: '1,7%' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'NPL default (Банк), млн BYN', weightQ: '5%', weightYear: '5%', q1: '310,69', q2: '317,19', q3: '359,50', q4: '378,91', year: '378,91' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'Отсутствуют нарушения лимитов операционного риска, тыс. BYN', weightQ: 'М', weightYear: '', q1: '3584,5', q2: '', q3: '', q4: '', year: '' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ROE (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '7,6%', q2: '9,0%', q3: '11,3%', q4: '15,1%', year: '15,1%' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ROA (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '1,3%', q2: '1,6%', q3: '2,0%', q4: '2,7%', year: '' },
 ]
 
 const buildKpiDemoRows = (): GoalRow[] => KPI_DEMO_ROWS.map((row) => ({ id: generateId(), ...row }))
@@ -112,6 +102,7 @@ export function KpiPage() {
   const [sortKey, setSortKey] = useState<GoalField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -203,8 +194,17 @@ export function KpiPage() {
       valueClassName: styles.valueMultiline,
       multiline: true,
     },
-    { key: 'weightQ', label: 'вес квартал', placeholder: '', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
-    { key: 'weightYear', label: 'вес год', placeholder: '', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
+    {
+      key: 'metricGoals',
+      label: 'Метрические цели',
+      placeholder: 'Например: снижение CIR на 2 п.п.',
+      cellClassName: `${styles.colGoal} ${styles.headerNowrap}`,
+      inputClassName: `${styles.input} ${styles.goalInput}`,
+      valueClassName: styles.valueMultiline,
+      multiline: true,
+    },
+    { key: 'weightQ', label: 'вес квартал', placeholder: '', cellClassName: `${styles.colWeight} ${styles.headerNowrap}`, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
+    { key: 'weightYear', label: 'вес год', placeholder: '', cellClassName: styles.colWeight, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
     { key: 'q1', label: '1 квартал', placeholder: 'KPI', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
     { key: 'q2', label: '2 квартал', placeholder: 'KPI', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
     { key: 'q3', label: '3 квартал', placeholder: 'KPI', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
@@ -255,16 +255,18 @@ export function KpiPage() {
     setEditingDraft(null)
   }, [editingDraft, editingRowId])
 
-  const deleteRow = useCallback(
-    (id: string) => {
-      setGoalsState((prev) => ({ ...prev, rows: prev.rows.filter((row) => row.id !== id) }))
-      if (editingRowId === id) {
-        setEditingRowId(null)
-        setEditingDraft(null)
-      }
-    },
-    [editingRowId]
-  )
+  const deleteRow = useCallback((id: string) => {
+    setGoalsState((prev) => ({ ...prev, rows: prev.rows.filter((row) => row.id !== id) }))
+    if (editingRowId === id) {
+      setEditingRowId(null)
+      setEditingDraft(null)
+    }
+  }, [editingRowId])
+
+  const confirmDelete = useCallback(() => {
+    if (pendingDeleteId) deleteRow(pendingDeleteId)
+    setPendingDeleteId(null)
+  }, [pendingDeleteId, deleteRow])
 
   return (
     <div className={styles.page}>
@@ -355,7 +357,7 @@ export function KpiPage() {
                                 <input type="text" className={col.inputClassName} value={value} placeholder={col.placeholder} onChange={(e) => updateDraft(col.key, e.target.value)} aria-label={`${col.label}, строка ${rowNumber}`} />
                               )
                             ) : (
-                              <span className={[styles.valueText, col.valueClassName ?? '', isEmpty ? styles.valueMuted : ''].filter(Boolean).join(' ')}>{isEmpty ? '—' : value}</span>
+                              <span className={[styles.valueText, col.valueClassName ?? '', isEmpty ? styles.valueMuted : ''].filter(Boolean).join(' ')}>{isEmpty ? '' : value}</span>
                             )}
                           </td>
                         )
@@ -372,7 +374,7 @@ export function KpiPage() {
                               <PencilIcon className={styles.pencilIcon} />
                             </button>
                           )}
-                          <button type="button" className={`${styles.iconBtn} ${styles.iconBtnDanger}`} onClick={() => deleteRow(row.id)} aria-label="Удалить строку">
+                          <button type="button" className={`${styles.iconBtn} ${styles.iconBtnDanger}`} onClick={() => setPendingDeleteId(row.id)} aria-label="Удалить строку">
                             <TrashIcon className={styles.trashIcon} />
                           </button>
                         </div>
@@ -412,6 +414,17 @@ export function KpiPage() {
           )}
         </div>
       </section>
+
+      <ConfirmModal
+        open={pendingDeleteId !== null}
+        title="Удаление записи"
+        message="Действительно удалить эту запись?"
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDeleteId(null)}
+        danger
+      />
     </div>
   )
 }

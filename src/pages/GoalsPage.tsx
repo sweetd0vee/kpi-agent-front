@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { generateId, getGoalsState, saveGoalsState, type GoalRow } from '@/lib/storage'
 import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsPDF } from '@/lib/exportGoals'
+import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import styles from './GoalsPage.module.css'
 
 type GoalField = keyof Omit<GoalRow, 'id'>
@@ -21,6 +22,7 @@ const createRow = (): GoalRow => ({
   id: generateId(),
   lastName: '',
   goal: '',
+  metricGoals: '',
   weightQ: '',
   weightYear: '',
   q1: '',
@@ -31,26 +33,26 @@ const createRow = (): GoalRow => ({
 })
 
 const DEMO_ROWS: Array<Omit<GoalRow, 'id'>> = [
-  { lastName: 'Иванов Иван Иванович', goal: 'Рост чистой прибыли', weightQ: '', weightYear: '', q1: '+5%', q2: '+7%', q3: '+9%', q4: '+12%', year: '2026' },
-  { lastName: 'Петров Петр Петрович', goal: 'Снижение просроченной задолженности', weightQ: '', weightYear: '', q1: '-0.3%', q2: '-0.5%', q3: '-0.7%', q4: '-1%', year: '2026' },
-  { lastName: 'Сидоров Сергей Сергеевич', goal: 'Увеличение доли цифровых продаж', weightQ: '', weightYear: '', q1: '35%', q2: '40%', q3: '45%', q4: '50%', year: '2026' },
-  { lastName: 'Кузнецов Максим Андреевич', goal: 'Рост операционной эффективности', weightQ: '', weightYear: '', q1: '+2%', q2: '+4%', q3: '+6%', q4: '+8%', year: '2026' },
-  { lastName: 'Смирнов Алексей Павлович', goal: 'Оптимизация затрат на персонал', weightQ: '', weightYear: '', q1: '-1%', q2: '-2%', q3: '-3%', q4: '-4%', year: '2026' },
-  { lastName: 'Попов Николай Викторович', goal: 'Развитие корпоративного портфеля', weightQ: '', weightYear: '', q1: '+4%', q2: '+6%', q3: '+8%', q4: '+10%', year: '2026' },
-  { lastName: 'Васильев Артем Николаевич', goal: 'Рост клиентской удовлетворенности', weightQ: '', weightYear: '', q1: 'NPS 48', q2: 'NPS 52', q3: 'NPS 55', q4: 'NPS 58', year: '2026' },
-  { lastName: 'Новиков Дмитрий Олегович', goal: 'Сокращение сроков кредитного решения', weightQ: '', weightYear: '', q1: '5 дн.', q2: '4 дн.', q3: '3 дн.', q4: '2 дн.', year: '2026' },
-  { lastName: 'Федоров Илья Сергеевич', goal: 'Увеличение комиссионного дохода', weightQ: '', weightYear: '', q1: '+6%', q2: '+8%', q3: '+10%', q4: '+12%', year: '2026' },
-  { lastName: 'Морозов Константин Евгеньевич', goal: 'Рост доли ESG-проектов', weightQ: '', weightYear: '', q1: '8%', q2: '10%', q3: '12%', q4: '15%', year: '2026' },
-  { lastName: 'Волков Антон Игоревич', goal: 'Повышение точности скоринга', weightQ: '', weightYear: '', q1: '85%', q2: '88%', q3: '90%', q4: '92%', year: '2026' },
-  { lastName: 'Алексеев Павел Дмитриевич', goal: 'Оптимизация процессов KYC', weightQ: '', weightYear: '', q1: '90%', q2: '92%', q3: '94%', q4: '96%', year: '2026' },
-  { lastName: 'Лебедев Кирилл Валерьевич', goal: 'Развитие продуктовой линейки МСБ', weightQ: '', weightYear: '', q1: '+2 продукта', q2: '+3 продукта', q3: '+4 продукта', q4: '+5 продукта', year: '2026' },
-  { lastName: 'Семенов Роман Николаевич', goal: 'Снижение операционных рисков', weightQ: '', weightYear: '', q1: '-5%', q2: '-8%', q3: '-10%', q4: '-12%', year: '2026' },
-  { lastName: 'Егоров Виталий Михайлович', goal: 'Рост портфеля ипотеки', weightQ: '', weightYear: '', q1: '+3%', q2: '+5%', q3: '+7%', q4: '+9%', year: '2026' },
-  { lastName: 'Павлов Денис Владимирович', goal: 'Развитие партнерских каналов', weightQ: '', weightYear: '', q1: '4 партнера', q2: '6 партнеров', q3: '8 партнеров', q4: '10 партнеров', year: '2026' },
-  { lastName: 'Козлов Аркадий Ильич', goal: 'Снижение time-to-market', weightQ: '', weightYear: '', q1: '8 нед.', q2: '7 нед.', q3: '6 нед.', q4: '5 нед.', year: '2026' },
-  { lastName: 'Степанов Игорь Семенович', goal: 'Рост конверсии лидов', weightQ: '', weightYear: '', q1: '18%', q2: '20%', q3: '22%', q4: '25%', year: '2026' },
-  { lastName: 'Николаев Владислав Петрович', goal: 'Повышение киберустойчивости', weightQ: '', weightYear: '', q1: '95%', q2: '96%', q3: '97%', q4: '98%', year: '2026' },
-  { lastName: 'Орлов Тимофей Алексеевич', goal: 'Увеличение доли безналичных операций', weightQ: '', weightYear: '', q1: '62%', q2: '65%', q3: '68%', q4: '70%', year: '2026' },
+  { lastName: 'Иванов Иван Иванович', goal: 'Рост чистой прибыли', metricGoals: '', weightQ: '', weightYear: '', q1: '+5%', q2: '+7%', q3: '+9%', q4: '+12%', year: '2026' },
+  { lastName: 'Петров Петр Петрович', goal: 'Снижение просроченной задолженности', metricGoals: '', weightQ: '', weightYear: '', q1: '-0.3%', q2: '-0.5%', q3: '-0.7%', q4: '-1%', year: '2026' },
+  { lastName: 'Сидоров Сергей Сергеевич', goal: 'Увеличение доли цифровых продаж', metricGoals: '', weightQ: '', weightYear: '', q1: '35%', q2: '40%', q3: '45%', q4: '50%', year: '2026' },
+  { lastName: 'Кузнецов Максим Андреевич', goal: 'Рост операционной эффективности', metricGoals: '', weightQ: '', weightYear: '', q1: '+2%', q2: '+4%', q3: '+6%', q4: '+8%', year: '2026' },
+  { lastName: 'Смирнов Алексей Павлович', goal: 'Оптимизация затрат на персонал', metricGoals: '', weightQ: '', weightYear: '', q1: '-1%', q2: '-2%', q3: '-3%', q4: '-4%', year: '2026' },
+  { lastName: 'Попов Николай Викторович', goal: 'Развитие корпоративного портфеля', metricGoals: '', weightQ: '', weightYear: '', q1: '+4%', q2: '+6%', q3: '+8%', q4: '+10%', year: '2026' },
+  { lastName: 'Васильев Артем Николаевич', goal: 'Рост клиентской удовлетворенности', metricGoals: '', weightQ: '', weightYear: '', q1: 'NPS 48', q2: 'NPS 52', q3: 'NPS 55', q4: 'NPS 58', year: '2026' },
+  { lastName: 'Новиков Дмитрий Олегович', goal: 'Сокращение сроков кредитного решения', metricGoals: '', weightQ: '', weightYear: '', q1: '5 дн.', q2: '4 дн.', q3: '3 дн.', q4: '2 дн.', year: '2026' },
+  { lastName: 'Федоров Илья Сергеевич', goal: 'Увеличение комиссионного дохода', metricGoals: '', weightQ: '', weightYear: '', q1: '+6%', q2: '+8%', q3: '+10%', q4: '+12%', year: '2026' },
+  { lastName: 'Морозов Константин Евгеньевич', goal: 'Рост доли ESG-проектов', metricGoals: '', weightQ: '', weightYear: '', q1: '8%', q2: '10%', q3: '12%', q4: '15%', year: '2026' },
+  { lastName: 'Волков Антон Игоревич', goal: 'Повышение точности скоринга', metricGoals: '', weightQ: '', weightYear: '', q1: '85%', q2: '88%', q3: '90%', q4: '92%', year: '2026' },
+  { lastName: 'Алексеев Павел Дмитриевич', goal: 'Оптимизация процессов KYC', metricGoals: '', weightQ: '', weightYear: '', q1: '90%', q2: '92%', q3: '94%', q4: '96%', year: '2026' },
+  { lastName: 'Лебедев Кирилл Валерьевич', goal: 'Развитие продуктовой линейки МСБ', metricGoals: '', weightQ: '', weightYear: '', q1: '+2 продукта', q2: '+3 продукта', q3: '+4 продукта', q4: '+5 продукта', year: '2026' },
+  { lastName: 'Семенов Роман Николаевич', goal: 'Снижение операционных рисков', metricGoals: '', weightQ: '', weightYear: '', q1: '-5%', q2: '-8%', q3: '-10%', q4: '-12%', year: '2026' },
+  { lastName: 'Егоров Виталий Михайлович', goal: 'Рост портфеля ипотеки', metricGoals: '', weightQ: '', weightYear: '', q1: '+3%', q2: '+5%', q3: '+7%', q4: '+9%', year: '2026' },
+  { lastName: 'Павлов Денис Владимирович', goal: 'Развитие партнерских каналов', metricGoals: '', weightQ: '', weightYear: '', q1: '4 партнера', q2: '6 партнеров', q3: '8 партнеров', q4: '10 партнеров', year: '2026' },
+  { lastName: 'Козлов Аркадий Ильич', goal: 'Снижение time-to-market', metricGoals: '', weightQ: '', weightYear: '', q1: '8 нед.', q2: '7 нед.', q3: '6 нед.', q4: '5 нед.', year: '2026' },
+  { lastName: 'Степанов Игорь Семенович', goal: 'Рост конверсии лидов', metricGoals: '', weightQ: '', weightYear: '', q1: '18%', q2: '20%', q3: '22%', q4: '25%', year: '2026' },
+  { lastName: 'Николаев Владислав Петрович', goal: 'Повышение киберустойчивости', metricGoals: '', weightQ: '', weightYear: '', q1: '95%', q2: '96%', q3: '97%', q4: '98%', year: '2026' },
+  { lastName: 'Орлов Тимофей Алексеевич', goal: 'Увеличение доли безналичных операций', metricGoals: '', weightQ: '', weightYear: '', q1: '62%', q2: '65%', q3: '68%', q4: '70%', year: '2026' },
 ]
 
 const buildDemoRows = (): GoalRow[] => DEMO_ROWS.map((row) => ({ id: generateId(), ...row }))
@@ -112,6 +114,7 @@ export function GoalsPage() {
   const [sortKey, setSortKey] = useState<GoalField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -210,10 +213,19 @@ export function GoalsPage() {
       multiline: true,
     },
     {
+      key: 'metricGoals',
+      label: 'Метрические цели',
+      placeholder: 'Например: снижение CIR на 2 п.п.',
+      cellClassName: `${styles.colGoal} ${styles.headerNowrap}`,
+      inputClassName: `${styles.input} ${styles.goalInput}`,
+      valueClassName: styles.valueMultiline,
+      multiline: true,
+    },
+    {
       key: 'weightQ',
       label: 'вес квартал',
       placeholder: '',
-      cellClassName: styles.colQuarter,
+      cellClassName: `${styles.colWeight} ${styles.headerNowrap}`,
       inputClassName: `${styles.input} ${styles.quarterInput}`,
       valueClassName: styles.valueCenter,
     },
@@ -221,7 +233,7 @@ export function GoalsPage() {
       key: 'weightYear',
       label: 'вес год',
       placeholder: '',
-      cellClassName: styles.colQuarter,
+      cellClassName: styles.colWeight,
       inputClassName: `${styles.input} ${styles.quarterInput}`,
       valueClassName: styles.valueCenter,
     },
@@ -313,19 +325,21 @@ export function GoalsPage() {
     setEditingDraft(null)
   }, [editingDraft, editingRowId])
 
-  const deleteRow = useCallback(
-    (id: string) => {
-      setGoalsState((prev) => ({
-        ...prev,
-        rows: prev.rows.filter((row) => row.id !== id),
-      }))
-      if (editingRowId === id) {
-        setEditingRowId(null)
-        setEditingDraft(null)
-      }
-    },
-    [editingRowId]
-  )
+  const deleteRow = useCallback((id: string) => {
+    setGoalsState((prev) => ({
+      ...prev,
+      rows: prev.rows.filter((row) => row.id !== id),
+    }))
+    if (editingRowId === id) {
+      setEditingRowId(null)
+      setEditingDraft(null)
+    }
+  }, [editingRowId])
+
+  const confirmDelete = useCallback(() => {
+    if (pendingDeleteId) deleteRow(pendingDeleteId)
+    setPendingDeleteId(null)
+  }, [pendingDeleteId, deleteRow])
 
   return (
     <div className={styles.page}>
@@ -516,7 +530,7 @@ export function GoalsPage() {
                                   .filter(Boolean)
                                   .join(' ')}
                               >
-                                {isEmpty ? '—' : value}
+                                {isEmpty ? '' : value}
                               </span>
                             )}
                           </td>
@@ -553,7 +567,7 @@ export function GoalsPage() {
                           <button
                             type="button"
                             className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
-                            onClick={() => deleteRow(row.id)}
+                            onClick={() => setPendingDeleteId(row.id)}
                             aria-label="Удалить строку"
                           >
                             <TrashIcon className={styles.trashIcon} />
@@ -636,6 +650,17 @@ export function GoalsPage() {
           )}
         </div>
       </section>
+
+      <ConfirmModal
+        open={pendingDeleteId !== null}
+        title="Удаление записи"
+        message="Действительно удалить эту запись?"
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDeleteId(null)}
+        danger
+      />
     </div>
   )
 }
