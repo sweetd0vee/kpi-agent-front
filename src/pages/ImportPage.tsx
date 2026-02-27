@@ -19,7 +19,7 @@ const SLOT_TYPES: { id: SlotTypeId; label: string }[] = [
   { id: 'business_plan_checklist', label: 'Бизнес-план' },
   { id: 'strategy_checklist', label: 'Стратегия' },
   { id: 'reglament_checklist', label: 'Регламент' },
-  { id: 'department_goals_checklist', label: 'Цели департамента' },
+  { id: 'department_goals_checklist', label: 'Положение о департаменте' },
   { id: 'chairman_goals', label: 'Цели председателя' },
 ]
 
@@ -43,6 +43,7 @@ function PersonIcon({ className }: { className?: string }) {
 export function ImportPage() {
   const [collections, setCollections] = useState<CollectionMeta[]>([])
   const [collectionName, setCollectionName] = useState('')
+  const [collectionDescription, setCollectionDescription] = useState('')
   const [files, setFiles] = useState<Record<SlotTypeId, File | null>>({
     business_plan_checklist: null,
     strategy_checklist: null,
@@ -118,6 +119,7 @@ export function ImportPage() {
       }
       setUploading(false)
       setCollectionName('')
+      setCollectionDescription('')
       setFiles((prev) => ({
         ...prev,
         business_plan_checklist: null,
@@ -240,9 +242,19 @@ export function ImportPage() {
           <input
             type="text"
             className={styles.nameInput}
-            placeholder="Например: Каскадирование 2026"
+            placeholder="Введите название коллекции"
             value={collectionName}
             onChange={(e) => setCollectionName(e.target.value)}
+          />
+        </label>
+        <label className={styles.descriptionLabel}>
+          Описание
+          <textarea
+            className={styles.descriptionInput}
+            placeholder="Краткое описание коллекции"
+            value={collectionDescription}
+            onChange={(e) => setCollectionDescription(e.target.value)}
+            rows={3}
           />
         </label>
         <div className={styles.slotsGrid}>
@@ -254,10 +266,12 @@ export function ImportPage() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
             >
-              <div className={styles.cellIcon}>
-                <PaperclipIcon />
+              <div className={styles.cellTop}>
+                <div className={styles.cellIcon}>
+                  <PaperclipIcon />
+                </div>
+                <span className={styles.cellLabel}>{slot.label}</span>
               </div>
-              <span className={styles.cellLabel}>{slot.label}</span>
               <input
                 ref={(el) => { fileInputRefs.current[slot.id] = el }}
                 type="file"
@@ -302,7 +316,7 @@ export function ImportPage() {
             onClick={handleCreate}
             disabled={creating || uploading}
           >
-            {creating ? 'Создание…' : uploading ? 'Загрузка файлов…' : 'Создать коллекцию'}
+            {creating ? 'Создание…' : uploading ? 'Загрузка файлов…' : 'Создать'}
           </button>
         </div>
       </section>
@@ -313,7 +327,7 @@ export function ImportPage() {
           <input
             type="search"
             className={styles.searchInput}
-            placeholder="Поиск по названию..."
+            placeholder="Поиск коллекции"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Поиск коллекций"
