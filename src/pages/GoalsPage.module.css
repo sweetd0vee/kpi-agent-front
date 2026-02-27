@@ -1,0 +1,409 @@
+.page {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem 0 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.sectionSpacer {
+  flex: 1;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.sectionActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.addBtn {
+  padding: 0.5rem 0.95rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background: #1e3a8a;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.addBtn:hover {
+  background: #1e40af;
+  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.25);
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 1040px;
+  border-collapse: collapse;
+  border: 1px solid #cbd5e1;
+  table-layout: fixed;
+}
+
+.table th {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  background: #1e3a8a;
+  border: 1px solid #cbd5e1;
+}
+
+.table td {
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.headerWithSearch {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.headerLabel {
+  font-weight: 600;
+}
+
+.searchField {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.35rem;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  min-height: 1.5rem;
+}
+
+.searchFieldCompact {
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+}
+
+.searchFieldWide {
+  width: 100%;
+  min-width: 10rem;
+  justify-self: stretch;
+}
+
+.searchField:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+}
+
+.searchIcon {
+  width: 12px;
+  height: 12px;
+  color: #64748b;
+}
+
+.searchInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 0.75rem;
+  color: #0f172a;
+  background: transparent;
+}
+
+.searchInputCompact {
+  width: 100%;
+}
+
+.searchInputWide {
+  width: 100%;
+}
+
+.searchInput::placeholder {
+  color: #94a3b8;
+}
+
+.searchInput:disabled {
+  color: #94a3b8;
+}
+
+.colSurname {
+  width: 11rem;
+}
+
+.colGoal {
+  width: 42%;
+}
+
+.colQuarter {
+  width: 8rem;
+}
+
+.actionsCol {
+  width: 4.6rem;
+}
+
+.actionsCell {
+  text-align: center;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.16);
+}
+
+.goalInput {
+  min-height: 2.2rem;
+  resize: vertical;
+}
+
+.quarterInput {
+  text-align: center;
+}
+
+.valueText {
+  display: block;
+  font-size: 0.8125rem;
+  color: #0f172a;
+  line-height: 1.4;
+  min-height: 2rem;
+}
+
+.valueMuted {
+  color: #94a3b8;
+}
+
+.valueCenter {
+  text-align: center;
+}
+
+.valueMultiline {
+  white-space: pre-wrap;
+}
+
+.actionGroup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.editBtn,
+.saveBtn,
+.cancelBtn {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8125rem;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.editBtn {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.editBtn:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.editBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.saveBtn {
+  background: #1e3a8a;
+  color: #fff;
+  border-color: #1e3a8a;
+}
+
+.saveBtn:hover:not(:disabled) {
+  background: #1e40af;
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  background: #fff;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.cancelBtn:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.iconBtn {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.iconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.iconBtnEdit:hover:not(:disabled) {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.iconBtnDanger:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.trashIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.pencilIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.tableFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.paginationBtn {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.paginationBtn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.paginationBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.paginationBtnActive {
+  background: #1e3a8a;
+  color: #fff;
+  border-color: #1e3a8a;
+}
+
+.paginationBtnActive:hover {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: #fff;
+}
+
+.emptyCell {
+  padding: 1.2rem;
+  text-align: center;
+  color: #94a3b8;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}

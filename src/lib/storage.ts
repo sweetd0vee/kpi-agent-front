@@ -4,6 +4,7 @@ const CHATS_KEY = 'kpi-cascading-chats'
 const SETTINGS_KEY = 'kpi-cascading-settings'
 const UPLOADED_FILES_KEY = 'kpi-cascading-uploaded-files'
 const COLLECTIONS_KEY = 'kpi-cascading-collections'
+const GOALS_KEY = 'kpi-cascading-goals'
 
 export type StoredUploadedFile = {
   fileId: string
@@ -22,6 +23,20 @@ export type StoredCollection = {
 export type ChatSettings = {
   apiUrl: string
   apiKey: string
+}
+
+export type GoalRow = {
+  id: string
+  lastName: string
+  goal: string
+  q1: string
+  q2: string
+  q3: string
+  q4: string
+}
+
+export type GoalsState = {
+  rows: GoalRow[]
 }
 
 export function getChats(): StoredChat[] {
@@ -85,4 +100,51 @@ export function getCollections(): StoredCollection[] {
 
 export function saveCollections(collections: StoredCollection[]): void {
   localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections))
+}
+
+const EMPTY_GOALS_STATE: GoalsState = { rows: [] }
+
+function normalizeGoalRows(value: unknown): GoalRow[] {
+  if (!Array.isArray(value)) return []
+  return value.map((row) => {
+    const item = row as Partial<GoalRow>
+    return {
+      id: typeof item.id === 'string' ? item.id : generateId(),
+      lastName: typeof item.lastName === 'string' ? item.lastName : '',
+      goal: typeof item.goal === 'string' ? item.goal : '',
+      q1: typeof item.q1 === 'string' ? item.q1 : '',
+      q2: typeof item.q2 === 'string' ? item.q2 : '',
+      q3: typeof item.q3 === 'string' ? item.q3 : '',
+      q4: typeof item.q4 === 'string' ? item.q4 : '',
+    }
+  })
+}
+
+export function getGoalsState(): GoalsState {
+  try {
+    const raw = localStorage.getItem(GOALS_KEY)
+    if (!raw) return EMPTY_GOALS_STATE
+    const parsedJson = JSON.parse(raw)
+    if (!parsedJson || typeof parsedJson !== 'object') return EMPTY_GOALS_STATE
+    const parsed = parsedJson as Partial<GoalsState> & {
+      chairman?: GoalRow[]
+      directors?: GoalRow[]
+    }
+    const rows = normalizeGoalRows(parsed?.rows)
+    if ('rows' in parsed) {
+      return { rows }
+    }
+    const legacyRows = [...normalizeGoalRows(parsed?.chairman), ...normalizeGoalRows(parsed?.directors)]
+    return { rows: legacyRows }
+  } catch {
+    return EMPTY_GOALS_STATE
+  }
+}
+
+export function saveGoalsState(state: GoalsState): void {
+  localStorage.setItem(GOALS_KEY, JSON.stringify(state))
+}
+
+export function hasGoalsState(): boolean {
+  return localStorage.getItem(GOALS_KEY) !== null
 }

@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
+import { GoalsPage } from '@/pages/GoalsPage'
 import { ImportPage } from '@/pages/ImportPage'
 import { ChatPage } from '@/pages/Chat'
 import { DashboardsPage } from '@/pages/DashboardsPage'
@@ -8,8 +9,9 @@ function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/import" replace />} />
-        <Route path="/import" element={<ImportPage />} />
+        <Route path="/" element={<Navigate to="/goals" replace />} />
+        <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/knowledge" element={<ImportPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/dashboards" element={<DashboardsPage />} />
       </Routes>
