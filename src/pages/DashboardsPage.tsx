@@ -550,17 +550,6 @@ export function DashboardsPage() {
 
           </div>
 
-          <h2 className={styles.sectionTitle}>Идеи для развития дашбордов</h2>
-          <div className={styles.ideasList}>
-            <ul>
-              <li><strong>План vs факт</strong> — при появлении фактических значений сравнение с плановыми по кварталам и году.</li>
-              <li><strong>Сравнение кварталов</strong> — агрегация числовых метрик (сумма/среднее) по Q1–Q4 с выбором метрики.</li>
-              <li><strong>Дерево целей</strong> — иерархия: SCAI-цель → метрические цели с весами и статусом заполненности.</li>
-              <li><strong>Экспорт отчёта</strong> — выгрузка дашборда в PDF/Excel для презентации.</li>
-              <li><strong>Фильтр по ФИО / цели</strong> — просмотр дашборда в разрезе одного сотрудника или одной цели.</li>
-            </ul>
-          </div>
-
           <h2 className={styles.sectionTitle}>Сводная таблица (метрика, вес года, год)</h2>
           <div className={styles.tableWrap}>
             <table className={styles.summaryTable}>
