@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { generateId, getGoalsState, saveGoalsState, type GoalRow } from '@/lib/storage'
 import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exportGoalsPDF } from '@/lib/exportGoals'
+import { parseKpiXlsxToRows } from '@/lib/importGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditRowModal, type EditRowField } from '@/components/EditRowModal/EditRowModal'
 import styles from './GoalsPage.module.css'
@@ -116,8 +117,11 @@ export function GoalsPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     saveGoalsState(goalsState)
@@ -362,6 +366,43 @@ export function GoalsPage() {
     setPendingDeleteId(null)
   }, [pendingDeleteId, deleteRow])
 
+  const confirmClearTable = useCallback(() => {
+    setGoalsState({ rows: [] })
+    setPage(1)
+    setPendingClearTable(false)
+  }, [])
+
+  const handleImportClick = useCallback(() => {
+    setImportError(null)
+    importInputRef.current?.click()
+  }, [])
+
+  const handleImportFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = ''
+      if (!file) return
+      const isXlsx = /\.xlsx$/i.test(file.name)
+      if (!isXlsx) {
+        setImportError('Выберите файл .xlsx')
+        return
+      }
+      parseKpiXlsxToRows(file)
+        .then((rows) => {
+          if (rows.length === 0) {
+            setImportError('В файле нет данных или заголовки не совпадают. Ожидаются: ФИО, SCAI Цель, Метрические цели, вес квартал, вес год, 1–4 квартал, Год.')
+            return
+          }
+          setGoalsState((prev) => ({ ...prev, rows: [...prev.rows, ...rows] }))
+          setImportError(null)
+        })
+        .catch((err) => {
+          setImportError(err instanceof Error ? err.message : 'Ошибка загрузки файла')
+        })
+    },
+    []
+  )
+
   return (
     <div className={styles.page}>
       <header className={styles.hero}>
@@ -374,6 +415,26 @@ export function GoalsPage() {
         <header className={styles.sectionHeader}>
           <div className={styles.sectionSpacer} aria-hidden />
           <div className={styles.sectionActions}>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx"
+              className={styles.hiddenInput}
+              aria-hidden
+              onChange={handleImportFile}
+            />
+            <button type="button" className={styles.importBtn} onClick={handleImportClick} disabled={!!editingRowId} title="Импорт из xlsx">
+              Импортировать
+            </button>
+            <button
+              type="button"
+              className={styles.clearTableBtn}
+              onClick={() => setPendingClearTable(true)}
+              disabled={goalsState.rows.length === 0 || !!editingRowId}
+              title="Удалить все записи в таблице"
+            >
+              Очистить таблицу
+            </button>
             <button
               type="button"
               className={styles.addBtn}
@@ -385,6 +446,11 @@ export function GoalsPage() {
             </button>
           </div>
         </header>
+        {importError && (
+          <div className={styles.importError} role="alert">
+            {importError}
+          </div>
+        )}
 
         <div className={styles.tableWrap}>
           <table className={styles.table}>
@@ -639,6 +705,17 @@ export function GoalsPage() {
         cancelLabel="Отмена"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
+        danger
+      />
+
+      <ConfirmModal
+        open={pendingClearTable}
+        title="Очистить таблицу"
+        message="Удалить все записи в таблице ППР? Это действие нельзя отменить."
+        confirmLabel="Очистить"
+        cancelLabel="Отмена"
+        onConfirm={confirmClearTable}
+        onCancel={() => setPendingClearTable(false)}
         danger
       />
 

@@ -105,6 +105,7 @@ export function KpiPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
@@ -323,6 +324,12 @@ export function KpiPage() {
     setPendingDeleteId(null)
   }, [pendingDeleteId, deleteRow])
 
+  const confirmClearTable = useCallback(() => {
+    setGoalsState({ rows: [] })
+    setPage(1)
+    setPendingClearTable(false)
+  }, [])
+
   return (
     <div className={styles.page}>
       <header className={styles.hero}>
@@ -345,6 +352,15 @@ export function KpiPage() {
             />
             <button type="button" className={styles.importBtn} onClick={handleImportClick} disabled={!!editingRowId} title="Импорт из xlsx">
               Импортировать
+            </button>
+            <button
+              type="button"
+              className={styles.clearTableBtn}
+              onClick={() => setPendingClearTable(true)}
+              disabled={goalsState.rows.length === 0 || !!editingRowId}
+              title="Удалить все записи в таблице"
+            >
+              Очистить таблицу
             </button>
             <button type="button" className={styles.addBtn} onClick={addRow} aria-label="Добавить строку" title="Добавить строку">
               <PlusIcon className={styles.addBtnIcon} />
@@ -475,6 +491,17 @@ export function KpiPage() {
         cancelLabel="Отмена"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
+        danger
+      />
+
+      <ConfirmModal
+        open={pendingClearTable}
+        title="Очистить таблицу"
+        message="Удалить все записи в таблице КПЭ? Это действие нельзя отменить."
+        confirmLabel="Очистить"
+        cancelLabel="Отмена"
+        onConfirm={confirmClearTable}
+        onCancel={() => setPendingClearTable(false)}
         danger
       />
 

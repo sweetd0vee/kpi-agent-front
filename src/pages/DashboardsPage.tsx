@@ -550,27 +550,6 @@ export function DashboardsPage() {
 
           </div>
 
-          <h2 className={styles.sectionTitle}>Сводная таблица (метрика, вес года, год)</h2>
-          <div className={styles.tableWrap}>
-            <table className={styles.summaryTable}>
-              <thead>
-                <tr>
-                  <th>Метрическая цель</th>
-                  <th>Вес года</th>
-                  <th>Год</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.id ?? i}>
-                    <td>{r.metricGoals?.trim() || r.goal?.trim() || ''}</td>
-                    <td>{r.weightYear?.trim() || ''}</td>
-                    <td>{r.year?.trim() || ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </>
       )}
       </div>
