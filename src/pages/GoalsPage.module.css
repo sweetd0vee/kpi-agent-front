@@ -67,21 +67,62 @@
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
-  border: 2px solid #1e3a8a;
+  border: 1px solid #1e3a8a;
   border-radius: 50%;
-  background: transparent;
+  background: #1e3a8a;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
 }
 
-.addBtn:hover {
-  background: rgba(30, 58, 138, 0.1);
+.addBtn:hover:not(:disabled) {
+  background: #1e40af;
+  border-color: #1e40af;
 }
 
 .addBtnIcon {
   width: 1.125rem;
   height: 1.125rem;
-  color: #1e3a8a;
+  color: #fff;
+}
+
+.hiddenInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.importBtn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background: #1e3a8a;
+  border: 1px solid #1e3a8a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.importBtn:hover:not(:disabled) {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: #fff;
+}
+
+.importBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.importError {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
 }
 
 .tableWrap {
