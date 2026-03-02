@@ -10,13 +10,7 @@
   font-size: 1.75rem;
   font-weight: 700;
   color: #1e3a8a;
-}
-
-.description {
-  margin: 0 0 1rem;
-  color: #64748b;
-  line-height: 1.5;
-  font-size: 0.9375rem;
+  text-align: center;
 }
 
 .tabs {
@@ -448,6 +442,22 @@
   color: #64748b;
   line-height: 1.5;
   text-align: center;
+}
+
+.goalManagersWrap {
+  margin-top: 0.5rem;
+}
+
+.goalManagersSummary {
+  margin: 0 0 0.75rem;
+  font-size: 0.9375rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.goalManagerName {
+  font-weight: 600;
+  color: #1e3a8a;
 }
 
 .eulerSelects {
