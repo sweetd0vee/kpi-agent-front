@@ -720,7 +720,7 @@
   font-size: 0.9375rem;
   font-weight: 500;
   color: #fff;
-  background: #059669;
+  background: #1e3a8a;
   border: 2px solid transparent;
   border-radius: 10px;
   cursor: pointer;
@@ -731,13 +731,13 @@
 
 .cardGenerateJsonBtn:focus-visible {
   outline: none;
-  border-color: #047857;
-  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.3);
+  border-color: #1e40af;
+  box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.3);
 }
 
 .cardGenerateJsonBtn:hover:not(:disabled) {
-  background: #047857;
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+  background: #1e40af;
+  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);
 }
 
 .cardGenerateJsonBtn:disabled {

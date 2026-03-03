@@ -261,7 +261,10 @@ export function ImportPage() {
 
   const filteredCollections = collections.filter((col) => {
     const matchesSearch = !searchQuery.trim() || col.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-    const matchesFilter = filterMode === 'mine' || hasProcessedDocs(col.id)
+    const isJsonCollection = (col.name || '').endsWith(' (JSON)')
+    const isProcessed = hasProcessedDocs(col.id) || isJsonCollection
+    const matchesFilter =
+      filterMode === 'mine' ? !isProcessed : isProcessed
     return matchesSearch && matchesFilter
   })
 
@@ -535,17 +538,19 @@ export function ImportPage() {
                       )
                     })}
                   </div>
-                  <div className={styles.cardActions}>
-                    <button
-                      type="button"
-                      className={styles.cardGenerateJsonBtn}
-                      onClick={() => handleGenerateJson(col)}
-                      disabled={isGenerating || !hasDocs}
-                      title="Преобразовать все файлы коллекции через LLM в JSON и создать новую коллекцию для прикрепления к чату"
-                    >
-                      {isGenerating ? 'Генерация…' : 'Сгенерировать JSON'}
-                    </button>
-                  </div>
+                  {!(col.name || '').endsWith(' (JSON)') && (
+                    <div className={styles.cardActions}>
+                      <button
+                        type="button"
+                        className={styles.cardGenerateJsonBtn}
+                        onClick={() => handleGenerateJson(col)}
+                        disabled={isGenerating || !hasDocs}
+                        title="Преобразовать все файлы коллекции через LLM в JSON и создать новую коллекцию для прикрепления к чату"
+                      >
+                        {isGenerating ? 'Генерация…' : 'Сгенерировать JSON'}
+                      </button>
+                    </div>
+                  )}
                 </li>
               )
             })}
