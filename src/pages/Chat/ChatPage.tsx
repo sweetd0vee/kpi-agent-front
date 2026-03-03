@@ -7,11 +7,15 @@ import {
   type OpenWebUIModel,
 } from '@/api/openwebui'
 import {
+  getCollections as getApiCollections,
+  getCollectionContext,
+  type CollectionMeta,
+} from '@/api/documents'
+import {
   getChats,
   saveChats,
   getSettings,
   saveSettings,
-  getCollections,
   generateId,
 } from '@/lib/storage'
 import type { ChatSettings } from '@/lib/storage'
@@ -76,7 +80,9 @@ export function ChatPage() {
   const [attachments, setAttachments] = useState<(AttachedFile | AttachedCollection)[]>([])
   const [showAttachDropdown, setShowAttachDropdown] = useState(false)
   const [showCollectionPicker, setShowCollectionPicker] = useState(false)
-  const [collectionList, setCollectionList] = useState<ReturnType<typeof getCollections>>([])
+  const [collectionList, setCollectionList] = useState<CollectionMeta[]>([])
+  const [collectionListLoading, setCollectionListLoading] = useState(false)
+  const [collectionListError, setCollectionListError] = useState<string | null>(null)
   const settingsDropdownRef = useRef<HTMLDivElement>(null)
   const attachDropdownRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState('')
@@ -212,10 +218,20 @@ export function ChatPage() {
     fileInputRef.current?.click()
   }, [])
 
-  const handleAttachCollectionClick = useCallback(() => {
+  const handleAttachCollectionClick = useCallback(async () => {
     setShowAttachDropdown(false)
     setShowCollectionPicker(true)
-    setCollectionList(getCollections())
+    setCollectionListLoading(true)
+    setCollectionListError(null)
+    try {
+      const list = await getApiCollections()
+      setCollectionList(list)
+    } catch (e) {
+      setCollectionListError(e instanceof Error ? e.message : 'Не удалось загрузить коллекции. Запустите бэкенд (порт 8000).')
+      setCollectionList([])
+    } finally {
+      setCollectionListLoading(false)
+    }
   }, [])
 
   const handleFileChange = useCallback(
@@ -316,16 +332,38 @@ export function ChatPage() {
       )
     )
 
-    const apiMessages = nextMessages.map((m) => ({ role: m.role, content: m.content }))
-    const allCollections = getCollections()
+    const collectionAttachments = attachments.filter(
+      (a): a is AttachedCollection => 'collectionId' in a
+    )
+    let userContentWithContext = text
+    if (collectionAttachments.length > 0) {
+      const contextParts: string[] = []
+      for (const a of collectionAttachments) {
+        try {
+          const ctx = await getCollectionContext(a.collectionId)
+          const note =
+            ctx.document_count > 0 && ctx.included_count < ctx.document_count
+              ? ` (в контекст передано ${ctx.included_count} из ${ctx.document_count} документов)`
+              : ''
+          contextParts.push(`Коллекция «${a.name}»${note}:\n\n${ctx.content}`)
+        } catch {
+          contextParts.push(`Коллекция «${a.name}»: (не удалось загрузить содержимое)`)
+        }
+      }
+      userContentWithContext = `Контекст из прикреплённых коллекций (база знаний):\n\n${contextParts.join('\n\n---\n\n')}\n\n---\n\n${text}`
+    }
+
+    const apiMessages = nextMessages.map((m, i) => {
+      const isLastUser = i === nextMessages.length - 1 && m.role === 'user'
+      return {
+        role: m.role,
+        content: isLastUser ? userContentWithContext : m.content,
+      }
+    })
+    const fileAttachments = attachments.filter((a): a is AttachedFile => 'fileId' in a)
     const files =
-      attachments.length > 0
-        ? attachments.flatMap((a) => {
-            if ('fileId' in a) return [{ type: 'file' as const, id: a.fileId }]
-            const col = allCollections.find((c) => c.id === a.collectionId)
-            if (!col?.fileIds?.length) return []
-            return col.fileIds.map((id) => ({ type: 'file' as const, id }))
-          })
+      fileAttachments.length > 0
+        ? fileAttachments.map((a) => ({ type: 'file' as const, id: a.fileId }))
         : undefined
 
     try {
@@ -641,7 +679,15 @@ export function ChatPage() {
               {showCollectionPicker && (
                 <div className={styles.collectionPicker}>
                   <div className={styles.collectionPickerTitle}>Выберите коллекцию</div>
-                  {collectionList.length === 0 ? (
+                  {collectionListLoading ? (
+                    <div className={styles.collectionPickerEmpty}>
+                      Загрузка…
+                    </div>
+                  ) : collectionListError ? (
+                    <div className={styles.collectionPickerEmpty}>
+                      {collectionListError}
+                    </div>
+                  ) : collectionList.length === 0 ? (
                     <div className={styles.collectionPickerEmpty}>
                       Нет коллекций. Создайте их на вкладке «База знаний».
                     </div>
@@ -654,10 +700,7 @@ export function ChatPage() {
                             className={styles.collectionPickerItem}
                             onClick={() => handleSelectCollection(col)}
                           >
-                            <CollectionIcon className={styles.fileChipIcon} /> {col.name}{' '}
-                            <span className={styles.collectionPickerMeta}>
-                              ({col.fileIds.length} файлов)
-                            </span>
+                            <CollectionIcon className={styles.fileChipIcon} /> {col.name}
                           </button>
                         </li>
                       ))}

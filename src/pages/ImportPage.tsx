@@ -1,13 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import {
   getCollections,
   createCollection,
   updateCollection,
   deleteCollection,
+  generateCollectionJson,
   listDocuments,
   uploadDocument,
   deleteDocument,
-  preprocessDocument,
+  getTemplateDocuments,
   type DocumentMeta,
   type CollectionMeta,
 } from '@/api/documents'
@@ -54,13 +56,15 @@ export function ImportPage() {
   })
   const [creating, setCreating] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [preprocessing, setPreprocessing] = useState<string | null>(null)
+  const [generatingJsonId, setGeneratingJsonId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [deleteConfirmCollection, setDeleteConfirmCollection] = useState<CollectionMeta | null>(null)
   const [docsByCollection, setDocsByCollection] = useState<Record<string, Record<string, DocumentMeta[]>>>({})
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterMode, setFilterMode] = useState<'mine' | 'processed'>('mine')
+  const [templateDocs, setTemplateDocs] = useState<Record<string, DocumentMeta | null>>({})
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const loadCollections = useCallback(async () => {
@@ -95,6 +99,19 @@ export function ImportPage() {
     collections.forEach((c) => loadDocumentsForCollection(c.id))
   }, [collections, loadDocumentsForCollection])
 
+  const loadTemplateDocs = useCallback(async () => {
+    try {
+      const data = await getTemplateDocuments()
+      setTemplateDocs(data)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    loadTemplateDocs()
+  }, [loadTemplateDocs])
+
   const setFile = (typeId: SlotTypeId, file: File | null) => {
     setFiles((prev) => ({ ...prev, [typeId]: file }))
   }
@@ -110,15 +127,22 @@ export function ImportPage() {
       setFilterMode('mine')
       setSearchQuery('')
       setUploading(true)
+      const owuErrors: string[] = []
       for (const slot of SLOT_TYPES) {
         const file = files[slot.id]
         if (file) {
           try {
-            await uploadDocument(slot.id, file, col.id)
+            const res = await uploadDocument(slot.id, file, col.id)
+            if (res.open_webui_synced === false && res.open_webui_error) {
+              owuErrors.push(`${file.name}: ${res.open_webui_error}`)
+            }
           } catch (e) {
             setError(e instanceof Error ? e.message : `Ошибка загрузки: ${slot.label}`)
           }
         }
+      }
+      if (owuErrors.length > 0) {
+        setError((prev) => (prev ? `${prev}. ` : '') + `Open Web UI: не удалось синхронизировать файлы (${owuErrors.length}): ${owuErrors.slice(0, 3).join('; ')}${owuErrors.length > 3 ? '…' : ''}. В чате приложения контекст коллекции будет полным; в чате Open Web UI могут быть видны не все файлы.`)
       }
       setUploading(false)
       setCollectionName('')
@@ -184,6 +208,7 @@ export function ImportPage() {
   }, [editingId, editingName])
 
   const handleDeleteCollection = useCallback(async (id: string) => {
+    setDeleteConfirmCollection(null)
     setError(null)
     try {
       await deleteCollection(id)
@@ -197,20 +222,6 @@ export function ImportPage() {
       setError(e instanceof Error ? e.message : 'Ошибка удаления')
     }
   }, [])
-
-  const handlePreprocess = useCallback(async (doc: DocumentMeta, collectionId: string) => {
-    setError(null)
-    setPreprocessing(doc.id)
-    try {
-      const res = await preprocessDocument(doc.id)
-      if (res.error) setError(res.error)
-      else await loadDocumentsForCollection(collectionId)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка предобработки')
-    } finally {
-      setPreprocessing(null)
-    }
-  }, [loadDocumentsForCollection])
 
   const handleDeleteDoc = useCallback(async (doc: DocumentMeta, collectionId: string) => {
     setError(null)
@@ -226,6 +237,27 @@ export function ImportPage() {
     const docs = docsByCollection[collectionId] ?? {}
     return Object.values(docs).some((arr) => arr.some((d) => d.preprocessed))
   }
+
+  const handleGenerateJson = useCallback(
+    async (col: CollectionMeta) => {
+      setError(null)
+      setGeneratingJsonId(col.id)
+      try {
+        const res = await generateCollectionJson(col.id)
+        setCollections((prev) => [res.collection, ...prev])
+        setDocsByCollection((prev) => ({ ...prev, [res.collection.id]: {} }))
+        await loadDocumentsForCollection(res.collection.id)
+        if (res.errors.length > 0) {
+          setError(`Создана коллекция «${res.collection.name}» (обработано ${res.documents_processed} из ${res.errors.length + res.documents_processed}). Ошибки: ${res.errors.join('; ')}`)
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Ошибка генерации JSON')
+      } finally {
+        setGeneratingJsonId(null)
+      }
+    },
+    [loadDocumentsForCollection]
+  )
 
   const filteredCollections = collections.filter((col) => {
     const matchesSearch = !searchQuery.trim() || col.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
@@ -278,68 +310,102 @@ export function ImportPage() {
           />
         </label>
         <div className={styles.slotsGrid}>
-          {SLOT_TYPES.map((slot) => (
-            <div
-              key={slot.id}
-              className={styles.cell}
-              onDrop={(e) => handleDrop(slot.id, e)}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-            >
-              <div className={styles.cellTop}>
-                <div className={styles.cellIcon}>
-                  <PaperclipIcon />
+          {SLOT_TYPES.map((slot) => {
+            const isTemplateSlot =
+              slot.id === 'business_plan_checklist' ||
+              slot.id === 'strategy_checklist' ||
+              slot.id === 'reglament_checklist'
+            const templateDoc = isTemplateSlot ? (templateDocs[slot.id] ?? null) : null
+            const fromTemplate = isTemplateSlot && templateDoc != null
+
+            if (isTemplateSlot) {
+              return (
+                <div key={slot.id} className={`${styles.cell} ${styles.cellFromTemplate}`}>
+                  <div className={styles.cellTop}>
+                    <div className={styles.cellIcon}>
+                      <PaperclipIcon />
+                    </div>
+                    <span className={styles.cellLabel}>{slot.label}</span>
+                  </div>
+                  {templateDoc ? (
+                    <div className={styles.cellFile}>
+                      <span className={styles.cellFileName} title={templateDoc.name}>
+                        {templateDoc.name}
+                      </span>
+                      <span className={styles.cellTemplateBadge}>из настроек</span>
+                    </div>
+                  ) : (
+                    <span className={styles.cellTemplateHint}>
+                      Загрузите в <Link to="/settings" className={styles.cellTemplateLink}>Настройках</Link>
+                    </span>
+                  )}
                 </div>
-                <span className={styles.cellLabel}>{slot.label}</span>
-                {slot.id === 'chairman_goals' && (
-                  <button
-                    type="button"
-                    className={styles.cellTemplateBtn}
-                    onClick={() => downloadGoalsTemplate()}
-                    title="Скачать шаблон таблицы целей (ППР)"
-                  >
-                    Скачать шаблон
-                  </button>
+              )
+            }
+
+            return (
+              <div
+                key={slot.id}
+                className={styles.cell}
+                onDrop={(e) => handleDrop(slot.id, e)}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+              >
+                <div className={styles.cellTop}>
+                  <div className={styles.cellIcon}>
+                    <PaperclipIcon />
+                  </div>
+                  <span className={styles.cellLabel}>{slot.label}</span>
+                  {slot.id === 'chairman_goals' && (
+                    <button
+                      type="button"
+                      className={styles.cellTemplateBtn}
+                      onClick={() => downloadGoalsTemplate()}
+                      title="Скачать шаблон таблицы целей (ППР)"
+                    >
+                      Скачать шаблон
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={(el) => { fileInputRefs.current[slot.id] = el }}
+                  type="file"
+                  className={styles.hiddenInput}
+                  accept=".pdf,.docx,.xlsx,.xls,.txt"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    setFile(slot.id, f ?? null)
+                    e.target.value = ''
+                  }}
+                />
+                {files[slot.id] ? (
+                  <div className={styles.cellFile}>
+                    <span className={styles.cellFileName} title={files[slot.id]!.name}>
+                      {files[slot.id]!.name}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.cellRemove}
+                      onClick={() => setFile(slot.id, null)}
+                      title="Убрать файл"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.cellAttach}
+                      onClick={() => fileInputRefs.current[slot.id]?.click()}
+                    >
+                      Прикрепить файл
+                    </button>
+                  </>
                 )}
               </div>
-              <input
-                ref={(el) => { fileInputRefs.current[slot.id] = el }}
-                type="file"
-                className={styles.hiddenInput}
-                accept=".pdf,.docx,.xlsx,.xls,.txt"
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  setFile(slot.id, f ?? null)
-                  e.target.value = ''
-                }}
-              />
-              {files[slot.id] ? (
-                <div className={styles.cellFile}>
-                  <span className={styles.cellFileName} title={files[slot.id]!.name}>
-                    {files[slot.id]!.name}
-                  </span>
-                  <button
-                    type="button"
-                    className={styles.cellRemove}
-                    onClick={() => setFile(slot.id, null)}
-                    title="Убрать файл"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className={styles.cellAttach}
-                    onClick={() => fileInputRefs.current[slot.id]?.click()}
-                  >
-                    Прикрепить файл
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
         <div className={styles.createActions}>
           <button
@@ -399,6 +465,8 @@ export function ImportPage() {
             {filteredCollections.map((col) => {
               const docs = docsByCollection[col.id] ?? {}
               const isEditing = editingId === col.id
+              const isGenerating = generatingJsonId === col.id
+              const hasDocs = Object.values(docs).some((arr) => arr.length > 0)
               return (
                 <li key={col.id} className={styles.collectionCard}>
                   <div className={styles.cardHead}>
@@ -418,7 +486,7 @@ export function ImportPage() {
                     ) : (
                       <h3 className={styles.cardName}>{col.name}</h3>
                     )}
-                    <div className={styles.cardActions}>
+                    <div className={styles.cardHeadActions}>
                       <button
                         type="button"
                         className={styles.cardBtn}
@@ -430,18 +498,18 @@ export function ImportPage() {
                       <button
                         type="button"
                         className={styles.cardBtnDanger}
-                        onClick={() => handleDeleteCollection(col.id)}
+                        onClick={() => setDeleteConfirmCollection(col)}
                         title="Удалить"
                       >
                         ×
                       </button>
                     </div>
                   </div>
-                  <div className={styles.cardSlots}>
+                  <div className={styles.cardSlotsGrid}>
                     {SLOT_TYPES.map((slot) => {
                       const doc = (docs[slot.id] ?? [])[0]
                       return (
-                        <div key={slot.id} className={styles.cardSlot}>
+                        <div key={slot.id} className={styles.cardSlotCell}>
                           <span className={styles.cardSlotLabel}>{slot.label}</span>
                           {doc ? (
                             <div className={styles.cardSlotDoc}>
@@ -450,17 +518,6 @@ export function ImportPage() {
                                 {doc.preprocessed && <span className={styles.cardSlotJson}>_json</span>}
                               </span>
                               <div className={styles.cardSlotActions}>
-                                {!doc.preprocessed && (
-                                  <button
-                                    type="button"
-                                    className={styles.cardSlotBtn}
-                                    onClick={() => handlePreprocess(doc, col.id)}
-                                    disabled={!!preprocessing}
-                                    title="Обработать LLM → JSON"
-                                  >
-                                    {preprocessing === doc.id ? '…' : 'В JSON'}
-                                  </button>
-                                )}
                                 <button
                                   type="button"
                                   className={styles.cardSlotDel}
@@ -478,12 +535,47 @@ export function ImportPage() {
                       )
                     })}
                   </div>
+                  <div className={styles.cardActions}>
+                    <button
+                      type="button"
+                      className={styles.cardGenerateJsonBtn}
+                      onClick={() => handleGenerateJson(col)}
+                      disabled={isGenerating || !hasDocs}
+                      title="Преобразовать все файлы коллекции через LLM в JSON и создать новую коллекцию для прикрепления к чату"
+                    >
+                      {isGenerating ? 'Генерация…' : 'Сгенерировать JSON'}
+                    </button>
+                  </div>
                 </li>
               )
             })}
           </ul>
         )}
       </section>
+
+      {deleteConfirmCollection && (
+        <div className={styles.modalOverlay} onClick={() => setDeleteConfirmCollection(null)} aria-modal="true" role="dialog">
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <p className={styles.modalText}>Удалить коллекцию «{deleteConfirmCollection.name}»?</p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalBtnConfirm}
+                onClick={() => handleDeleteCollection(deleteConfirmCollection.id)}
+              >
+                Да
+              </button>
+              <button
+                type="button"
+                className={styles.modalBtnCancel}
+                onClick={() => setDeleteConfirmCollection(null)}
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

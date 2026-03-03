@@ -7,6 +7,7 @@ const navItems = [
   { to: '/knowledge', label: 'База знаний' },
   { to: '/chat', label: 'Чат с моделью' },
   { to: '/dashboards', label: 'Дашборды' },
+  { to: '/settings', label: 'Настройки' },
 ] as const
 
 export function Layout({ children }: { children?: React.ReactNode }) {

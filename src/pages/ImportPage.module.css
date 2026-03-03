@@ -209,6 +209,37 @@
   background: #eff6ff;
 }
 
+/* Слот, заполненный из настроек (Бизнес-план, Стратегия, Регламент) — только отображение */
+.cellFromTemplate {
+  border-style: solid;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
+.cellTemplateBadge {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: #059669;
+  background: #d1fae5;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.cellTemplateHint {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.cellTemplateLink {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.cellTemplateLink:hover {
+  text-decoration: underline;
+}
+
 .cellIcon {
   color: #64748b;
   margin-bottom: 0.5rem;
@@ -363,15 +394,17 @@
 
 .collectionsToolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
 
 .searchInput {
-  flex: 1;
-  min-width: 12rem;
+  flex: 0 1 56rem;
+  width: 56rem;
+  max-width: 100%;
+  min-width: 0;
   padding: 0.5rem 0.875rem 0.5rem 2.25rem;
   font-size: 0.875rem;
   border: 1px solid #e2e8f0;
@@ -394,6 +427,7 @@
 .filterBtns {
   display: flex;
   gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .filterBtn,
@@ -452,17 +486,24 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
 }
 
+/* Фиксированная высота, равна карточке «Новая коллекция» */
 .collectionCard {
+  display: flex;
+  flex-direction: column;
+  height: 320px;
+  min-height: 320px;
+  max-height: 320px;
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 1.25rem 1.5rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border-radius: 16px;
+  padding: 2.5rem 2.5rem 3rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
   transition: box-shadow 0.2s, border-color 0.2s;
+  box-sizing: border-box;
 }
 
 .collectionCard:hover {
@@ -475,8 +516,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
   border-bottom: 1px solid #f1f5f9;
 }
 
@@ -503,7 +544,7 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
-.cardActions {
+.cardHeadActions {
   display: flex;
   gap: 0.25rem;
 }
@@ -534,10 +575,51 @@
   color: #b91c1c;
 }
 
-.cardSlots {
+/* Сетка слотов в карточке коллекции (как в карточке создания); прокручивается при переполнении */
+.cardSlotsGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .cardSlotsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .cardSlotsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cardSlotCell {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  min-height: 0;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.8125rem;
+}
+
+.cardSlotCell .cardSlotLabel {
+  flex: 0 0 auto;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.cardSlotCell .cardSlotDoc,
+.cardSlotCell .cardSlotEmpty {
+  flex: 1;
+  min-width: 0;
 }
 
 .cardSlot {
@@ -622,4 +704,104 @@
 .cardSlotDel:hover {
   background: #fef2f2;
   color: #b91c1c;
+}
+
+/* Блок с кнопкой внизу карточки (как у «Создать») */
+.cardActions {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cardGenerateJsonBtn {
+  min-width: 12rem;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #fff;
+  background: #059669;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: background 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.cardGenerateJsonBtn:focus-visible {
+  outline: none;
+  border-color: #047857;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.3);
+}
+
+.cardGenerateJsonBtn:hover:not(:disabled) {
+  background: #047857;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+}
+
+.cardGenerateJsonBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --- Модальное окно подтверждения удаления --- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modalBox {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  max-width: 24rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modalText {
+  margin: 0 0 1.25rem;
+  font-size: 1rem;
+  color: #334155;
+}
+
+.modalActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.modalBtnCancel {
+  padding: 0.5rem 1rem;
+  font-size: 0.9375rem;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.modalBtnCancel:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.modalBtnConfirm {
+  padding: 0.5rem 1rem;
+  font-size: 0.9375rem;
+  color: #fff;
+  background: #1e3a8a;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.modalBtnConfirm:hover {
+  background: #1e40af;
 }

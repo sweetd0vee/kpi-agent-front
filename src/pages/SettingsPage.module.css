@@ -1,0 +1,189 @@
+.page {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  min-height: 80vh;
+}
+
+.loading {
+  text-align: center;
+  color: #64748b;
+  margin: 2rem 0;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e3a8a;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #64748b;
+  line-height: 1.6;
+  max-width: 40rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.error {
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.875rem;
+  border-radius: 10px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  padding: 2.5rem 2.5rem 3rem;
+}
+
+.cardTitle {
+  margin: 0 0 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.slotsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .slotsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 1rem;
+  min-height: 140px;
+  min-width: 0;
+  background: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.cell:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.cellTop {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 0;
+}
+
+.cellIcon {
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.cell:hover .cellIcon {
+  color: #3b82f6;
+}
+
+.cellLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.cellAttach {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #3b82f6;
+  background: transparent;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.cellAttach:hover {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.cellAttach:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.cellFile {
+  margin-top: 0.75rem;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cellFileName {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cellReplace {
+  flex-shrink: 0;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  color: #3b82f6;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cellReplace:hover:not(:disabled) {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.cellReplace:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.hiddenInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}

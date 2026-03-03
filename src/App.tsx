@@ -5,6 +5,7 @@ import { KpiPage } from '@/pages/KpiPage'
 import { ImportPage } from '@/pages/ImportPage'
 import { ChatPage } from '@/pages/Chat'
 import { DashboardsPage } from '@/pages/DashboardsPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/kpi" element={<KpiPage />} />
         <Route path="/knowledge" element={<ImportPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/dashboards" element={<DashboardsPage />} />
       </Routes>
