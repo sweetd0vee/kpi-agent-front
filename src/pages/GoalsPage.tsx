@@ -31,30 +31,31 @@ const createRow = (): GoalRow => ({
   q2: '',
   q3: '',
   q4: '',
+  reportYear: '',
   year: '',
 })
 
 const DEMO_ROWS: Array<Omit<GoalRow, 'id'>> = [
-  { lastName: 'Иванов Иван Иванович', goal: 'Рост чистой прибыли', metricGoals: '', weightQ: '', weightYear: '', q1: '+5%', q2: '+7%', q3: '+9%', q4: '+12%', year: '2026' },
-  { lastName: 'Петров Петр Петрович', goal: 'Снижение просроченной задолженности', metricGoals: '', weightQ: '', weightYear: '', q1: '-0.3%', q2: '-0.5%', q3: '-0.7%', q4: '-1%', year: '2026' },
-  { lastName: 'Сидоров Сергей Сергеевич', goal: 'Увеличение доли цифровых продаж', metricGoals: '', weightQ: '', weightYear: '', q1: '35%', q2: '40%', q3: '45%', q4: '50%', year: '2026' },
-  { lastName: 'Кузнецов Максим Андреевич', goal: 'Рост операционной эффективности', metricGoals: '', weightQ: '', weightYear: '', q1: '+2%', q2: '+4%', q3: '+6%', q4: '+8%', year: '2026' },
-  { lastName: 'Смирнов Алексей Павлович', goal: 'Оптимизация затрат на персонал', metricGoals: '', weightQ: '', weightYear: '', q1: '-1%', q2: '-2%', q3: '-3%', q4: '-4%', year: '2026' },
-  { lastName: 'Попов Николай Викторович', goal: 'Развитие корпоративного портфеля', metricGoals: '', weightQ: '', weightYear: '', q1: '+4%', q2: '+6%', q3: '+8%', q4: '+10%', year: '2026' },
-  { lastName: 'Васильев Артем Николаевич', goal: 'Рост клиентской удовлетворенности', metricGoals: '', weightQ: '', weightYear: '', q1: 'NPS 48', q2: 'NPS 52', q3: 'NPS 55', q4: 'NPS 58', year: '2026' },
-  { lastName: 'Новиков Дмитрий Олегович', goal: 'Сокращение сроков кредитного решения', metricGoals: '', weightQ: '', weightYear: '', q1: '5 дн.', q2: '4 дн.', q3: '3 дн.', q4: '2 дн.', year: '2026' },
-  { lastName: 'Федоров Илья Сергеевич', goal: 'Увеличение комиссионного дохода', metricGoals: '', weightQ: '', weightYear: '', q1: '+6%', q2: '+8%', q3: '+10%', q4: '+12%', year: '2026' },
-  { lastName: 'Морозов Константин Евгеньевич', goal: 'Рост доли ESG-проектов', metricGoals: '', weightQ: '', weightYear: '', q1: '8%', q2: '10%', q3: '12%', q4: '15%', year: '2026' },
-  { lastName: 'Волков Антон Игоревич', goal: 'Повышение точности скоринга', metricGoals: '', weightQ: '', weightYear: '', q1: '85%', q2: '88%', q3: '90%', q4: '92%', year: '2026' },
-  { lastName: 'Алексеев Павел Дмитриевич', goal: 'Оптимизация процессов KYC', metricGoals: '', weightQ: '', weightYear: '', q1: '90%', q2: '92%', q3: '94%', q4: '96%', year: '2026' },
-  { lastName: 'Лебедев Кирилл Валерьевич', goal: 'Развитие продуктовой линейки МСБ', metricGoals: '', weightQ: '', weightYear: '', q1: '+2 продукта', q2: '+3 продукта', q3: '+4 продукта', q4: '+5 продукта', year: '2026' },
-  { lastName: 'Семенов Роман Николаевич', goal: 'Снижение операционных рисков', metricGoals: '', weightQ: '', weightYear: '', q1: '-5%', q2: '-8%', q3: '-10%', q4: '-12%', year: '2026' },
-  { lastName: 'Егоров Виталий Михайлович', goal: 'Рост портфеля ипотеки', metricGoals: '', weightQ: '', weightYear: '', q1: '+3%', q2: '+5%', q3: '+7%', q4: '+9%', year: '2026' },
-  { lastName: 'Павлов Денис Владимирович', goal: 'Развитие партнерских каналов', metricGoals: '', weightQ: '', weightYear: '', q1: '4 партнера', q2: '6 партнеров', q3: '8 партнеров', q4: '10 партнеров', year: '2026' },
-  { lastName: 'Козлов Аркадий Ильич', goal: 'Снижение time-to-market', metricGoals: '', weightQ: '', weightYear: '', q1: '8 нед.', q2: '7 нед.', q3: '6 нед.', q4: '5 нед.', year: '2026' },
-  { lastName: 'Степанов Игорь Семенович', goal: 'Рост конверсии лидов', metricGoals: '', weightQ: '', weightYear: '', q1: '18%', q2: '20%', q3: '22%', q4: '25%', year: '2026' },
-  { lastName: 'Николаев Владислав Петрович', goal: 'Повышение киберустойчивости', metricGoals: '', weightQ: '', weightYear: '', q1: '95%', q2: '96%', q3: '97%', q4: '98%', year: '2026' },
-  { lastName: 'Орлов Тимофей Алексеевич', goal: 'Увеличение доли безналичных операций', metricGoals: '', weightQ: '', weightYear: '', q1: '62%', q2: '65%', q3: '68%', q4: '70%', year: '2026' },
+  { lastName: 'Иванов Иван Иванович', goal: 'Рост чистой прибыли', metricGoals: '', weightQ: '', weightYear: '', q1: '+5%', q2: '+7%', q3: '+9%', q4: '+12%', reportYear: '2026', year: '2026' },
+  { lastName: 'Петров Петр Петрович', goal: 'Снижение просроченной задолженности', metricGoals: '', weightQ: '', weightYear: '', q1: '-0.3%', q2: '-0.5%', q3: '-0.7%', q4: '-1%', reportYear: '2026', year: '2026' },
+  { lastName: 'Сидоров Сергей Сергеевич', goal: 'Увеличение доли цифровых продаж', metricGoals: '', weightQ: '', weightYear: '', q1: '35%', q2: '40%', q3: '45%', q4: '50%', reportYear: '2026', year: '2026' },
+  { lastName: 'Кузнецов Максим Андреевич', goal: 'Рост операционной эффективности', metricGoals: '', weightQ: '', weightYear: '', q1: '+2%', q2: '+4%', q3: '+6%', q4: '+8%', reportYear: '2026', year: '2026' },
+  { lastName: 'Смирнов Алексей Павлович', goal: 'Оптимизация затрат на персонал', metricGoals: '', weightQ: '', weightYear: '', q1: '-1%', q2: '-2%', q3: '-3%', q4: '-4%', reportYear: '2026', year: '2026' },
+  { lastName: 'Попов Николай Викторович', goal: 'Развитие корпоративного портфеля', metricGoals: '', weightQ: '', weightYear: '', q1: '+4%', q2: '+6%', q3: '+8%', q4: '+10%', reportYear: '2026', year: '2026' },
+  { lastName: 'Васильев Артем Николаевич', goal: 'Рост клиентской удовлетворенности', metricGoals: '', weightQ: '', weightYear: '', q1: 'NPS 48', q2: 'NPS 52', q3: 'NPS 55', q4: 'NPS 58', reportYear: '2026', year: '2026' },
+  { lastName: 'Новиков Дмитрий Олегович', goal: 'Сокращение сроков кредитного решения', metricGoals: '', weightQ: '', weightYear: '', q1: '5 дн.', q2: '4 дн.', q3: '3 дн.', q4: '2 дн.', reportYear: '2026', year: '2026' },
+  { lastName: 'Федоров Илья Сергеевич', goal: 'Увеличение комиссионного дохода', metricGoals: '', weightQ: '', weightYear: '', q1: '+6%', q2: '+8%', q3: '+10%', q4: '+12%', reportYear: '2026', year: '2026' },
+  { lastName: 'Морозов Константин Евгеньевич', goal: 'Рост доли ESG-проектов', metricGoals: '', weightQ: '', weightYear: '', q1: '8%', q2: '10%', q3: '12%', q4: '15%', reportYear: '2026', year: '2026' },
+  { lastName: 'Волков Антон Игоревич', goal: 'Повышение точности скоринга', metricGoals: '', weightQ: '', weightYear: '', q1: '85%', q2: '88%', q3: '90%', q4: '92%', reportYear: '2026', year: '2026' },
+  { lastName: 'Алексеев Павел Дмитриевич', goal: 'Оптимизация процессов KYC', metricGoals: '', weightQ: '', weightYear: '', q1: '90%', q2: '92%', q3: '94%', q4: '96%', reportYear: '2026', year: '2026' },
+  { lastName: 'Лебедев Кирилл Валерьевич', goal: 'Развитие продуктовой линейки МСБ', metricGoals: '', weightQ: '', weightYear: '', q1: '+2 продукта', q2: '+3 продукта', q3: '+4 продукта', q4: '+5 продукта', reportYear: '2026', year: '2026' },
+  { lastName: 'Семенов Роман Николаевич', goal: 'Снижение операционных рисков', metricGoals: '', weightQ: '', weightYear: '', q1: '-5%', q2: '-8%', q3: '-10%', q4: '-12%', reportYear: '2026', year: '2026' },
+  { lastName: 'Егоров Виталий Михайлович', goal: 'Рост портфеля ипотеки', metricGoals: '', weightQ: '', weightYear: '', q1: '+3%', q2: '+5%', q3: '+7%', q4: '+9%', reportYear: '2026', year: '2026' },
+  { lastName: 'Павлов Денис Владимирович', goal: 'Развитие партнерских каналов', metricGoals: '', weightQ: '', weightYear: '', q1: '4 партнера', q2: '6 партнеров', q3: '8 партнеров', q4: '10 партнеров', reportYear: '2026', year: '2026' },
+  { lastName: 'Козлов Аркадий Ильич', goal: 'Снижение time-to-market', metricGoals: '', weightQ: '', weightYear: '', q1: '8 нед.', q2: '7 нед.', q3: '6 нед.', q4: '5 нед.', reportYear: '2026', year: '2026' },
+  { lastName: 'Степанов Игорь Семенович', goal: 'Рост конверсии лидов', metricGoals: '', weightQ: '', weightYear: '', q1: '18%', q2: '20%', q3: '22%', q4: '25%', reportYear: '2026', year: '2026' },
+  { lastName: 'Николаев Владислав Петрович', goal: 'Повышение киберустойчивости', metricGoals: '', weightQ: '', weightYear: '', q1: '95%', q2: '96%', q3: '97%', q4: '98%', reportYear: '2026', year: '2026' },
+  { lastName: 'Орлов Тимофей Алексеевич', goal: 'Увеличение доли безналичных операций', metricGoals: '', weightQ: '', weightYear: '', q1: '62%', q2: '65%', q3: '68%', q4: '70%', reportYear: '2026', year: '2026' },
 ]
 
 const buildDemoRows = (): GoalRow[] => DEMO_ROWS.map((row) => ({ id: generateId(), ...row }))
@@ -106,13 +107,22 @@ export function GoalsPage() {
       saveGoalsState(seeded)
       return seeded
     }
+    const rows: GoalRow[] = stored.rows.map((row) => ({
+      ...row,
+      reportYear: 'reportYear' in row && String((row as GoalRow).reportYear).trim() !== '' ? (row as GoalRow).reportYear : '',
+    }))
+    const hadMissing = stored.rows.some((r) => !('reportYear' in r))
+    if (hadMissing) {
+      saveGoalsState({ rows })
+      return { rows }
+    }
     return stored
   })
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [editingDraft, setEditingDraft] = useState<GoalRow | null>(null)
   const [page, setPage] = useState(1)
   const [searchLastName, setSearchLastName] = useState('')
-  const [searchGoal, setSearchGoal] = useState('')
+  const [searchMetricGoals, setSearchMetricGoals] = useState('')
   const [sortKey, setSortKey] = useState<GoalField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
@@ -128,12 +138,18 @@ export function GoalsPage() {
   }, [goalsState])
 
   const normalizedLastName = searchLastName.trim().toLowerCase()
-  const normalizedGoal = searchGoal.trim().toLowerCase()
+  const normalizedMetricGoals = searchMetricGoals.trim().toLowerCase()
   const filteredRows = goalsState.rows.filter((row) => {
     const matchesLastName = !normalizedLastName || row.lastName.toLowerCase().includes(normalizedLastName)
-    const matchesGoal = !normalizedGoal || row.goal.toLowerCase().includes(normalizedGoal)
-    return matchesLastName && matchesGoal
+    const matchesMetricGoals = !normalizedMetricGoals || (row.metricGoals ?? '').toLowerCase().includes(normalizedMetricGoals)
+    return matchesLastName && matchesMetricGoals
   })
+
+  const hasActiveFilters = !!(searchLastName.trim() || searchMetricGoals.trim())
+  const resetFilters = useCallback(() => {
+    setSearchLastName('')
+    setSearchMetricGoals('')
+  }, [])
 
   const collator = useMemo(() => new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }), [])
 
@@ -166,7 +182,7 @@ export function GoalsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [searchLastName, searchGoal, sortKey, sortDirection])
+  }, [searchLastName, searchMetricGoals, sortKey, sortDirection])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -206,13 +222,14 @@ export function GoalsPage() {
     { key: 'lastName', label: 'ФИО', placeholder: 'Иванов Иван Иванович' },
     { key: 'goal', label: 'SCAI Цель', placeholder: 'Например: рост эффективности операционных затрат', multiline: true },
     { key: 'metricGoals', label: 'Метрические цели', placeholder: 'Например: снижение CIR на 2 п.п.', multiline: true },
-    { key: 'weightQ', label: 'вес квартал', placeholder: '' },
-    { key: 'weightYear', label: 'вес год', placeholder: '' },
+    { key: 'weightQ', label: 'Вес квартал', placeholder: '' },
+    { key: 'weightYear', label: 'Вес год', placeholder: '' },
     { key: 'q1', label: '1 квартал', placeholder: 'KPI' },
     { key: 'q2', label: '2 квартал', placeholder: 'KPI' },
     { key: 'q3', label: '3 квартал', placeholder: 'KPI' },
     { key: 'q4', label: '4 квартал', placeholder: 'KPI' },
-    { key: 'year', label: 'Год', placeholder: '2026' },
+    { key: 'year', label: 'Год', placeholder: 'итог за год' },
+    { key: 'reportYear', label: 'Отчётный год', placeholder: '2026' },
   ]
 
   const columns: Column[] = [
@@ -236,14 +253,14 @@ export function GoalsPage() {
       key: 'metricGoals',
       label: 'Метрические цели',
       placeholder: 'Например: снижение CIR на 2 п.п.',
-      cellClassName: `${styles.colGoal} ${styles.headerNowrap}`,
+      cellClassName: `${styles.colMetricGoals} ${styles.headerNowrap}`,
       inputClassName: `${styles.input} ${styles.goalInput}`,
       valueClassName: styles.valueMultiline,
       multiline: true,
     },
     {
       key: 'weightQ',
-      label: 'вес квартал',
+      label: 'Вес квартал',
       placeholder: '',
       cellClassName: `${styles.colWeight} ${styles.headerNowrap}`,
       inputClassName: `${styles.input} ${styles.quarterInput}`,
@@ -251,7 +268,7 @@ export function GoalsPage() {
     },
     {
       key: 'weightYear',
-      label: 'вес год',
+      label: 'Вес год',
       placeholder: '',
       cellClassName: styles.colWeight,
       inputClassName: `${styles.input} ${styles.quarterInput}`,
@@ -292,6 +309,14 @@ export function GoalsPage() {
     {
       key: 'year',
       label: 'Год',
+      placeholder: 'итог',
+      cellClassName: styles.colQuarter,
+      inputClassName: `${styles.input} ${styles.quarterInput}`,
+      valueClassName: styles.valueCenter,
+    },
+    {
+      key: 'reportYear',
+      label: 'Отчётный год',
       placeholder: '2026',
       cellClassName: styles.colQuarter,
       inputClassName: `${styles.input} ${styles.quarterInput}`,
@@ -390,7 +415,7 @@ export function GoalsPage() {
       parseKpiXlsxToRows(file)
         .then((rows) => {
           if (rows.length === 0) {
-            setImportError('В файле нет данных или заголовки не совпадают. Ожидаются: ФИО, SCAI Цель, Метрические цели, вес квартал, вес год, 1–4 квартал, Год.')
+            setImportError('В файле нет данных или заголовки не совпадают. Ожидаются: ФИО, SCAI Цель, Метрические цели, Вес квартал, Вес год, 1–4 квартал, Год.')
             return
           }
           setGoalsState((prev) => ({ ...prev, rows: [...prev.rows, ...rows] }))
@@ -435,6 +460,17 @@ export function GoalsPage() {
             >
               Очистить таблицу
             </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className={styles.resetFiltersBtn}
+                onClick={resetFilters}
+                disabled={!!editingRowId}
+                title="Сбросить все фильтры по колонкам"
+              >
+                Сбросить фильтры
+              </button>
+            )}
             <button
               type="button"
               className={styles.addBtn}
@@ -496,8 +532,7 @@ export function GoalsPage() {
                         </label>
                       </div>
                     ) : col.key === 'goal' ? (
-                      <div className={styles.headerWithSearch}>
-                        <button
+                      <button
                           type="button"
                           className={styles.sortBtn}
                           onClick={() => handleSort(col.key)}
@@ -519,17 +554,15 @@ export function GoalsPage() {
                             aria-hidden
                           />
                         </button>
+                    ) : col.key === 'metricGoals' ? (
+                      <div className={styles.headerWithSearch}>
+                        <button type="button" className={styles.sortBtn} onClick={() => handleSort(col.key)} disabled={!!editingRowId} aria-label={`Сортировать по: ${col.label}`}>
+                          <span className={styles.headerLabel}>{col.label}</span>
+                          <span className={[styles.sortIndicator, sortKey === col.key ? (sortDirection === 'asc' ? styles.sortIndicatorAsc : styles.sortIndicatorDesc) : styles.sortIndicatorInactive].filter(Boolean).join(' ')} aria-hidden />
+                        </button>
                         <label className={`${styles.searchField} ${styles.searchFieldWide}`}>
                           <SearchIcon className={styles.searchIcon} />
-                          <input
-                            type="search"
-                            className={`${styles.searchInput} ${styles.searchInputWide}`}
-                            value={searchGoal}
-                            onChange={(e) => setSearchGoal(e.target.value)}
-                            placeholder="Поиск"
-                            aria-label="Поиск по цели"
-                            disabled={!!editingRowId}
-                          />
+                          <input type="search" className={`${styles.searchInput} ${styles.searchInputWide}`} value={searchMetricGoals} onChange={(e) => setSearchMetricGoals(e.target.value)} placeholder="Поиск" aria-label="Поиск по метрическим целям" disabled={!!editingRowId} />
                         </label>
                       </div>
                     ) : (

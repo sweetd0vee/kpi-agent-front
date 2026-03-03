@@ -31,18 +31,19 @@ const createRow = (): GoalRow => ({
   q2: '',
   q3: '',
   q4: '',
+  reportYear: '',
   year: '',
 })
 
 const KPI_DEMO_ROWS: Array<Omit<GoalRow, 'id'>> = [
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'Чистая прибыль (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '24,1', q2: '58,3', q3: '112,1', q4: '205,3', year: '205,3' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ЧОД до резервов (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '146,2', q2: '299,9', q3: '471,7', q4: '702,7', year: '702,7' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'CIR (Холдинг)', weightQ: '15%', weightYear: '15%', q1: '54,4%', q2: '55,1%', q3: '53,1%', q4: '48,4%', year: '48,4%' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'COR с учетом корпооблигаций (Холдинг)', weightQ: '10%', weightYear: '10%', q1: '2,8%', q2: '2,3%', q3: '1,9%', q4: '1,7%', year: '1,7%' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'NPL default (Банк), млн BYN', weightQ: '5%', weightYear: '5%', q1: '310,69', q2: '317,19', q3: '359,50', q4: '378,91', year: '378,91' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'Отсутствуют нарушения лимитов операционного риска, тыс. BYN', weightQ: 'М', weightYear: '', q1: '3584,5', q2: '', q3: '', q4: '', year: '' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ROE (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '7,6%', q2: '9,0%', q3: '11,3%', q4: '15,1%', year: '15,1%' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ROA (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '1,3%', q2: '1,6%', q3: '2,0%', q4: '2,7%', year: '' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'Чистая прибыль (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '24,1', q2: '58,3', q3: '112,1', q4: '205,3', reportYear: '2026', year: '205,3' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ЧОД до резервов (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '146,2', q2: '299,9', q3: '471,7', q4: '702,7', reportYear: '2026', year: '702,7' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'CIR (Холдинг)', weightQ: '15%', weightYear: '15%', q1: '54,4%', q2: '55,1%', q3: '53,1%', q4: '48,4%', reportYear: '2026', year: '48,4%' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'COR с учетом корпооблигаций (Холдинг)', weightQ: '10%', weightYear: '10%', q1: '2,8%', q2: '2,3%', q3: '1,9%', q4: '1,7%', reportYear: '2026', year: '1,7%' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'NPL default (Банк), млн BYN', weightQ: '5%', weightYear: '5%', q1: '310,69', q2: '317,19', q3: '359,50', q4: '378,91', reportYear: '2026', year: '378,91' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'Отсутствуют нарушения лимитов операционного риска, тыс. BYN', weightQ: 'М', weightYear: '', q1: '3584,5', q2: '', q3: '', q4: '', reportYear: '2026', year: '' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ROE (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '7,6%', q2: '9,0%', q3: '11,3%', q4: '15,1%', reportYear: '2026', year: '15,1%' },
+  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ROA (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '1,3%', q2: '1,6%', q3: '2,0%', q4: '2,7%', reportYear: '2026', year: '' },
 ]
 
 const buildKpiDemoRows = (): GoalRow[] => KPI_DEMO_ROWS.map((row) => ({ id: generateId(), ...row }))
@@ -94,13 +95,22 @@ export function KpiPage() {
       saveKpiState(seeded)
       return seeded
     }
+    const rows: GoalRow[] = stored.rows.map((row) => ({
+      ...row,
+      reportYear: 'reportYear' in row && String((row as GoalRow).reportYear).trim() !== '' ? (row as GoalRow).reportYear : '',
+    }))
+    const hadMissing = stored.rows.some((r) => !('reportYear' in r))
+    if (hadMissing) {
+      saveKpiState({ rows })
+      return { rows }
+    }
     return stored
   })
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [editingDraft, setEditingDraft] = useState<GoalRow | null>(null)
   const [page, setPage] = useState(1)
   const [searchLastName, setSearchLastName] = useState('')
-  const [searchGoal, setSearchGoal] = useState('')
+  const [searchMetricGoals, setSearchMetricGoals] = useState('')
   const [sortKey, setSortKey] = useState<GoalField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
@@ -116,12 +126,18 @@ export function KpiPage() {
   }, [goalsState])
 
   const normalizedLastName = searchLastName.trim().toLowerCase()
-  const normalizedGoal = searchGoal.trim().toLowerCase()
+  const normalizedMetricGoals = searchMetricGoals.trim().toLowerCase()
   const filteredRows = goalsState.rows.filter((row) => {
     const matchesLastName = !normalizedLastName || row.lastName.toLowerCase().includes(normalizedLastName)
-    const matchesGoal = !normalizedGoal || row.goal.toLowerCase().includes(normalizedGoal)
-    return matchesLastName && matchesGoal
+    const matchesMetricGoals = !normalizedMetricGoals || (row.metricGoals ?? '').toLowerCase().includes(normalizedMetricGoals)
+    return matchesLastName && matchesMetricGoals
   })
+
+  const hasActiveFilters = !!(searchLastName.trim() || searchMetricGoals.trim())
+  const resetFilters = useCallback(() => {
+    setSearchLastName('')
+    setSearchMetricGoals('')
+  }, [])
 
   const collator = useMemo(() => new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }), [])
 
@@ -154,7 +170,7 @@ export function KpiPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [searchLastName, searchGoal, sortKey, sortDirection])
+  }, [searchLastName, searchMetricGoals, sortKey, sortDirection])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -208,7 +224,7 @@ export function KpiPage() {
       parseKpiXlsxToRows(file)
         .then((rows) => {
           if (rows.length === 0) {
-            setImportError('В файле нет данных или заголовки не совпадают. Ожидаются: ФИО, SCAI Цель, Метрические цели, вес квартал, вес год, 1–4 квартал, Год.')
+            setImportError('В файле нет данных или заголовки не совпадают. Ожидаются: ФИО, SCAI Цель, Метрические цели, Вес квартал, Вес год, 1–4 квартал, Год.')
             return
           }
           setGoalsState((prev) => ({ ...prev, rows: [...prev.rows, ...rows] }))
@@ -225,13 +241,14 @@ export function KpiPage() {
     { key: 'lastName', label: 'ФИО', placeholder: 'Иванов Иван Иванович' },
     { key: 'goal', label: 'SCAI Цель', placeholder: 'Например: рост эффективности операционных затрат', multiline: true },
     { key: 'metricGoals', label: 'Метрические цели', placeholder: 'Например: снижение CIR на 2 п.п.', multiline: true },
-    { key: 'weightQ', label: 'вес квартал', placeholder: '' },
-    { key: 'weightYear', label: 'вес год', placeholder: '' },
+    { key: 'weightQ', label: 'Вес квартал', placeholder: '' },
+    { key: 'weightYear', label: 'Вес год', placeholder: '' },
     { key: 'q1', label: '1 квартал', placeholder: 'KPI' },
     { key: 'q2', label: '2 квартал', placeholder: 'KPI' },
     { key: 'q3', label: '3 квартал', placeholder: 'KPI' },
     { key: 'q4', label: '4 квартал', placeholder: 'KPI' },
-    { key: 'year', label: 'Год', placeholder: '2026' },
+    { key: 'year', label: 'Год', placeholder: 'итог за год' },
+    { key: 'reportYear', label: 'Отчётный год', placeholder: '2026' },
   ]
 
   const columns: Column[] = [
@@ -249,18 +266,19 @@ export function KpiPage() {
       key: 'metricGoals',
       label: 'Метрические цели',
       placeholder: 'Например: снижение CIR на 2 п.п.',
-      cellClassName: `${styles.colGoal} ${styles.headerNowrap}`,
+      cellClassName: `${styles.colMetricGoals} ${styles.headerNowrap}`,
       inputClassName: `${styles.input} ${styles.goalInput}`,
       valueClassName: styles.valueMultiline,
       multiline: true,
     },
-    { key: 'weightQ', label: 'вес квартал', placeholder: '', cellClassName: `${styles.colWeight} ${styles.headerNowrap}`, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
-    { key: 'weightYear', label: 'вес год', placeholder: '', cellClassName: styles.colWeight, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
+    { key: 'weightQ', label: 'Вес квартал', placeholder: '', cellClassName: `${styles.colWeight} ${styles.headerNowrap}`, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
+    { key: 'weightYear', label: 'Вес год', placeholder: '', cellClassName: styles.colWeight, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
     { key: 'q1', label: '1 квартал', placeholder: 'KPI', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
     { key: 'q2', label: '2 квартал', placeholder: 'KPI', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
     { key: 'q3', label: '3 квартал', placeholder: 'KPI', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
     { key: 'q4', label: '4 квартал', placeholder: 'KPI', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
-    { key: 'year', label: 'Год', placeholder: '2026', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
+    { key: 'year', label: 'Год', placeholder: 'итог', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
+    { key: 'reportYear', label: 'Отчётный год', placeholder: '2026', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
   ]
 
   const addRow = useCallback(() => {
@@ -362,6 +380,11 @@ export function KpiPage() {
             >
               Очистить таблицу
             </button>
+            {hasActiveFilters && (
+              <button type="button" className={styles.resetFiltersBtn} onClick={resetFilters} disabled={!!editingRowId} title="Сбросить все фильтры по колонкам">
+                Сбросить фильтры
+              </button>
+            )}
             <button type="button" className={styles.addBtn} onClick={addRow} aria-label="Добавить строку" title="Добавить строку">
               <PlusIcon className={styles.addBtnIcon} />
             </button>
@@ -390,7 +413,7 @@ export function KpiPage() {
                           <input type="search" className={`${styles.searchInput} ${styles.searchInputCompact}`} value={searchLastName} onChange={(e) => setSearchLastName(e.target.value)} placeholder="Поиск" aria-label="Поиск по ФИО" disabled={!!editingRowId} />
                         </label>
                       </div>
-                    ) : col.key === 'goal' ? (
+                    ) : col.key === 'metricGoals' ? (
                       <div className={styles.headerWithSearch}>
                         <button type="button" className={styles.sortBtn} onClick={() => handleSort(col.key)} disabled={!!editingRowId} aria-label={`Сортировать по: ${col.label}`}>
                           <span className={styles.headerLabel}>{col.label}</span>
@@ -398,7 +421,7 @@ export function KpiPage() {
                         </button>
                         <label className={`${styles.searchField} ${styles.searchFieldWide}`}>
                           <SearchIcon className={styles.searchIcon} />
-                          <input type="search" className={`${styles.searchInput} ${styles.searchInputWide}`} value={searchGoal} onChange={(e) => setSearchGoal(e.target.value)} placeholder="Поиск" aria-label="Поиск по цели" disabled={!!editingRowId} />
+                          <input type="search" className={`${styles.searchInput} ${styles.searchInputWide}`} value={searchMetricGoals} onChange={(e) => setSearchMetricGoals(e.target.value)} placeholder="Поиск" aria-label="Поиск по метрическим целям" disabled={!!editingRowId} />
                         </label>
                       </div>
                     ) : (

@@ -8,11 +8,14 @@ const HEADER_TO_FIELD: Record<string, keyof Omit<GoalRow, 'id'>> = {
   'SCAI Цель': 'goal',
   'Метрические цели': 'metricGoals',
   'вес квартал': 'weightQ',
+  'Вес квартал': 'weightQ',
   'вес год': 'weightYear',
+  'Вес год': 'weightYear',
   '1 квартал': 'q1',
   '2 квартал': 'q2',
   '3 квартал': 'q3',
   '4 квартал': 'q4',
+  'Отчётный год': 'reportYear',
   'Год': 'year',
 }
 
@@ -28,7 +31,7 @@ function normalizeCell(value: unknown): string {
 
 /**
  * Парсит xlsx файл и возвращает массив строк целей.
- * Первая строка листа — заголовки (ФИО, SCAI Цель, Метрические цели, вес квартал, вес год, 1 квартал, 2 квартал, 3 квартал, 4 квартал, Год).
+ * Первая строка листа — заголовки (ФИО, SCAI Цель, Метрические цели, Вес квартал, Вес год, 1 квартал, 2 квартал, 3 квартал, 4 квартал, Год).
  */
 export function parseKpiXlsxToRows(file: File): Promise<GoalRow[]> {
   return new Promise((resolve, reject) => {
@@ -78,6 +81,7 @@ export function parseKpiXlsxToRows(file: File): Promise<GoalRow[]> {
             q2: '',
             q3: '',
             q4: '',
+            reportYear: '',
             year: '',
           }
           colIndexToField.forEach((field, colIndex) => {
@@ -96,6 +100,7 @@ export function parseKpiXlsxToRows(file: File): Promise<GoalRow[]> {
               q2: row.q2 ?? '',
               q3: row.q3 ?? '',
               q4: row.q4 ?? '',
+              reportYear: row.reportYear ?? '',
               year: row.year ?? '',
             })
           }

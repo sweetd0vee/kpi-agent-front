@@ -37,6 +37,9 @@ export type GoalRow = {
   q2: string
   q3: string
   q4: string
+  /** Год, за который цели (например 2026). Отображается как «Отчётный год». */
+  reportYear: string
+  /** Итог за год (значение). */
   year: string
 }
 

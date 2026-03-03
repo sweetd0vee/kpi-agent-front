@@ -138,6 +138,28 @@
   cursor: not-allowed;
 }
 
+.resetFiltersBtn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.resetFiltersBtn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.resetFiltersBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .importError {
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
@@ -154,7 +176,7 @@
 
 .table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 0;
   border-collapse: collapse;
   border: 1px solid #cbd5e1;
   table-layout: fixed;
@@ -325,24 +347,29 @@
 }
 
 .colSurname {
-  width: 13rem;
+  width: 11%;
 }
 
 .colGoal {
-  width: 28%;
+  width: 11%;
+}
+
+.colMetricGoals {
+  width: 22%;
 }
 
 .colQuarter {
-  width: 11rem;
+  width: 4.5%;
+  min-width: 0;
 }
 
 .colWeight {
-  width: 6.5rem;
+  width: 5%;
 }
 
 .actionsCol {
-  width: 6.5rem;
-  min-width: 6.5rem;
+  width: 5%;
+  min-width: 4rem;
 }
 
 .actionsCell {
