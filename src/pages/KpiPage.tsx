@@ -36,26 +36,13 @@ const createRow = (): GoalRow => ({
   year: '',
 })
 
-const KPI_DEMO_ROWS: Array<Omit<GoalRow, 'id'>> = [
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'Чистая прибыль (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '24,1', q2: '58,3', q3: '112,1', q4: '205,3', reportYear: '2026', year: '205,3' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ЧОД до резервов (Холдинг), млн BYN', weightQ: '20%', weightYear: '20%', q1: '146,2', q2: '299,9', q3: '471,7', q4: '702,7', reportYear: '2026', year: '702,7' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'CIR (Холдинг)', weightQ: '15%', weightYear: '15%', q1: '54,4%', q2: '55,1%', q3: '53,1%', q4: '48,4%', reportYear: '2026', year: '48,4%' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'COR с учетом корпооблигаций (Холдинг)', weightQ: '10%', weightYear: '10%', q1: '2,8%', q2: '2,3%', q3: '1,9%', q4: '1,7%', reportYear: '2026', year: '1,7%' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'NPL default (Банк), млн BYN', weightQ: '5%', weightYear: '5%', q1: '310,69', q2: '317,19', q3: '359,50', q4: '378,91', reportYear: '2026', year: '378,91' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'Отсутствуют нарушения лимитов операционного риска, тыс. BYN', weightQ: 'М', weightYear: '', q1: '3584,5', q2: '', q3: '', q4: '', reportYear: '2026', year: '' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ROE (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '7,6%', q2: '9,0%', q3: '11,3%', q4: '15,1%', reportYear: '2026', year: '15,1%' },
-  { lastName: 'Иванов И.И.', goal: 'Финансовые показатели', metricGoals: 'ROA (Холдинг)', weightQ: 'М', weightYear: 'М', q1: '1,3%', q2: '1,6%', q3: '2,0%', q4: '2,7%', reportYear: '2026', year: '' },
-]
-
-const buildKpiDemoRows = (): GoalRow[] => KPI_DEMO_ROWS.map((row) => ({ id: generateId(), ...row }))
-
 export function KpiPage() {
   const [goalsState, setGoalsState] = useState(() => {
     const stored = getKpiState()
     if (stored.rows.length === 0) {
-      const seeded = { rows: buildKpiDemoRows() }
-      saveKpiState(seeded)
-      return seeded
+      const empty = { rows: [] as GoalRow[] }
+      saveKpiState(empty)
+      return empty
     }
     const rows: GoalRow[] = stored.rows.map((row) => ({
       ...row,
