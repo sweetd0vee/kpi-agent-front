@@ -2,7 +2,7 @@ export type StoredMessage = {
   role: 'user' | 'assistant'
   content: string
   /** Прикреплённые файлы и/или коллекции (только у сообщений пользователя) */
-  attachments?: { name: string; type?: 'file' | 'collection' }[]
+  attachments?: { name: string; type?: 'file' | 'collection' | 'prompt' }[]
 }
 
 export type StoredChat = {
@@ -26,4 +26,11 @@ export type AttachedCollection = {
   name: string
   /** Open Web UI knowledge/collection id for API */
   collectionId: string
+}
+
+export type AttachedPrompt = {
+  id: string
+  name: string
+  promptId: string
+  content: string
 }

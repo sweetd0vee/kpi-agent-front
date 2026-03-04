@@ -17,10 +17,13 @@ import {
   getSettings,
   saveSettings,
   generateId,
+  getPrompts,
 } from '@/lib/storage'
 import type { ChatSettings } from '@/lib/storage'
 import type { StoredChat, StoredMessage } from '@/types/chat'
-import type { AttachedFile, AttachedCollection } from '@/types/chat'
+import type { AttachedFile, AttachedCollection, AttachedPrompt } from '@/types/chat'
+import { DEFAULT_PROMPTS } from '@/lib/prompts'
+import { PencilIcon } from '@/components/Icons'
 import styles from './ChatPage.module.css'
 
 const FileIcon = ({ className }: { className?: string }) => (
@@ -62,11 +65,22 @@ const CollectionIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const PromptIcon = ({ className }: { className?: string }) => (
+  <PencilIcon className={className} size={14} />
+)
+
 function getChatTitle(messages: StoredMessage[]): string {
   const first = messages.find((m) => m.role === 'user')
   if (!first?.content) return 'Новый чат'
   const text = first.content.trim().slice(0, 50)
   return text + (first.content.length > 50 ? '…' : '')
+}
+
+type PromptOption = {
+  id: string
+  title: string
+  content: string
+  source: 'default' | 'custom'
 }
 
 export function ChatPage() {
@@ -77,12 +91,14 @@ export function ChatPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [settingsDraft, setSettingsDraft] = useState<ChatSettings>(() => getSettings())
   const [settingsSaved, setSettingsSaved] = useState(false)
-  const [attachments, setAttachments] = useState<(AttachedFile | AttachedCollection)[]>([])
+  const [attachments, setAttachments] = useState<(AttachedFile | AttachedCollection | AttachedPrompt)[]>([])
   const [showAttachDropdown, setShowAttachDropdown] = useState(false)
   const [showCollectionPicker, setShowCollectionPicker] = useState(false)
+  const [showPromptPicker, setShowPromptPicker] = useState(false)
   const [collectionList, setCollectionList] = useState<CollectionMeta[]>([])
   const [collectionListLoading, setCollectionListLoading] = useState(false)
   const [collectionListError, setCollectionListError] = useState<string | null>(null)
+  const [promptList, setPromptList] = useState<PromptOption[]>([])
   const settingsDropdownRef = useRef<HTMLDivElement>(null)
   const attachDropdownRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState('')
@@ -122,17 +138,18 @@ export function ChatPage() {
         setShowSettings(false)
       }
       if (
-        (showAttachDropdown || showCollectionPicker) &&
+        (showAttachDropdown || showCollectionPicker || showPromptPicker) &&
         attachDropdownRef.current &&
         !attachDropdownRef.current.contains(target)
       ) {
         setShowAttachDropdown(false)
         setShowCollectionPicker(false)
+        setShowPromptPicker(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showSettings, showAttachDropdown, showCollectionPicker])
+  }, [showSettings, showAttachDropdown, showCollectionPicker, showPromptPicker])
 
   const currentChat = currentChatId
     ? chats.find((c) => c.id === currentChatId)
@@ -215,11 +232,14 @@ export function ChatPage() {
 
   const handleAttachFile = useCallback(() => {
     setShowAttachDropdown(false)
+    setShowCollectionPicker(false)
+    setShowPromptPicker(false)
     fileInputRef.current?.click()
   }, [])
 
   const handleAttachCollectionClick = useCallback(async () => {
     setShowAttachDropdown(false)
+    setShowPromptPicker(false)
     setShowCollectionPicker(true)
     setCollectionListLoading(true)
     setCollectionListError(null)
@@ -232,6 +252,25 @@ export function ChatPage() {
     } finally {
       setCollectionListLoading(false)
     }
+  }, [])
+
+  const handleAttachPromptClick = useCallback(() => {
+    setShowAttachDropdown(false)
+    setShowCollectionPicker(false)
+    setShowPromptPicker(true)
+    const customPrompts = getPrompts()
+      .filter((prompt) => prompt.content.trim().length > 0)
+      .map((prompt) => ({
+        id: prompt.id,
+        title: prompt.title,
+        content: prompt.content,
+        source: 'custom' as const,
+      }))
+    const defaultPrompts = DEFAULT_PROMPTS.map((prompt) => ({
+      ...prompt,
+      source: 'default' as const,
+    }))
+    setPromptList([...defaultPrompts, ...customPrompts])
   }, [])
 
   const handleFileChange = useCallback(
@@ -274,6 +313,20 @@ export function ChatPage() {
     setShowCollectionPicker(false)
   }, [])
 
+  const handleSelectPrompt = useCallback((prompt: PromptOption) => {
+    const title = prompt.title?.trim() || 'Без названия'
+    setAttachments((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        name: title,
+        promptId: prompt.id,
+        content: prompt.content,
+      } as AttachedPrompt,
+    ])
+    setShowPromptPicker(false)
+  }, [])
+
   const sendMessage = useCallback(async () => {
     const text = input.trim()
     if (!text || !settings.apiKey) return
@@ -314,7 +367,7 @@ export function ChatPage() {
         attachments.length > 0
           ? attachments.map((a) => ({
               name: a.name,
-              type: 'fileId' in a ? ('file' as const) : ('collection' as const),
+              type: 'fileId' in a ? ('file' as const) : 'collectionId' in a ? ('collection' as const) : ('prompt' as const),
             }))
           : undefined,
     }
@@ -335,7 +388,17 @@ export function ChatPage() {
     const collectionAttachments = attachments.filter(
       (a): a is AttachedCollection => 'collectionId' in a
     )
+    const promptAttachments = attachments.filter(
+      (a): a is AttachedPrompt => 'promptId' in a
+    )
     let userContentWithContext = text
+    const contextSections: string[] = []
+    if (promptAttachments.length > 0) {
+      const promptParts = promptAttachments.map(
+        (prompt) => `Промпт «${prompt.name}»:\n\n${prompt.content}`
+      )
+      contextSections.push(`Промпты:\n\n${promptParts.join('\n\n---\n\n')}`)
+    }
     if (collectionAttachments.length > 0) {
       const contextParts: string[] = []
       for (const a of collectionAttachments) {
@@ -350,7 +413,12 @@ export function ChatPage() {
           contextParts.push(`Коллекция «${a.name}»: (не удалось загрузить содержимое)`)
         }
       }
-      userContentWithContext = `Контекст из прикреплённых коллекций (база знаний):\n\n${contextParts.join('\n\n---\n\n')}\n\n---\n\n${text}`
+      contextSections.push(
+        `Контекст из прикреплённых коллекций (база знаний):\n\n${contextParts.join('\n\n---\n\n')}`
+      )
+    }
+    if (contextSections.length > 0) {
+      userContentWithContext = `${contextSections.join('\n\n---\n\n')}\n\n---\n\n${text}`
     }
 
     const apiMessages = nextMessages.map((m, i) => {
@@ -588,10 +656,16 @@ export function ChatPage() {
                       <span key={j} className={styles.messageFileChip}>
                         {att.type === 'collection' ? (
                           <CollectionIcon />
+                        ) : att.type === 'prompt' ? (
+                          <PromptIcon />
                         ) : (
                           <FileIcon />
                         )}{' '}
-                        {att.type === 'collection' ? `Коллекция: ${att.name}` : att.name}
+                        {att.type === 'collection'
+                          ? `Коллекция: ${att.name}`
+                          : att.type === 'prompt'
+                          ? `Промпт: ${att.name}`
+                          : att.name}
                       </span>
                     ))}
                   </div>
@@ -623,10 +697,12 @@ export function ChatPage() {
                 <span key={a.id} className={styles.fileChip}>
                   {'fileId' in a ? (
                     <FileIcon className={styles.fileChipIcon} />
+                  ) : 'promptId' in a ? (
+                    <PromptIcon className={styles.fileChipIcon} />
                   ) : (
                     <CollectionIcon className={styles.fileChipIcon} />
                   )}{' '}
-                  {'fileId' in a ? a.name : `Коллекция: ${a.name}`}
+                  {'fileId' in a ? a.name : 'promptId' in a ? `Промпт: ${a.name}` : `Коллекция: ${a.name}`}
                   <button
                     type="button"
                     className={styles.fileChipRemove}
@@ -651,14 +727,18 @@ export function ChatPage() {
               <button
                 type="button"
                 className={styles.attachBtn}
-                onClick={() => setShowAttachDropdown((v) => !v)}
+                onClick={() => {
+                  setShowAttachDropdown((v) => !v)
+                  setShowCollectionPicker(false)
+                  setShowPromptPicker(false)
+                }}
                 disabled={!settings.apiKey}
-                title="Прикрепить файл или коллекцию"
-                aria-expanded={showAttachDropdown || showCollectionPicker}
+                title="Прикрепить файл, коллекцию или промпт"
+                aria-expanded={showAttachDropdown || showCollectionPicker || showPromptPicker}
               >
                 <FileIcon />
               </button>
-              {showAttachDropdown && !showCollectionPicker && (
+              {showAttachDropdown && !showCollectionPicker && !showPromptPicker && (
                 <div className={styles.attachDropdown}>
                   <button
                     type="button"
@@ -673,6 +753,13 @@ export function ChatPage() {
                     onClick={handleAttachCollectionClick}
                   >
                     <CollectionIcon className={styles.attachDropdownIcon} /> Прикрепить коллекцию
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.attachDropdownItem}
+                    onClick={handleAttachPromptClick}
+                  >
+                    <PromptIcon className={styles.attachDropdownIcon} /> Прикрепить промпт
                   </button>
                 </div>
               )}
@@ -701,6 +788,36 @@ export function ChatPage() {
                             onClick={() => handleSelectCollection(col)}
                           >
                             <CollectionIcon className={styles.fileChipIcon} /> {col.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {showPromptPicker && (
+                <div className={styles.collectionPicker}>
+                  <div className={styles.collectionPickerTitle}>Выберите промпт</div>
+                  {promptList.length === 0 ? (
+                    <div className={styles.collectionPickerEmpty}>
+                      Нет промптов. Создайте их на вкладке «База знаний».
+                    </div>
+                  ) : (
+                    <ul className={styles.collectionPickerList}>
+                      {promptList.map((prompt) => (
+                        <li key={`${prompt.source}-${prompt.id}`}>
+                          <button
+                            type="button"
+                            className={styles.collectionPickerItem}
+                            onClick={() => handleSelectPrompt(prompt)}
+                          >
+                            <PromptIcon className={styles.fileChipIcon} />
+                            <span className={styles.promptPickerItemText}>
+                              {prompt.title || 'Без названия'}
+                            </span>
+                            <span className={styles.collectionPickerMeta}>
+                              {prompt.source === 'default' ? 'встроенный' : 'пользовательский'}
+                            </span>
                           </button>
                         </li>
                       ))}

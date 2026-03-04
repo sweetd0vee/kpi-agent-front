@@ -1,40 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { generateId, getPrompts, savePrompts, type StoredPrompt } from '@/lib/storage'
+import { DEFAULT_PROMPTS } from '@/lib/prompts'
 import { PencilIcon, TrashIcon } from '@/components/Icons'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import styles from '../ImportPage.module.css'
-
-type DefaultPrompt = {
-  id: string
-  title: string
-  content: string
-}
-
-const DEFAULT_PROMPTS: DefaultPrompt[] = [
-  {
-    id: 'cascade-director',
-    title: 'Каскадирование целей директора',
-    content: `Ты аналитик KPI банка. Используй контекст из прикреплённых коллекций (цели председателя, стратегия, регламент, чеклист департамента).
-Сформируй KPI директора департамента:
-- 5–7 KPI и 3–5 PPR;
-- для каждого укажи формулировку, единицу измерения, вес (%), квартальные значения и итог за год;
-- суммарный вес = 100%.
-В конце выдай таблицу: № | Цель | Тип (KPI/PPR) | Ед. изм. | Вес | Q1 | Q2 | Q3 | Q4 | Год.`,
-  },
-  {
-    id: 'compliance-check',
-    title: 'Проверка соответствия стратегии и регламенту',
-    content: `Проверь предложенные KPI/ППР на соответствие стратегии банка и регламенту постановки целей.
-Сопоставь с целями председателя и чеклистами.
-Ответ: список несоответствий, рисков, а также что нужно исправить или уточнить.`,
-  },
-  {
-    id: 'summary-insights',
-    title: 'Сводка по департаменту',
-    content: `На основе коллекций кратко опиши ключевые цели департамента, основные KPI, риски и зависимости.
-Дай 5–7 тезисов и список вопросов для уточнения с владельцами процессов.`,
-  },
-]
 
 const COPY_SUFFIX_PATTERN = /\s*\(копия(?:\s*-\s*(\d+))?\)\s*$/i
 

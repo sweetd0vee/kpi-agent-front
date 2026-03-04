@@ -452,6 +452,14 @@
   background: #f1f5f9;
 }
 
+.promptPickerItemText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .collectionPickerMeta {
   color: #94a3b8;
   font-size: 0.8125rem;
