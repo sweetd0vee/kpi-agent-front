@@ -4,7 +4,7 @@ import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exp
 import { parseKpiXlsxToRows } from '@/lib/importGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditRowModal, type EditRowField } from '@/components/EditRowModal/EditRowModal'
-import { PlusIcon, TrashIcon, PencilIcon, SearchIcon } from '@/components/Icons'
+import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
 import styles from './GoalsPage.module.css'
 
 type GoalField = keyof Omit<GoalRow, 'id'>
@@ -36,6 +36,47 @@ const createRow = (): GoalRow => ({
   year: '',
 })
 
+const createFiltersState = (): Record<GoalField, string> => ({
+  lastName: '',
+  goal: '',
+  metricGoals: '',
+  weightQ: '',
+  weightYear: '',
+  q1: '',
+  q2: '',
+  q3: '',
+  q4: '',
+  year: '',
+  reportYear: '',
+})
+
+const FILTER_DISABLED_FIELDS: GoalField[] = ['goal', 'q1', 'q2', 'q3', 'q4', 'year']
+const FILTER_SELECT_FIELDS: GoalField[] = ['lastName', 'weightQ', 'weightYear', 'reportYear']
+
+const buildSelectedLabel = (
+  values: string[],
+  emptyLabel: string,
+  formatValue: (value: string) => string = (value) => value
+): string => {
+  if (values.length === 0) return emptyLabel
+  if (values.length <= 2) return values.map(formatValue).join(', ')
+  return `${values.slice(0, 2).map(formatValue).join(', ')} +${values.length - 2}`
+}
+
+const formatFilterValue = (value: string): string => (value ? value : 'Пусто')
+
+const buildOptions = (rows: GoalRow[], key: GoalField, collator: Intl.Collator): string[] => {
+  const unique = new Set<string>()
+  let hasEmpty = false
+  rows.forEach((row) => {
+    const value = String(row[key] ?? '').trim()
+    if (value) unique.add(value)
+    else hasEmpty = true
+  })
+  const sorted = Array.from(unique).sort((a, b) => collator.compare(a, b))
+  return hasEmpty ? [''].concat(sorted) : sorted
+}
+
 export function KpiPage() {
   const [goalsState, setGoalsState] = useState(() => {
     const stored = getKpiState()
@@ -58,8 +99,15 @@ export function KpiPage() {
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [editingDraft, setEditingDraft] = useState<GoalRow | null>(null)
   const [page, setPage] = useState(1)
-  const [searchLastName, setSearchLastName] = useState('')
-  const [searchMetricGoals, setSearchMetricGoals] = useState('')
+  const [filters, setFilters] = useState<Record<GoalField, string>>(createFiltersState)
+  const [lastNameFilter, setLastNameFilter] = useState<string[]>([])
+  const [weightQFilter, setWeightQFilter] = useState<string[]>([])
+  const [weightYearFilter, setWeightYearFilter] = useState<string[]>([])
+  const [reportYearFilter, setReportYearFilter] = useState<string[]>([])
+  const [lastNameOpen, setLastNameOpen] = useState(false)
+  const [weightQOpen, setWeightQOpen] = useState(false)
+  const [weightYearOpen, setWeightYearOpen] = useState(false)
+  const [reportYearOpen, setReportYearOpen] = useState(false)
   const [sortKey, setSortKey] = useState<GoalField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
@@ -69,26 +117,169 @@ export function KpiPage() {
   const [importError, setImportError] = useState<string | null>(null)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const lastNameRef = useRef<HTMLDivElement>(null)
+  const weightQRef = useRef<HTMLDivElement>(null)
+  const weightYearRef = useRef<HTMLDivElement>(null)
+  const reportYearRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     saveKpiState(goalsState)
   }, [goalsState])
 
-  const normalizedLastName = searchLastName.trim().toLowerCase()
-  const normalizedMetricGoals = searchMetricGoals.trim().toLowerCase()
+  const normalizedFilters = useMemo(
+    () =>
+      (Object.entries(filters) as Array<[GoalField, string]>)
+        .map(([key, value]) => [key, value.trim().toLowerCase()] as const)
+        .filter(
+          ([key, value]) =>
+            value.length > 0 && !FILTER_DISABLED_FIELDS.includes(key) && !FILTER_SELECT_FIELDS.includes(key)
+        ),
+    [filters]
+  )
+
   const filteredRows = goalsState.rows.filter((row) => {
-    const matchesLastName = !normalizedLastName || row.lastName.toLowerCase().includes(normalizedLastName)
-    const matchesMetricGoals = !normalizedMetricGoals || (row.metricGoals ?? '').toLowerCase().includes(normalizedMetricGoals)
-    return matchesLastName && matchesMetricGoals
+    const matchesText = normalizedFilters.every(([key, value]) =>
+      String(row[key] ?? '').toLowerCase().includes(value)
+    )
+    if (!matchesText) return false
+    if (lastNameFilter.length > 0) {
+      const name = String(row.lastName ?? '').trim()
+      if (!lastNameFilter.includes(name)) return false
+    }
+    if (weightQFilter.length > 0) {
+      const weight = String(row.weightQ ?? '').trim()
+      if (!weightQFilter.includes(weight)) return false
+    }
+    if (weightYearFilter.length > 0) {
+      const weight = String(row.weightYear ?? '').trim()
+      if (!weightYearFilter.includes(weight)) return false
+    }
+    if (reportYearFilter.length === 0) return true
+    const year = String(row.reportYear ?? '').trim()
+    return reportYearFilter.includes(year)
   })
 
-  const hasActiveFilters = !!(searchLastName.trim() || searchMetricGoals.trim())
+  const hasActiveFilters =
+    normalizedFilters.length > 0 ||
+    lastNameFilter.length > 0 ||
+    weightQFilter.length > 0 ||
+    weightYearFilter.length > 0 ||
+    reportYearFilter.length > 0
   const resetFilters = useCallback(() => {
-    setSearchLastName('')
-    setSearchMetricGoals('')
+    setFilters(createFiltersState())
+    setLastNameFilter([])
+    setWeightQFilter([])
+    setWeightYearFilter([])
+    setReportYearFilter([])
+    setReportYearOpen(false)
+    setLastNameOpen(false)
+    setWeightQOpen(false)
+    setWeightYearOpen(false)
+  }, [])
+
+  const updateFilter = useCallback((key: GoalField, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }))
   }, [])
 
   const collator = useMemo(() => new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }), [])
+  const lastNameOptions = useMemo(() => buildOptions(goalsState.rows, 'lastName', collator), [collator, goalsState.rows])
+  const weightQOptions = useMemo(() => buildOptions(goalsState.rows, 'weightQ', collator), [collator, goalsState.rows])
+  const weightYearOptions = useMemo(() => buildOptions(goalsState.rows, 'weightYear', collator), [collator, goalsState.rows])
+  const reportYearOptions = useMemo(() => buildOptions(goalsState.rows, 'reportYear', collator), [collator, goalsState.rows])
+
+  useEffect(() => {
+    setLastNameFilter((prev) => prev.filter((value) => lastNameOptions.includes(value)))
+  }, [lastNameOptions])
+
+  useEffect(() => {
+    setWeightQFilter((prev) => prev.filter((value) => weightQOptions.includes(value)))
+  }, [weightQOptions])
+
+  useEffect(() => {
+    setWeightYearFilter((prev) => prev.filter((value) => weightYearOptions.includes(value)))
+  }, [weightYearOptions])
+
+  useEffect(() => {
+    setReportYearFilter((prev) => prev.filter((year) => reportYearOptions.includes(year)))
+  }, [reportYearOptions])
+
+  const toggleLastName = useCallback(
+    (value: string) => {
+      setLastNameFilter((prev) => {
+        if (prev.includes(value)) return prev.filter((item) => item !== value)
+        return [...prev, value].sort((a, b) => collator.compare(a, b))
+      })
+    },
+    [collator]
+  )
+
+  const toggleAllLastNames = useCallback(() => {
+    setLastNameFilter((prev) => (prev.length === lastNameOptions.length ? [] : [...lastNameOptions]))
+  }, [lastNameOptions])
+
+  const toggleAllWeightQ = useCallback(() => {
+    setWeightQFilter((prev) => (prev.length === weightQOptions.length ? [] : [...weightQOptions]))
+  }, [weightQOptions])
+
+  const toggleAllWeightYear = useCallback(() => {
+    setWeightYearFilter((prev) => (prev.length === weightYearOptions.length ? [] : [...weightYearOptions]))
+  }, [weightYearOptions])
+
+  const toggleAllReportYear = useCallback(() => {
+    setReportYearFilter((prev) => (prev.length === reportYearOptions.length ? [] : [...reportYearOptions]))
+  }, [reportYearOptions])
+
+  const toggleWeightQ = useCallback(
+    (value: string) => {
+      setWeightQFilter((prev) => {
+        if (prev.includes(value)) return prev.filter((item) => item !== value)
+        return [...prev, value].sort((a, b) => collator.compare(a, b))
+      })
+    },
+    [collator]
+  )
+
+  const toggleWeightYear = useCallback(
+    (value: string) => {
+      setWeightYearFilter((prev) => {
+        if (prev.includes(value)) return prev.filter((item) => item !== value)
+        return [...prev, value].sort((a, b) => collator.compare(a, b))
+      })
+    },
+    [collator]
+  )
+
+  const toggleReportYear = useCallback(
+    (value: string) => {
+      setReportYearFilter((prev) => {
+        if (prev.includes(value)) return prev.filter((item) => item !== value)
+        return [...prev, value].sort((a, b) => collator.compare(a, b))
+      })
+    },
+    [collator]
+  )
+
+  const lastNameLabel = useMemo(() => buildSelectedLabel(lastNameFilter, 'Все ФИО'), [lastNameFilter])
+  const weightQLabel = useMemo(
+    () => buildSelectedLabel(weightQFilter, 'Все значения', formatFilterValue),
+    [weightQFilter]
+  )
+  const weightYearLabel = useMemo(
+    () => buildSelectedLabel(weightYearFilter, 'Все значения', formatFilterValue),
+    [weightYearFilter]
+  )
+  const reportYearLabel = useMemo(
+    () => buildSelectedLabel(reportYearFilter, 'Все годы', formatFilterValue),
+    [reportYearFilter]
+  )
+  const allLastNamesSelected =
+    lastNameOptions.length > 0 && lastNameFilter.length === lastNameOptions.length
+  const allWeightQSelected =
+    weightQOptions.length > 0 && weightQFilter.length === weightQOptions.length
+  const allWeightYearSelected =
+    weightYearOptions.length > 0 && weightYearFilter.length === weightYearOptions.length
+  const allReportYearSelected =
+    reportYearOptions.length > 0 && reportYearFilter.length === reportYearOptions.length
 
   const sortedRows = useMemo(() => {
     if (!sortKey) return filteredRows
@@ -119,7 +310,7 @@ export function KpiPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [searchLastName, searchMetricGoals, sortKey, sortDirection])
+  }, [filters, lastNameFilter, weightQFilter, weightYearFilter, reportYearFilter, sortKey, sortDirection])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -132,6 +323,26 @@ export function KpiPage() {
       return () => document.removeEventListener('click', handleClickOutside)
     }
   }, [exportDropdownOpen])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      const insideLastName = lastNameRef.current?.contains(target)
+      const insideReportYear = reportYearRef.current?.contains(target)
+      const insideWeightQ = weightQRef.current?.contains(target)
+      const insideWeightYear = weightYearRef.current?.contains(target)
+      if (!insideLastName && !insideReportYear && !insideWeightQ && !insideWeightYear) {
+        setReportYearOpen(false)
+        setWeightQOpen(false)
+        setWeightYearOpen(false)
+        setLastNameOpen(false)
+      }
+    }
+    if (reportYearOpen || weightQOpen || weightYearOpen || lastNameOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [reportYearOpen, weightQOpen, weightYearOpen, lastNameOpen])
 
   const handleExport = useCallback(
     (format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
@@ -229,6 +440,7 @@ export function KpiPage() {
     { key: 'year', label: 'Год', placeholder: 'итог', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
     { key: 'reportYear', label: 'Отчётный год', placeholder: '2026', cellClassName: styles.colQuarter, inputClassName: `${styles.input} ${styles.quarterInput}`, valueClassName: styles.valueCenter },
   ]
+  const filterableColumns = columns.filter((col) => !FILTER_DISABLED_FIELDS.includes(col.key))
 
   const addRow = useCallback(() => {
     const newRow = createRow()
@@ -329,11 +541,6 @@ export function KpiPage() {
             >
               Очистить таблицу
             </button>
-            {hasActiveFilters && (
-              <button type="button" className={styles.resetFiltersBtn} onClick={resetFilters} disabled={!!editingRowId} title="Сбросить все фильтры по колонкам">
-                Сбросить фильтры
-              </button>
-            )}
             <button type="button" className={styles.addBtn} onClick={addRow} aria-label="Добавить строку" title="Добавить строку">
               <PlusIcon className={styles.addBtnIcon} />
             </button>
@@ -345,40 +552,257 @@ export function KpiPage() {
           </div>
         )}
 
+        <div className={styles.filtersPanel}>
+          <div className={styles.filtersGrid}>
+            {filterableColumns.map((col) =>
+              col.key === 'lastName' ? (
+                <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={lastNameRef}>
+                  <span className={styles.filterLabel}>{col.label}</span>
+                  <button
+                    type="button"
+                    className={styles.filterSelectButton}
+                    onClick={() => {
+                      setLastNameOpen((prev) => !prev)
+                      setWeightQOpen(false)
+                      setWeightYearOpen(false)
+                      setReportYearOpen(false)
+                    }}
+                    disabled={!!editingRowId}
+                    aria-expanded={lastNameOpen}
+                    aria-haspopup="listbox"
+                  >
+                    <span className={styles.filterSelectText}>{lastNameLabel}</span>
+                    <span className={styles.filterSelectCaret} aria-hidden />
+                  </button>
+                  {lastNameOpen && (
+                    <div className={styles.filterSelectMenu} role="listbox" aria-label="ФИО">
+                      {lastNameOptions.length === 0 ? (
+                        <div className={styles.filterSelectEmpty}>Нет данных</div>
+                      ) : (
+                        <>
+                          <label className={styles.filterSelectOption}>
+                            <input
+                              type="checkbox"
+                              checked={allLastNamesSelected}
+                              onChange={toggleAllLastNames}
+                            />
+                            <span>Выбрать все</span>
+                          </label>
+                          {lastNameOptions.map((value) => (
+                            <label key={value} className={styles.filterSelectOption}>
+                              <input
+                                type="checkbox"
+                                checked={lastNameFilter.includes(value)}
+                                onChange={() => toggleLastName(value)}
+                              />
+                              <span>{formatFilterValue(value)}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : col.key === 'weightQ' ? (
+                <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={weightQRef}>
+                  <span className={styles.filterLabel}>{col.label}</span>
+                  <button
+                    type="button"
+                    className={styles.filterSelectButton}
+                    onClick={() => {
+                      setWeightQOpen((prev) => !prev)
+                      setLastNameOpen(false)
+                      setWeightYearOpen(false)
+                      setReportYearOpen(false)
+                    }}
+                    disabled={!!editingRowId}
+                    aria-expanded={weightQOpen}
+                    aria-haspopup="listbox"
+                  >
+                    <span className={styles.filterSelectText}>{weightQLabel}</span>
+                    <span className={styles.filterSelectCaret} aria-hidden />
+                  </button>
+                  {weightQOpen && (
+                    <div className={styles.filterSelectMenu} role="listbox" aria-label="Вес квартал">
+                      {weightQOptions.length === 0 ? (
+                        <div className={styles.filterSelectEmpty}>Нет данных</div>
+                      ) : (
+                        <>
+                          <label className={styles.filterSelectOption}>
+                            <input
+                              type="checkbox"
+                              checked={allWeightQSelected}
+                              onChange={toggleAllWeightQ}
+                            />
+                            <span>Выбрать все</span>
+                          </label>
+                          {weightQOptions.map((value) => (
+                            <label key={value} className={styles.filterSelectOption}>
+                              <input
+                                type="checkbox"
+                                checked={weightQFilter.includes(value)}
+                                onChange={() => toggleWeightQ(value)}
+                              />
+                              <span>{formatFilterValue(value)}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : col.key === 'weightYear' ? (
+                <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={weightYearRef}>
+                  <span className={styles.filterLabel}>{col.label}</span>
+                  <button
+                    type="button"
+                    className={styles.filterSelectButton}
+                    onClick={() => {
+                      setWeightYearOpen((prev) => !prev)
+                      setLastNameOpen(false)
+                      setWeightQOpen(false)
+                      setReportYearOpen(false)
+                    }}
+                    disabled={!!editingRowId}
+                    aria-expanded={weightYearOpen}
+                    aria-haspopup="listbox"
+                  >
+                    <span className={styles.filterSelectText}>{weightYearLabel}</span>
+                    <span className={styles.filterSelectCaret} aria-hidden />
+                  </button>
+                  {weightYearOpen && (
+                    <div className={styles.filterSelectMenu} role="listbox" aria-label="Вес год">
+                      {weightYearOptions.length === 0 ? (
+                        <div className={styles.filterSelectEmpty}>Нет данных</div>
+                      ) : (
+                        <>
+                          <label className={styles.filterSelectOption}>
+                            <input
+                              type="checkbox"
+                              checked={allWeightYearSelected}
+                              onChange={toggleAllWeightYear}
+                            />
+                            <span>Выбрать все</span>
+                          </label>
+                          {weightYearOptions.map((value) => (
+                            <label key={value} className={styles.filterSelectOption}>
+                              <input
+                                type="checkbox"
+                                checked={weightYearFilter.includes(value)}
+                                onChange={() => toggleWeightYear(value)}
+                              />
+                              <span>{formatFilterValue(value)}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : col.key === 'reportYear' ? (
+                <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={reportYearRef}>
+                  <span className={styles.filterLabel}>{col.label}</span>
+                  <button
+                    type="button"
+                    className={styles.filterSelectButton}
+                    onClick={() => {
+                      setReportYearOpen((prev) => !prev)
+                      setLastNameOpen(false)
+                      setWeightQOpen(false)
+                      setWeightYearOpen(false)
+                    }}
+                    disabled={!!editingRowId}
+                    aria-expanded={reportYearOpen}
+                    aria-haspopup="listbox"
+                  >
+                    <span className={styles.filterSelectText}>{reportYearLabel}</span>
+                    <span className={styles.filterSelectCaret} aria-hidden />
+                  </button>
+                  {reportYearOpen && (
+                    <div className={styles.filterSelectMenu} role="listbox" aria-label="Отчётный год">
+                      {reportYearOptions.length === 0 ? (
+                        <div className={styles.filterSelectEmpty}>Нет данных</div>
+                      ) : (
+                        <>
+                          <label className={styles.filterSelectOption}>
+                            <input
+                              type="checkbox"
+                              checked={allReportYearSelected}
+                              onChange={toggleAllReportYear}
+                            />
+                            <span>Выбрать все</span>
+                          </label>
+                          {reportYearOptions.map((year) => (
+                            <label key={year} className={styles.filterSelectOption}>
+                              <input
+                                type="checkbox"
+                                checked={reportYearFilter.includes(year)}
+                                onChange={() => toggleReportYear(year)}
+                              />
+                              <span>{formatFilterValue(year)}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <label key={col.key} className={styles.filterField}>
+                  <span className={styles.filterLabel}>{col.label}</span>
+                  <input
+                    type="search"
+                    className={styles.filterInput}
+                    value={filters[col.key]}
+                    onChange={(e) => updateFilter(col.key, e.target.value)}
+                    placeholder={col.placeholder || 'Фильтр'}
+                    disabled={!!editingRowId}
+                  />
+                </label>
+              )
+            )}
+          </div>
+          <div className={styles.filtersActions}>
+            <button
+              type="button"
+              className={styles.resetFiltersBtn}
+              onClick={resetFilters}
+              disabled={!!editingRowId || !hasActiveFilters}
+              title="Сбросить все фильтры по колонкам"
+            >
+              Сбросить фильтры
+            </button>
+          </div>
+        </div>
+
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
               <tr>
                 {columns.map((col) => (
                   <th key={col.key} className={col.cellClassName}>
-                    {col.key === 'lastName' ? (
-                      <div className={styles.headerWithSearch}>
-                        <button type="button" className={styles.sortBtn} onClick={() => handleSort(col.key)} disabled={!!editingRowId} aria-label={`Сортировать по: ${col.label}`}>
-                          <span className={styles.headerLabel}>{col.label}</span>
-                          <span className={[styles.sortIndicator, sortKey === col.key ? (sortDirection === 'asc' ? styles.sortIndicatorAsc : styles.sortIndicatorDesc) : styles.sortIndicatorInactive].filter(Boolean).join(' ')} aria-hidden />
-                        </button>
-                        <label className={`${styles.searchField} ${styles.searchFieldCompact}`}>
-                          <SearchIcon className={styles.searchIcon} />
-                          <input type="search" className={`${styles.searchInput} ${styles.searchInputCompact}`} value={searchLastName} onChange={(e) => setSearchLastName(e.target.value)} placeholder="Поиск" aria-label="Поиск по ФИО" disabled={!!editingRowId} />
-                        </label>
-                      </div>
-                    ) : col.key === 'metricGoals' ? (
-                      <div className={styles.headerWithSearch}>
-                        <button type="button" className={styles.sortBtn} onClick={() => handleSort(col.key)} disabled={!!editingRowId} aria-label={`Сортировать по: ${col.label}`}>
-                          <span className={styles.headerLabel}>{col.label}</span>
-                          <span className={[styles.sortIndicator, sortKey === col.key ? (sortDirection === 'asc' ? styles.sortIndicatorAsc : styles.sortIndicatorDesc) : styles.sortIndicatorInactive].filter(Boolean).join(' ')} aria-hidden />
-                        </button>
-                        <label className={`${styles.searchField} ${styles.searchFieldWide}`}>
-                          <SearchIcon className={styles.searchIcon} />
-                          <input type="search" className={`${styles.searchInput} ${styles.searchInputWide}`} value={searchMetricGoals} onChange={(e) => setSearchMetricGoals(e.target.value)} placeholder="Поиск" aria-label="Поиск по метрическим целям" disabled={!!editingRowId} />
-                        </label>
-                      </div>
-                    ) : (
-                      <button type="button" className={styles.sortBtn} onClick={() => handleSort(col.key)} disabled={!!editingRowId} aria-label={`Сортировать по: ${col.label}`}>
-                        <span className={styles.headerLabel}>{col.label}</span>
-                        <span className={[styles.sortIndicator, sortKey === col.key ? (sortDirection === 'asc' ? styles.sortIndicatorAsc : styles.sortIndicatorDesc) : styles.sortIndicatorInactive].filter(Boolean).join(' ')} aria-hidden />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className={styles.sortBtn}
+                      onClick={() => handleSort(col.key)}
+                      disabled={!!editingRowId}
+                      aria-label={`Сортировать по: ${col.label}`}
+                    >
+                      <span className={styles.headerLabel}>{col.label}</span>
+                      <span
+                        className={[
+                          styles.sortIndicator,
+                          sortKey === col.key
+                            ? sortDirection === 'asc'
+                              ? styles.sortIndicatorAsc
+                              : styles.sortIndicatorDesc
+                            : styles.sortIndicatorInactive,
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        aria-hidden
+                      />
+                    </button>
                   </th>
                 ))}
                 <th className={styles.actionsCol}>Действия</th>
