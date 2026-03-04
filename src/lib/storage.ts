@@ -6,6 +6,21 @@ const UPLOADED_FILES_KEY = 'kpi-cascading-uploaded-files'
 const COLLECTIONS_KEY = 'kpi-cascading-collections'
 const GOALS_KEY = 'kpi-cascading-goals'
 const KPI_GOALS_KEY = 'kpi-cascading-kpi-goals'
+const DEMO_CLEAR_KEY = 'kpi-cascading-demo-cleared'
+
+function clearDemoGoalsOnce(): void {
+  if (typeof window === 'undefined') return
+  try {
+    if (localStorage.getItem(DEMO_CLEAR_KEY) === '1') return
+    if (localStorage.getItem(GOALS_KEY)) localStorage.removeItem(GOALS_KEY)
+    if (localStorage.getItem(KPI_GOALS_KEY)) localStorage.removeItem(KPI_GOALS_KEY)
+    localStorage.setItem(DEMO_CLEAR_KEY, '1')
+  } catch {
+    // ignore storage errors (private mode, blocked storage, etc.)
+  }
+}
+
+clearDemoGoalsOnce()
 
 export type StoredUploadedFile = {
   fileId: string
