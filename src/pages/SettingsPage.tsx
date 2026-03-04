@@ -9,6 +9,7 @@ import {
   type TemplateDocumentTypeId,
   type DocumentMeta,
 } from '@/api/documents'
+import { downloadJsonFile } from '@/lib/downloadJson'
 import { TemplateChecklistModal, type TemplateChecklistState } from './TemplateChecklistModal'
 import styles from './SettingsPage.module.css'
 
@@ -277,6 +278,13 @@ export function SettingsPage() {
     }
   }, [templateChecklist, updateTemplateDoc])
 
+  const downloadTemplateChecklistJson = useCallback(() => {
+    if (!templateChecklist) return
+    const parsedJson = buildTemplateParsedJson(templateChecklist)
+    const baseName = templateChecklist.documentName || templateChecklist.documentType || 'checklist'
+    downloadJsonFile(parsedJson, baseName)
+  }, [templateChecklist])
+
   const handleUpload = useCallback(
     async (typeId: TemplateDocumentTypeId, file: File) => {
       setError(null)
@@ -327,7 +335,7 @@ export function SettingsPage() {
       <header className={styles.hero}>
         <h1 className={styles.title}>Настройки</h1>
         <p className={styles.subtitle}>
-          Здесь загружаются стандартные документы, которые не меняются в течение года:
+          Здесь загружаются основные документы, которые не меняются в течение года:
           <strong> Бизнес-план</strong>, <strong>Стратегия</strong> и <strong>Регламент</strong>.
           Они автоматически подставляются в каждую новую коллекцию на вкладке «База знаний».
         </p>
@@ -469,6 +477,7 @@ export function SettingsPage() {
             addItem: addTemplateChecklistItem,
             removeItem: removeTemplateChecklistItem,
             submit: submitTemplateChecklistHandler,
+            downloadJson: downloadTemplateChecklistJson,
           }}
         />
       )}

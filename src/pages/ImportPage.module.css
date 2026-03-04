@@ -787,6 +787,25 @@
   cursor: pointer;
 }
 
+.modalBtnGhostSmall {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.modalBtnGhostSmall:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.modalBtnGhostSmall:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .modalBtnCancel:hover {
   background: #e2e8f0;
   color: #334155;

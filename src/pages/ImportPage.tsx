@@ -21,6 +21,7 @@ import {
 } from '@/api/documents'
 import { PaperclipIcon, PersonIcon } from '@/components/Icons'
 import { downloadGoalsTemplate } from '@/lib/exportGoals'
+import { downloadJsonFile } from '@/lib/downloadJson'
 import { DepartmentChecklistModal } from './Import/DepartmentChecklistModal'
 import { TemplateChecklistModal, type TemplateChecklistState } from './TemplateChecklistModal'
 import { SLOT_TYPES, TEMPLATE_SLOT_IDS, createInitialFiles, type SlotTypeId } from './Import/constants'
@@ -692,6 +693,13 @@ export function ImportPage() {
     }
   }, [documentChecklist, loadDocumentsForCollection])
 
+  const downloadChecklistJson = useCallback(() => {
+    if (!documentChecklist) return
+    const parsedJson = buildChecklistParsedJson(documentChecklist)
+    const baseName = documentChecklist.documentName || documentChecklist.documentType || 'checklist'
+    downloadJsonFile(parsedJson, baseName)
+  }, [documentChecklist])
+
   const handleGenerateJson = useCallback(
     async (col: CollectionMeta) => {
       setError(null)
@@ -1073,6 +1081,7 @@ export function ImportPage() {
             addItem: addChecklistItem,
             removeItem: removeChecklistItem,
             submit: submitChecklistHandler,
+            downloadJson: downloadChecklistJson,
           }}
         />
       )}

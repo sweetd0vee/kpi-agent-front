@@ -22,6 +22,7 @@ export interface TemplateChecklistModalActions {
   addItem: () => void
   removeItem: (index: number) => void
   submit: () => void
+  downloadJson: () => void
 }
 
 interface TemplateChecklistModalProps {
@@ -30,7 +31,7 @@ interface TemplateChecklistModalProps {
 }
 
 export function TemplateChecklistModal({ state, actions }: TemplateChecklistModalProps) {
-  const { onClose, cancelProcessing, toggleItem, updateItem, addItem, removeItem, submit } = actions
+  const { onClose, cancelProcessing, toggleItem, updateItem, addItem, removeItem, submit, downloadJson } = actions
   const busy = state.loading || state.submitting
   const showSection = state.mode === 'items'
   const heading = state.mode === 'rules' ? 'Правила' : 'Пункты'
@@ -148,6 +149,15 @@ export function TemplateChecklistModal({ state, actions }: TemplateChecklistModa
             </div>
 
             <div className={styles.checklistModalActions}>
+              <button
+                type="button"
+                className={styles.modalBtnGhostSmall}
+                onClick={downloadJson}
+                disabled={state.submitting}
+                title="Скачать JSON для проверки"
+              >
+                Скачать JSON
+              </button>
               <button
                 type="button"
                 className={styles.modalBtnCancel}
