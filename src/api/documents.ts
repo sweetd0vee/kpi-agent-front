@@ -255,23 +255,29 @@ export type TemplateDocumentTypeId = (typeof TEMPLATE_DOCUMENT_TYPES)[number]
 
 export type TemplateDocumentsResponse = Record<string, DocumentMeta | null>
 
-const SETTINGS_REQUEST_TIMEOUT_MS = 15_000
+const SETTINGS_REQUEST_TIMEOUT_MS = 8_000
 
 /** Список шаблонных документов (Бизнес-план, Стратегия, Регламент). */
-export async function getTemplateDocuments(): Promise<TemplateDocumentsResponse> {
+export async function getTemplateDocuments(
+  externalSignal?: AbortSignal
+): Promise<TemplateDocumentsResponse> {
+  if (externalSignal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError')
+  }
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), SETTINGS_REQUEST_TIMEOUT_MS)
+  const signal =
+    externalSignal == null
+      ? controller.signal
+      : mergeAbortSignals(externalSignal, controller.signal)
+
   try {
-    const res = await apiFetch('/api/settings/template-documents', {
-      signal: controller.signal,
-    })
+    const res = await apiFetch('/api/settings/template-documents', { signal })
     if (!res.ok) throw new Error(`Шаблонные документы: ${res.status}`)
     return res.json()
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
-      throw new Error(
-        'Сервер не ответил вовремя. Проверьте, что бэкенд запущен (порт 8000) и доступен по адресу из настроек.'
-      )
+      return {}
     }
     throw e
   } finally {
@@ -279,20 +285,25 @@ export async function getTemplateDocuments(): Promise<TemplateDocumentsResponse>
   }
 }
 
-/** Загрузить или заменить шаблонный документ. */
+function mergeAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
+  const c = new AbortController()
+  const abort = () => c.abort()
+  a.addEventListener('abort', abort)
+  b.addEventListener('abort', abort)
+  return c.signal
+}
+
+/** Загрузить или заменить шаблонный документ (сохраняется в MinIO в свой бакет при USE_MINIO=true). */
 export async function uploadTemplateDocument(
   documentType: TemplateDocumentTypeId,
   file: File
 ): Promise<DocumentMeta> {
-  const base = getBaseUrl()
   const params = new URLSearchParams({ document_type: documentType })
-  const url = `${base}/api/settings/template-documents/upload?${params}`
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch(url, {
+  const res = await apiFetch(`/api/settings/template-documents/upload?${params}`, {
     method: 'POST',
     body: form,
-    headers: { Accept: 'application/json' },
   })
   if (!res.ok) {
     const t = await res.text()

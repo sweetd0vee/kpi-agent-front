@@ -52,21 +52,35 @@ export function SettingsPage() {
   const [uploading, setUploading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const abortRef = useRef<AbortController | null>(null)
 
-  const loadTemplates = useCallback(async () => {
+  const loadTemplates = useCallback(async (signal?: AbortSignal) => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const s = signal ?? controller.signal
     setError(null)
+    setLoading(true)
     try {
-      const data = await getTemplateDocuments()
-      setTemplateDocs(data)
+      const data = await getTemplateDocuments(s)
+      if (!s.aborted) setTemplateDocs(data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось загрузить настройки')
+      if (!s.aborted) {
+        setError(e instanceof Error ? e.message : 'Не удалось загрузить настройки')
+      }
     } finally {
-      setLoading(false)
+      if (!s.aborted) setLoading(false)
+      if (abortRef.current === controller) abortRef.current = null
     }
   }, [])
 
   useEffect(() => {
-    loadTemplates()
+    const controller = new AbortController()
+    loadTemplates(controller.signal)
+    return () => {
+      controller.abort()
+      abortRef.current?.abort()
+    }
   }, [loadTemplates])
 
   const handleUpload = useCallback(
@@ -102,16 +116,10 @@ export function SettingsPage() {
     e.currentTarget.classList.remove(styles.cardDragOver)
   }
 
-  if (loading) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.loadingWrap}>
-          <div className={styles.loadingSpinner} aria-hidden />
-          <p className={styles.loading}>Загрузка настроек…</p>
-        </div>
-      </div>
-    )
-  }
+  const onRetry = useCallback(() => {
+    setError(null)
+    loadTemplates()
+  }, [loadTemplates])
 
   return (
     <div className={styles.page}>
@@ -127,7 +135,7 @@ export function SettingsPage() {
       {error && (
         <div className={styles.error} role="alert">
           <span>{error}</span>
-          <button type="button" className={styles.retryButton} onClick={() => { setError(null); setLoading(true); loadTemplates(); }}>
+          <button type="button" className={styles.retryButton} onClick={onRetry}>
             Повторить
           </button>
         </div>
@@ -138,76 +146,83 @@ export function SettingsPage() {
         <p className={styles.sectionDesc}>
           Загрузите каждый документ один раз. Форматы: PDF, DOCX, XLSX, TXT.
         </p>
-        <ul className={styles.cards}>
-          {TEMPLATE_SLOTS.map((slot) => {
-            const doc = templateDocs[slot.id] ?? null
-            const isUploading = uploading === slot.id
-            return (
-              <li key={slot.id} className={styles.card}>
-                <div
-                  className={`${styles.cardInner} ${doc ? styles.cardFilled : ''}`}
-                  onDrop={(e) => handleDrop(slot.id, e)}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                >
-                  <div className={styles.cardHeader}>
-                    <DocIcon type={slot.icon} />
-                    <div className={styles.cardTitles}>
-                      <h3 className={styles.cardLabel}>{slot.label}</h3>
-                      <p className={styles.cardDesc}>{slot.description}</p>
+        {loading ? (
+          <div className={styles.loadingWrap}>
+            <div className={styles.loadingSpinner} aria-hidden />
+            <p className={styles.loading}>Загрузка списка документов…</p>
+          </div>
+        ) : (
+          <ul className={styles.cards}>
+            {TEMPLATE_SLOTS.map((slot) => {
+              const doc = templateDocs[slot.id] ?? null
+              const isUploading = uploading === slot.id
+              return (
+                <li key={slot.id} className={styles.card}>
+                  <div
+                    className={`${styles.cardInner} ${doc ? styles.cardFilled : ''}`}
+                    onDrop={(e) => handleDrop(slot.id, e)}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                  >
+                    <div className={styles.cardHeader}>
+                      <DocIcon type={slot.icon} />
+                      <div className={styles.cardTitles}>
+                        <h3 className={styles.cardLabel}>{slot.label}</h3>
+                        <p className={styles.cardDesc}>{slot.description}</p>
+                      </div>
                     </div>
-                  </div>
-                  <input
-                    ref={(el) => { fileInputRefs.current[slot.id] = el }}
-                    type="file"
-                    className={styles.hiddenInput}
-                    accept=".pdf,.docx,.xlsx,.xls,.txt"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0]
-                      if (f) handleUpload(slot.id, f)
-                      e.target.value = ''
-                    }}
-                  />
-                  {doc ? (
-                    <div className={styles.cardFile}>
-                      <span className={styles.cardFileName} title={doc.name}>
-                        {doc.name}
-                      </span>
+                    <input
+                      ref={(el) => { fileInputRefs.current[slot.id] = el }}
+                      type="file"
+                      className={styles.hiddenInput}
+                      accept=".pdf,.docx,.xlsx,.xls,.txt"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) handleUpload(slot.id, f)
+                        e.target.value = ''
+                      }}
+                    />
+                    {doc ? (
+                      <div className={styles.cardFile}>
+                        <span className={styles.cardFileName} title={doc.name}>
+                          {doc.name}
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.cardReplace}
+                          onClick={() => fileInputRefs.current[slot.id]?.click()}
+                          disabled={isUploading}
+                          title="Заменить файл"
+                        >
+                          {isUploading ? 'Загрузка…' : 'Заменить'}
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         type="button"
-                        className={styles.cardReplace}
+                        className={styles.cardAttach}
                         onClick={() => fileInputRefs.current[slot.id]?.click()}
                         disabled={isUploading}
-                        title="Заменить файл"
                       >
-                        {isUploading ? 'Загрузка…' : 'Заменить'}
+                        {isUploading ? (
+                          <>
+                            <span className={styles.cardAttachSpinner} aria-hidden />
+                            Загрузка…
+                          </>
+                        ) : (
+                          <>
+                            <span className={styles.cardAttachIcon}>+</span>
+                            Выберите файл или перетащите сюда
+                          </>
+                        )}
                       </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.cardAttach}
-                      onClick={() => fileInputRefs.current[slot.id]?.click()}
-                      disabled={isUploading}
-                    >
-                      {isUploading ? (
-                        <>
-                          <span className={styles.cardAttachSpinner} aria-hidden />
-                          Загрузка…
-                        </>
-                      ) : (
-                        <>
-                          <span className={styles.cardAttachIcon}>+</span>
-                          Выберите файл или перетащите сюда
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </section>
     </div>
   )
