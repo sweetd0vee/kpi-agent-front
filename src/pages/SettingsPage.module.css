@@ -63,6 +63,10 @@
 
 /* Error */
 .error {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
   padding: 1rem 1.25rem;
   margin-bottom: 1.5rem;
   background: #fef2f2;
@@ -70,6 +74,29 @@
   color: #b91c1c;
   font-size: 0.875rem;
   border-radius: 12px;
+}
+
+.error span {
+  flex: 1;
+  min-width: 0;
+}
+
+.retryButton {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #b91c1c;
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.retryButton:hover {
+  background: #fee2e2;
+  border-color: #f87171;
 }
 
 /* Section */

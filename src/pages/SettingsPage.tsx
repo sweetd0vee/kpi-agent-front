@@ -126,7 +126,10 @@ export function SettingsPage() {
 
       {error && (
         <div className={styles.error} role="alert">
-          {error}
+          <span>{error}</span>
+          <button type="button" className={styles.retryButton} onClick={() => { setError(null); setLoading(true); loadTemplates(); }}>
+            Повторить
+          </button>
         </div>
       )}
 

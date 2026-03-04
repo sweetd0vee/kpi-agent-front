@@ -255,11 +255,28 @@ export type TemplateDocumentTypeId = (typeof TEMPLATE_DOCUMENT_TYPES)[number]
 
 export type TemplateDocumentsResponse = Record<string, DocumentMeta | null>
 
+const SETTINGS_REQUEST_TIMEOUT_MS = 15_000
+
 /** Список шаблонных документов (Бизнес-план, Стратегия, Регламент). */
 export async function getTemplateDocuments(): Promise<TemplateDocumentsResponse> {
-  const res = await apiFetch('/api/settings/template-documents')
-  if (!res.ok) throw new Error(`Шаблонные документы: ${res.status}`)
-  return res.json()
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), SETTINGS_REQUEST_TIMEOUT_MS)
+  try {
+    const res = await apiFetch('/api/settings/template-documents', {
+      signal: controller.signal,
+    })
+    if (!res.ok) throw new Error(`Шаблонные документы: ${res.status}`)
+    return res.json()
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error(
+        'Сервер не ответил вовремя. Проверьте, что бэкенд запущен (порт 8000) и доступен по адресу из настроек.'
+      )
+    }
+    throw e
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 /** Загрузить или заменить шаблонный документ. */
