@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { generateId, getPrompts, savePrompts, type StoredPrompt } from '@/lib/storage'
+import { PencilIcon, TrashIcon } from '@/components/Icons'
+import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import styles from '../ImportPage.module.css'
 
 type DefaultPrompt = {
@@ -34,7 +36,28 @@ const DEFAULT_PROMPTS: DefaultPrompt[] = [
   },
 ]
 
-const buildCopyTitle = (title: string) => (title ? `${title} (копия)` : 'Без названия (копия)')
+const COPY_SUFFIX_PATTERN = /\s*\(копия(?:\s*-\s*(\d+))?\)\s*$/i
+
+const buildCopyTitle = (title: string, existingTitles: string[]) => {
+  const rawTitle = title.trim()
+  const baseTitle = rawTitle.replace(COPY_SUFFIX_PATTERN, '').trim() || 'Без названия'
+  const copyTitle = `${baseTitle} (копия)`
+  const hasCopyTitle = existingTitles.some((existing) => existing.trim() === copyTitle)
+  if (!hasCopyTitle) return copyTitle
+  let maxIndex = 0
+  existingTitles.forEach((existing) => {
+    const trimmed = existing.trim()
+    if (trimmed === copyTitle) {
+      maxIndex = Math.max(maxIndex, 0)
+      return
+    }
+    const match = trimmed.match(new RegExp(`^${baseTitle.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')} \\(копия - (\\d+)\\)$`, 'i'))
+    if (!match) return
+    const index = Number(match[1])
+    if (Number.isFinite(index) && index > maxIndex) maxIndex = index
+  })
+  return `${baseTitle} (копия - ${maxIndex + 1})`
+}
 
 export function PromptsTab() {
   const [customPrompts, setCustomPrompts] = useState<StoredPrompt[]>(() => getPrompts())
@@ -45,6 +68,7 @@ export function PromptsTab() {
   const [editingTitle, setEditingTitle] = useState('')
   const [editingContent, setEditingContent] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
+  const [pendingDeletePrompt, setPendingDeletePrompt] = useState<StoredPrompt | null>(null)
 
   useEffect(() => {
     savePrompts(customPrompts)
@@ -109,15 +133,25 @@ export function PromptsTab() {
 
   const handleCopyPrompt = useCallback((prompt: { title: string; content: string }) => {
     const now = Date.now()
-    const next: StoredPrompt = {
-      id: generateId(),
-      title: buildCopyTitle(prompt.title),
-      content: prompt.content,
-      createdAt: now,
-      updatedAt: now,
-    }
-    setCustomPrompts((prev) => [next, ...prev])
+    setCustomPrompts((prev) => {
+      const next: StoredPrompt = {
+        id: generateId(),
+        title: buildCopyTitle(prompt.title, prev.map((item) => item.title)),
+        content: prompt.content,
+        createdAt: now,
+        updatedAt: now,
+      }
+      return [next, ...prev]
+    })
   }, [])
+
+  const handleDeletePrompt = useCallback(
+    (promptId: string) => {
+      setCustomPrompts((prev) => prev.filter((prompt) => prompt.id !== promptId))
+      if (editingPromptId === promptId) resetEditing()
+    },
+    [editingPromptId, resetEditing]
+  )
 
   return (
     <section className={styles.promptsSection}>
@@ -234,18 +268,21 @@ export function PromptsTab() {
                         <>
                           <button
                             type="button"
-                            className={styles.promptActionBtn}
+                            className={`${styles.promptIconBtn} ${styles.promptIconBtnEdit}`}
                             onClick={() => handleStartEdit(prompt)}
+                            aria-label="Редактировать промпт"
+                            title="Редактировать"
                           >
-                            Редактировать
+                            <PencilIcon className={styles.promptIcon} />
                           </button>
                           <button
                             type="button"
-                            className={styles.promptActionBtn}
-                            onClick={() => handleCopyPrompt(prompt)}
-                            title="Создать копию промпта"
+                            className={`${styles.promptIconBtn} ${styles.promptIconBtnDanger}`}
+                            onClick={() => setPendingDeletePrompt(prompt)}
+                            aria-label="Удалить промпт"
+                            title="Удалить"
                           >
-                            Копировать
+                            <TrashIcon className={styles.promptIcon} />
                           </button>
                         </>
                       )}
@@ -290,6 +327,20 @@ export function PromptsTab() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={pendingDeletePrompt !== null}
+        title="Удаление промпта"
+        message={`Удалить промпт «${pendingDeletePrompt?.title || 'Без названия'}»?`}
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={() => {
+          if (pendingDeletePrompt) handleDeletePrompt(pendingDeletePrompt.id)
+          setPendingDeletePrompt(null)
+        }}
+        onCancel={() => setPendingDeletePrompt(null)}
+        danger
+      />
     </section>
   )
 }

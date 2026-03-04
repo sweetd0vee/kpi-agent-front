@@ -985,6 +985,43 @@
   background: #dbeafe;
 }
 
+.promptIconBtn {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.promptIconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.promptIconBtnEdit:hover:not(:disabled) {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.promptIconBtnDanger:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.promptIcon {
+  width: 16px;
+  height: 16px;
+}
+
 .promptActionBtnPrimary {
   background: #1e3a8a;
   border-color: #1e3a8a;
