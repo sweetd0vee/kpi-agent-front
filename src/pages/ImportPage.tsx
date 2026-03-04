@@ -10,50 +10,23 @@ import {
   uploadDocument,
   deleteDocument,
   getTemplateDocuments,
+  processDepartmentRegulation,
+  submitDepartmentChecklist,
   type DocumentMeta,
   type CollectionMeta,
+  type DepartmentChecklistItem,
 } from '@/api/documents'
+import { PaperclipIcon, PersonIcon } from '@/components/Icons'
 import { downloadGoalsTemplate } from '@/lib/exportGoals'
+import { DepartmentChecklistModal } from './Import/DepartmentChecklistModal'
+import { SLOT_TYPES, TEMPLATE_SLOT_IDS, createInitialFiles, type SlotTypeId } from './Import/constants'
 import styles from './ImportPage.module.css'
-
-type SlotTypeId = 'business_plan_checklist' | 'strategy_checklist' | 'reglament_checklist' | 'department_goals_checklist' | 'chairman_goals'
-
-const SLOT_TYPES: { id: SlotTypeId; label: string }[] = [
-  { id: 'business_plan_checklist', label: 'Бизнес-план' },
-  { id: 'strategy_checklist', label: 'Стратегия' },
-  { id: 'reglament_checklist', label: 'Регламент' },
-  { id: 'department_goals_checklist', label: 'Положение о департаменте' },
-  { id: 'chairman_goals', label: 'Свои цели' },
-]
-
-function PaperclipIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-    </svg>
-  )
-}
-
-function PersonIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="8" r="4" />
-      <path d="M20 21a8 8 0 1 0-16 0" />
-    </svg>
-  )
-}
 
 export function ImportPage() {
   const [collections, setCollections] = useState<CollectionMeta[]>([])
   const [collectionName, setCollectionName] = useState('')
   const [collectionDescription, setCollectionDescription] = useState('')
-  const [files, setFiles] = useState<Record<SlotTypeId, File | null>>({
-    business_plan_checklist: null,
-    strategy_checklist: null,
-    reglament_checklist: null,
-    department_goals_checklist: null,
-    chairman_goals: null,
-  })
+  const [files, setFiles] = useState<Record<SlotTypeId, File | null>>(createInitialFiles)
   const [creating, setCreating] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [generatingJsonId, setGeneratingJsonId] = useState<string | null>(null)
@@ -66,6 +39,19 @@ export function ImportPage() {
   const [filterMode, setFilterMode] = useState<'mine' | 'processed'>('mine')
   const [templateDocs, setTemplateDocs] = useState<Record<string, DocumentMeta | null>>({})
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  // Модальное окно валидации чеклиста по положению о департаменте
+  const [departmentChecklist, setDepartmentChecklist] = useState<{
+    documentId: string
+    collectionId: string
+    documentName: string
+    department: string
+    goals: DepartmentChecklistItem[]
+    tasks: DepartmentChecklistItem[]
+    loading?: boolean
+    loadingProgress?: number
+    error?: string
+    submitting?: boolean
+  } | null>(null)
 
   const loadCollections = useCallback(async () => {
     try {
@@ -112,6 +98,19 @@ export function ImportPage() {
     loadTemplateDocs()
   }, [loadTemplateDocs])
 
+  // Прогресс загрузки при обработке документа LLM (индикативный, до 90% пока ждём ответа)
+  useEffect(() => {
+    if (!departmentChecklist?.loading) return
+    const id = setInterval(() => {
+      setDepartmentChecklist((prev) => {
+        if (!prev?.loading) return prev
+        const next = Math.min((prev.loadingProgress ?? 0) + 8, 90)
+        return next === (prev.loadingProgress ?? 0) ? prev : { ...prev, loadingProgress: next }
+      })
+    }, 800)
+    return () => clearInterval(id)
+  }, [departmentChecklist?.loading])
+
   const setFile = (typeId: SlotTypeId, file: File | null) => {
     setFiles((prev) => ({ ...prev, [typeId]: file }))
   }
@@ -128,11 +127,13 @@ export function ImportPage() {
       setSearchQuery('')
       setUploading(true)
       const owuErrors: string[] = []
+      let departmentDocId: string | null = null
       for (const slot of SLOT_TYPES) {
         const file = files[slot.id]
         if (file) {
           try {
             const res = await uploadDocument(slot.id, file, col.id)
+            if (slot.id === 'department_goals_checklist') departmentDocId = res.id
             if (res.open_webui_synced === false && res.open_webui_error) {
               owuErrors.push(`${file.name}: ${res.open_webui_error}`)
             }
@@ -141,20 +142,78 @@ export function ImportPage() {
           }
         }
       }
+      if (departmentDocId) {
+        setDepartmentChecklist({
+          documentId: departmentDocId,
+          collectionId: col.id,
+          documentName: files.department_goals_checklist?.name ?? 'Положение о департаменте',
+          department: '',
+          goals: [],
+          tasks: [],
+          loading: true,
+          loadingProgress: 0,
+        })
+        try {
+          const prep = await processDepartmentRegulation(departmentDocId)
+          if (prep.error) {
+            setDepartmentChecklist((prev) =>
+              prev
+                ? { ...prev, loading: false, error: prep.error ?? 'Ошибка обработки' }
+                : null
+            )
+          } else if (prep.parsed_json) {
+            const j = prep.parsed_json as {
+              department?: string
+              goals?: Array<{ id?: string; text?: string; section?: string; checked?: boolean }>
+              tasks?: Array<{ id?: string; text?: string; section?: string; checked?: boolean }>
+            }
+            const goals: DepartmentChecklistItem[] = (j.goals ?? []).map((g) => ({
+              id: String(g.id ?? ''),
+              text: String(g.text ?? ''),
+              section: String(g.section ?? ''),
+              checked: Boolean(g.checked),
+            }))
+            const tasks: DepartmentChecklistItem[] = (j.tasks ?? []).map((t) => ({
+              id: String(t.id ?? ''),
+              text: String(t.text ?? ''),
+              section: String(t.section ?? ''),
+              checked: Boolean(t.checked),
+            }))
+            setDepartmentChecklist((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    loading: false,
+                    department: String(j.department ?? ''),
+                    goals,
+                    tasks,
+                  }
+                : null
+            )
+          } else {
+            setDepartmentChecklist((prev) =>
+              prev ? { ...prev, loading: false, error: 'Нет данных от LLM' } : null
+            )
+          }
+        } catch (e) {
+          setDepartmentChecklist((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  loading: false,
+                  error: e instanceof Error ? e.message : 'Ошибка обработки документа',
+                }
+              : null
+          )
+        }
+      }
       if (owuErrors.length > 0) {
         setError((prev) => (prev ? `${prev}. ` : '') + `Open Web UI: не удалось синхронизировать файлы (${owuErrors.length}): ${owuErrors.slice(0, 3).join('; ')}${owuErrors.length > 3 ? '…' : ''}. В чате приложения контекст коллекции будет полным; в чате Open Web UI могут быть видны не все файлы.`)
       }
       setUploading(false)
       setCollectionName('')
       setCollectionDescription('')
-      setFiles((prev) => ({
-        ...prev,
-        business_plan_checklist: null,
-        strategy_checklist: null,
-        reglament_checklist: null,
-        department_goals_checklist: null,
-        chairman_goals: null,
-      }))
+      setFiles(createInitialFiles())
       await loadDocumentsForCollection(col.id)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Ошибка создания коллекции'
@@ -238,6 +297,182 @@ export function ImportPage() {
     return Object.values(docs).some((arr) => arr.some((d) => d.preprocessed))
   }
 
+  const openDepartmentChecklistForDoc = useCallback(
+    async (doc: DocumentMeta, collectionId: string) => {
+      setDepartmentChecklist({
+        documentId: doc.id,
+        collectionId,
+        documentName: doc.name,
+        department: '',
+        goals: [],
+        tasks: [],
+        loading: true,
+        loadingProgress: 0,
+        error: undefined,
+      })
+      try {
+        const prep = await processDepartmentRegulation(doc.id)
+        if (prep.error) {
+          setDepartmentChecklist((prev) =>
+            prev ? { ...prev, loading: false, error: prep.error ?? 'Ошибка' } : null
+          )
+          return
+        }
+        if (!prep.parsed_json) {
+          setDepartmentChecklist((prev) =>
+            prev ? { ...prev, loading: false, error: 'Нет данных от LLM' } : null
+          )
+          return
+        }
+        const j = prep.parsed_json as {
+          department?: string
+          goals?: Array<{ id?: string; text?: string; section?: string; checked?: boolean }>
+          tasks?: Array<{ id?: string; text?: string; section?: string; checked?: boolean }>
+        }
+        const goals: DepartmentChecklistItem[] = (j.goals ?? []).map((g) => ({
+          id: String(g.id ?? ''),
+          text: String(g.text ?? ''),
+          section: String(g.section ?? ''),
+          checked: Boolean(g.checked),
+        }))
+        const tasks: DepartmentChecklistItem[] = (j.tasks ?? []).map((t) => ({
+          id: String(t.id ?? ''),
+          text: String(t.text ?? ''),
+          section: String(t.section ?? ''),
+          checked: Boolean(t.checked),
+        }))
+        setDepartmentChecklist((prev) =>
+          prev
+            ? {
+                ...prev,
+                loading: false,
+                department: String(j.department ?? ''),
+                goals,
+                tasks,
+              }
+            : null
+        )
+      } catch (e) {
+        setDepartmentChecklist((prev) =>
+          prev
+            ? {
+                ...prev,
+                loading: false,
+                error: e instanceof Error ? e.message : 'Ошибка обработки',
+              }
+            : null
+        )
+      }
+    },
+    []
+  )
+
+  const updateDepartmentChecklist = useCallback(
+    (updater: (prev: NonNullable<typeof departmentChecklist>) => Partial<typeof departmentChecklist>) => {
+      setDepartmentChecklist((prev) => (prev ? { ...prev, ...updater(prev) } : null))
+    },
+    []
+  )
+
+  const toggleGoalChecked = useCallback((index: number) => {
+    setDepartmentChecklist((prev) => {
+      if (!prev) return null
+      const next = [...prev.goals]
+      next[index] = { ...next[index], checked: !next[index].checked }
+      return { ...prev, goals: next }
+    })
+  }, [])
+
+  const toggleTaskChecked = useCallback((index: number) => {
+    setDepartmentChecklist((prev) => {
+      if (!prev) return null
+      const next = [...prev.tasks]
+      next[index] = { ...next[index], checked: !next[index].checked }
+      return { ...prev, tasks: next }
+    })
+  }, [])
+
+  const updateGoal = useCallback((index: number, field: keyof DepartmentChecklistItem, value: string | boolean) => {
+    setDepartmentChecklist((prev) => {
+      if (!prev) return null
+      const next = [...prev.goals]
+      next[index] = { ...next[index], [field]: value }
+      return { ...prev, goals: next }
+    })
+  }, [])
+
+  const updateTask = useCallback((index: number, field: keyof DepartmentChecklistItem, value: string | boolean) => {
+    setDepartmentChecklist((prev) => {
+      if (!prev) return null
+      const next = [...prev.tasks]
+      next[index] = { ...next[index], [field]: value }
+      return { ...prev, tasks: next }
+    })
+  }, [])
+
+  const addGoal = useCallback(() => {
+    setDepartmentChecklist((prev) => {
+      if (!prev) return null
+      const id = `${prev.goals.length + 1}.${(prev.goals.filter((g) => g.id.startsWith(`${prev.goals.length + 1}.`)).length + 1)}`
+      return {
+        ...prev,
+        goals: [...prev.goals, { id, text: '', section: '', checked: false }],
+      }
+    })
+  }, [])
+
+  const addTask = useCallback(() => {
+    setDepartmentChecklist((prev) => {
+      if (!prev) return null
+      const n = prev.tasks.length + 1
+      const id = `${n}`
+      return {
+        ...prev,
+        tasks: [...prev.tasks, { id, text: '', section: '', checked: false }],
+      }
+    })
+  }, [])
+
+  const removeGoal = useCallback((index: number) => {
+    setDepartmentChecklist((prev) => {
+      if (!prev) return null
+      const next = prev.goals.filter((_, i) => i !== index)
+      return { ...prev, goals: next }
+    })
+  }, [])
+
+  const removeTask = useCallback((index: number) => {
+    setDepartmentChecklist((prev) => {
+      if (!prev) return null
+      const next = prev.tasks.filter((_, i) => i !== index)
+      return { ...prev, tasks: next }
+    })
+  }, [])
+
+  const submitDepartmentChecklistHandler = useCallback(async () => {
+    if (!departmentChecklist) return
+    setDepartmentChecklist((prev) => (prev ? { ...prev, submitting: true, error: undefined } : null))
+    try {
+      await submitDepartmentChecklist(departmentChecklist.documentId, {
+        department: departmentChecklist.department || null,
+        goals: departmentChecklist.goals,
+        tasks: departmentChecklist.tasks,
+      })
+      setDepartmentChecklist(null)
+      await loadDocumentsForCollection(departmentChecklist.collectionId)
+    } catch (e) {
+      setDepartmentChecklist((prev) =>
+        prev
+          ? {
+              ...prev,
+              submitting: false,
+              error: e instanceof Error ? e.message : 'Ошибка сохранения',
+            }
+          : null
+      )
+    }
+  }, [departmentChecklist, loadDocumentsForCollection])
+
   const handleGenerateJson = useCallback(
     async (col: CollectionMeta) => {
       setError(null)
@@ -314,12 +549,8 @@ export function ImportPage() {
         </label>
         <div className={styles.slotsGrid}>
           {SLOT_TYPES.map((slot) => {
-            const isTemplateSlot =
-              slot.id === 'business_plan_checklist' ||
-              slot.id === 'strategy_checklist' ||
-              slot.id === 'reglament_checklist'
+            const isTemplateSlot = TEMPLATE_SLOT_IDS.includes(slot.id)
             const templateDoc = isTemplateSlot ? (templateDocs[slot.id] ?? null) : null
-            const fromTemplate = isTemplateSlot && templateDoc != null
 
             if (isTemplateSlot) {
               return (
@@ -521,6 +752,16 @@ export function ImportPage() {
                                 {doc.preprocessed && <span className={styles.cardSlotJson}>_json</span>}
                               </span>
                               <div className={styles.cardSlotActions}>
+                                {slot.id === 'department_goals_checklist' && !doc.preprocessed && (
+                                  <button
+                                    type="button"
+                                    className={styles.cardSlotBtn}
+                                    onClick={() => openDepartmentChecklistForDoc(doc, col.id)}
+                                    title="Обработать документ и сформировать чеклист"
+                                  >
+                                    Сформировать чеклист
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   className={styles.cardSlotDel}
@@ -557,6 +798,25 @@ export function ImportPage() {
           </ul>
         )}
       </section>
+
+      {departmentChecklist && (
+        <DepartmentChecklistModal
+          state={departmentChecklist}
+          actions={{
+            onClose: () => setDepartmentChecklist(null),
+            updateDepartment: (value) => updateDepartmentChecklist(() => ({ department: value })),
+            toggleGoalChecked,
+            toggleTaskChecked,
+            updateGoal,
+            updateTask,
+            addGoal,
+            addTask,
+            removeGoal,
+            removeTask,
+            submit: submitDepartmentChecklistHandler,
+          }}
+        />
+      )}
 
       {deleteConfirmCollection && (
         <div className={styles.modalOverlay} onClick={() => setDeleteConfirmCollection(null)} aria-modal="true" role="dialog">

@@ -805,3 +805,163 @@
 .modalBtnConfirm:hover {
   background: #1e40af;
 }
+
+/* --- Модальное окно чеклиста по положению о департаменте --- */
+.checklistModalBox {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem 2rem 2rem;
+  max-width: 56rem;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.checklistModalTitle {
+  margin: 0 0 1.25rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.checklistModalLoading {
+  margin: 0;
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.checklistModalSpinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #1e3a8a;
+  border-radius: 50%;
+  animation: checklistSpinner 0.9s linear infinite;
+}
+
+@keyframes checklistSpinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.checklistModalLoadingText {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #475569;
+}
+
+.checklistModalLoadingPercent {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e3a8a;
+}
+
+.checklistField {
+  display: block;
+  margin-bottom: 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.checklistInput {
+  display: block;
+  width: 100%;
+  margin-top: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.checklistSection {
+  margin-bottom: 1.5rem;
+}
+
+.checklistSectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.checklistSectionTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.checklistAddBtn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.checklistAddBtn:hover {
+  background: #dbeafe;
+}
+
+.checklistTableWrap {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.checklistTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.checklistTh {
+  text-align: left;
+  padding: 0.5rem 0.5rem;
+  background: #f1f5f9;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.checklistTd {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.checklistCellInput {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.checklistCellInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.checklistModalActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}

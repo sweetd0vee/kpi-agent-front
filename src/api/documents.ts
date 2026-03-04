@@ -153,6 +153,48 @@ export async function preprocessDocument(documentId: string): Promise<Preprocess
   return res.json()
 }
 
+/** Обработать «Положение о департаменте» через LLM; результат для валидации (не сохраняется на сервере). */
+export async function processDepartmentRegulation(documentId: string): Promise<PreprocessResponse> {
+  const res = await apiFetch(`/api/documents/${documentId}/process-department-regulation`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t || `Обработка положения: ${res.status}`)
+  }
+  return res.json()
+}
+
+export type DepartmentChecklistItem = {
+  id: string
+  text: string
+  section: string
+  checked: boolean
+}
+
+export type DepartmentChecklistPayload = {
+  department?: string | null
+  goals: DepartmentChecklistItem[]
+  tasks: DepartmentChecklistItem[]
+}
+
+/** Сохранить проверенный пользователем чеклист (JSON в MinIO/хранилище, привязка к документу). */
+export async function submitDepartmentChecklist(
+  documentId: string,
+  payload: DepartmentChecklistPayload
+): Promise<DocumentMeta> {
+  const res = await apiFetch(`/api/documents/${documentId}/submit-department-checklist`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t || `Сохранение чеклиста: ${res.status}`)
+  }
+  return res.json()
+}
+
 // --- Коллекции ---
 
 export async function getCollections(): Promise<CollectionMeta[]> {
