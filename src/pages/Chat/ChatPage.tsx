@@ -21,7 +21,7 @@ import {
 } from '@/lib/storage'
 import type { ChatSettings } from '@/lib/storage'
 import type { StoredChat, StoredMessage } from '@/types/chat'
-import type { AttachedFile, AttachedCollection, AttachedPrompt } from '@/types/chat'
+import type { AttachedFile, AttachedCollection } from '@/types/chat'
 import { DEFAULT_PROMPTS } from '@/lib/prompts'
 import { PencilIcon } from '@/components/Icons'
 import styles from './ChatPage.module.css'
@@ -91,7 +91,7 @@ export function ChatPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [settingsDraft, setSettingsDraft] = useState<ChatSettings>(() => getSettings())
   const [settingsSaved, setSettingsSaved] = useState(false)
-  const [attachments, setAttachments] = useState<(AttachedFile | AttachedCollection | AttachedPrompt)[]>([])
+  const [attachments, setAttachments] = useState<(AttachedFile | AttachedCollection)[]>([])
   const [showAttachDropdown, setShowAttachDropdown] = useState(false)
   const [showCollectionPicker, setShowCollectionPicker] = useState(false)
   const [showPromptPicker, setShowPromptPicker] = useState(false)
@@ -314,22 +314,19 @@ export function ChatPage() {
   }, [])
 
   const handleSelectPrompt = useCallback((prompt: PromptOption) => {
-    const title = prompt.title?.trim() || 'Без названия'
-    setAttachments((prev) => [
-      ...prev,
-      {
-        id: generateId(),
-        name: title,
-        promptId: prompt.id,
-        content: prompt.content,
-      } as AttachedPrompt,
-    ])
+    setInput((prev) => {
+      const next = prompt.content || ''
+      if (!prev.trim()) return next
+      const separator = prev.endsWith('\n') ? '\n' : '\n\n'
+      return `${prev}${separator}${next}`
+    })
     setShowPromptPicker(false)
   }, [])
 
   const sendMessage = useCallback(async () => {
     const text = input.trim()
-    if (!text || !settings.apiKey) return
+    const hasAttachments = attachments.length > 0
+    if ((!text && !hasAttachments) || !settings.apiKey) return
     if (!currentChat && !models.length) {
       setError('Сначала укажите API ключ и выберите модель')
       return
@@ -367,7 +364,7 @@ export function ChatPage() {
         attachments.length > 0
           ? attachments.map((a) => ({
               name: a.name,
-              type: 'fileId' in a ? ('file' as const) : 'collectionId' in a ? ('collection' as const) : ('prompt' as const),
+              type: 'fileId' in a ? ('file' as const) : ('collection' as const),
             }))
           : undefined,
     }
@@ -388,17 +385,7 @@ export function ChatPage() {
     const collectionAttachments = attachments.filter(
       (a): a is AttachedCollection => 'collectionId' in a
     )
-    const promptAttachments = attachments.filter(
-      (a): a is AttachedPrompt => 'promptId' in a
-    )
     let userContentWithContext = text
-    const contextSections: string[] = []
-    if (promptAttachments.length > 0) {
-      const promptParts = promptAttachments.map(
-        (prompt) => `Промпт «${prompt.name}»:\n\n${prompt.content}`
-      )
-      contextSections.push(`Промпты:\n\n${promptParts.join('\n\n---\n\n')}`)
-    }
     if (collectionAttachments.length > 0) {
       const contextParts: string[] = []
       for (const a of collectionAttachments) {
@@ -413,12 +400,8 @@ export function ChatPage() {
           contextParts.push(`Коллекция «${a.name}»: (не удалось загрузить содержимое)`)
         }
       }
-      contextSections.push(
-        `Контекст из прикреплённых коллекций (база знаний):\n\n${contextParts.join('\n\n---\n\n')}`
-      )
-    }
-    if (contextSections.length > 0) {
-      userContentWithContext = `${contextSections.join('\n\n---\n\n')}\n\n---\n\n${text}`
+      const contextBlock = `Контекст из прикреплённых коллекций (база знаний):\n\n${contextParts.join('\n\n---\n\n')}`
+      userContentWithContext = text ? `${contextBlock}\n\n---\n\n${text}` : contextBlock
     }
 
     const apiMessages = nextMessages.map((m, i) => {
@@ -654,18 +637,8 @@ export function ChatPage() {
                   <div className={styles.messageAttachments}>
                     {msg.attachments.map((att, j) => (
                       <span key={j} className={styles.messageFileChip}>
-                        {att.type === 'collection' ? (
-                          <CollectionIcon />
-                        ) : att.type === 'prompt' ? (
-                          <PromptIcon />
-                        ) : (
-                          <FileIcon />
-                        )}{' '}
-                        {att.type === 'collection'
-                          ? `Коллекция: ${att.name}`
-                          : att.type === 'prompt'
-                          ? `Промпт: ${att.name}`
-                          : att.name}
+                        {att.type === 'collection' ? <CollectionIcon /> : <FileIcon />}{' '}
+                        {att.type === 'collection' ? `Коллекция: ${att.name}` : att.name}
                       </span>
                     ))}
                   </div>
@@ -697,12 +670,10 @@ export function ChatPage() {
                 <span key={a.id} className={styles.fileChip}>
                   {'fileId' in a ? (
                     <FileIcon className={styles.fileChipIcon} />
-                  ) : 'promptId' in a ? (
-                    <PromptIcon className={styles.fileChipIcon} />
                   ) : (
                     <CollectionIcon className={styles.fileChipIcon} />
                   )}{' '}
-                  {'fileId' in a ? a.name : 'promptId' in a ? `Промпт: ${a.name}` : `Коллекция: ${a.name}`}
+                  {'fileId' in a ? a.name : `Коллекция: ${a.name}`}
                   <button
                     type="button"
                     className={styles.fileChipRemove}
@@ -841,7 +812,7 @@ export function ChatPage() {
               type="button"
               className={styles.sendBtn}
               onClick={sendMessage}
-              disabled={loading || !input.trim()}
+              disabled={loading || (!input.trim() && attachments.length === 0)}
               title="Отправить"
             >
               →
