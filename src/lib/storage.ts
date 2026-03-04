@@ -6,6 +6,7 @@ const UPLOADED_FILES_KEY = 'kpi-cascading-uploaded-files'
 const COLLECTIONS_KEY = 'kpi-cascading-collections'
 const GOALS_KEY = 'kpi-cascading-goals'
 const KPI_GOALS_KEY = 'kpi-cascading-kpi-goals'
+const PROMPTS_KEY = 'kpi-cascading-prompts'
 const DEMO_CLEAR_KEY = 'kpi-cascading-demo-cleared'
 
 function clearDemoGoalsOnce(): void {
@@ -32,6 +33,14 @@ export type StoredCollection = {
   id: string
   name: string
   fileIds: string[]
+  createdAt: number
+  updatedAt: number
+}
+
+export type StoredPrompt = {
+  id: string
+  title: string
+  content: string
   createdAt: number
   updatedAt: number
 }
@@ -93,6 +102,34 @@ export function saveSettings(settings: ChatSettings): void {
 
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+}
+
+function normalizePrompt(value: unknown): StoredPrompt {
+  const item = (value ?? {}) as Partial<StoredPrompt>
+  const createdAt = typeof item.createdAt === 'number' ? item.createdAt : Date.now()
+  return {
+    id: typeof item.id === 'string' && item.id ? item.id : generateId(),
+    title: typeof item.title === 'string' ? item.title : '',
+    content: typeof item.content === 'string' ? item.content : '',
+    createdAt,
+    updatedAt: typeof item.updatedAt === 'number' ? item.updatedAt : createdAt,
+  }
+}
+
+export function getPrompts(): StoredPrompt[] {
+  try {
+    const raw = localStorage.getItem(PROMPTS_KEY)
+    if (!raw) return []
+    const list = JSON.parse(raw) as StoredPrompt[]
+    if (!Array.isArray(list)) return []
+    return list.map(normalizePrompt)
+  } catch {
+    return []
+  }
+}
+
+export function savePrompts(prompts: StoredPrompt[]): void {
+  localStorage.setItem(PROMPTS_KEY, JSON.stringify(prompts))
 }
 
 export function getUploadedFiles(): StoredUploadedFile[] {
