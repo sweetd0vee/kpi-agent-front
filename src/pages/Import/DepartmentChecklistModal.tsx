@@ -16,6 +16,7 @@ export interface DepartmentChecklistState {
 
 export interface DepartmentChecklistModalActions {
   onClose: () => void
+  cancelProcessing: () => void
   updateDepartment: (value: string) => void
   toggleGoalChecked: (index: number) => void
   toggleTaskChecked: (index: number) => void
@@ -36,6 +37,7 @@ interface DepartmentChecklistModalProps {
 export function DepartmentChecklistModal({ state, actions }: DepartmentChecklistModalProps) {
   const {
     onClose,
+    cancelProcessing,
     updateDepartment,
     toggleGoalChecked,
     toggleTaskChecked,
@@ -67,6 +69,9 @@ export function DepartmentChecklistModal({ state, actions }: DepartmentChecklist
             <div className={styles.checklistModalSpinner} aria-hidden />
             <p className={styles.checklistModalLoadingText}>Обработка документа LLM…</p>
             <p className={styles.checklistModalLoadingPercent}>{state.loadingProgress ?? 0}%</p>
+            <button type="button" className={styles.modalBtnConfirm} onClick={cancelProcessing}>
+              Отменить
+            </button>
           </div>
         )}
 

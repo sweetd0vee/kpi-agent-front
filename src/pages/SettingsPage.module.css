@@ -278,6 +278,70 @@
   white-space: nowrap;
 }
 
+.cardJsonBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #0369a1;
+  background: #e0f2fe;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.cardFileActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cardActionBtn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #1e3a8a;
+  background: #dbeafe;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.cardActionBtn:hover:not(:disabled) {
+  background: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.cardActionBtn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.cardActionBtnGhost {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.cardActionBtnGhost:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.cardActionBtnGhost:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .cardReplace {
   flex-shrink: 0;
   padding: 0.5rem 0.875rem;

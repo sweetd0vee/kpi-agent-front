@@ -29,6 +29,7 @@ export type DocumentMeta = {
   uploaded_at?: string
   preprocessed: boolean
   parsed_json?: Record<string, unknown>
+  parsed_json_path?: string
   /** При загрузке в коллекцию: удалось ли синхронизировать с Open Web UI */
   open_webui_synced?: boolean | null
   /** При загрузке: ошибка синхронизации с Open Web UI */
@@ -56,6 +57,7 @@ export type PreprocessResponse = {
   document_id: string
   preprocessed: boolean
   parsed_json?: Record<string, unknown>
+  parsed_json_path?: string
   error?: string
 }
 
@@ -135,9 +137,13 @@ export async function uploadDocument(
   return res.json()
 }
 
-export async function getDocument(documentId: string, includeJson = true): Promise<DocumentMeta> {
+export async function getDocument(
+  documentId: string,
+  includeJson = true,
+  signal?: AbortSignal
+): Promise<DocumentMeta> {
   const q = includeJson ? '?include_json=true' : ''
-  const res = await apiFetch(`/api/documents/${documentId}${q}`)
+  const res = await apiFetch(`/api/documents/${documentId}${q}`, { signal })
   if (!res.ok) throw new Error(`Документ: ${res.status}`)
   return res.json()
 }
@@ -147,16 +153,26 @@ export async function deleteDocument(documentId: string): Promise<void> {
   if (!res.ok) throw new Error(`Удаление: ${res.status}`)
 }
 
-export async function preprocessDocument(documentId: string): Promise<PreprocessResponse> {
-  const res = await apiFetch(`/api/documents/${documentId}/preprocess`, { method: 'POST' })
+export async function preprocessDocument(
+  documentId: string,
+  signal?: AbortSignal
+): Promise<PreprocessResponse> {
+  const res = await apiFetch(`/api/documents/${documentId}/preprocess`, {
+    method: 'POST',
+    signal,
+  })
   if (!res.ok) throw new Error(`Предобработка: ${res.status}`)
   return res.json()
 }
 
 /** Обработать «Положение о департаменте» через LLM; результат для валидации (не сохраняется на сервере). */
-export async function processDepartmentRegulation(documentId: string): Promise<PreprocessResponse> {
+export async function processDepartmentRegulation(
+  documentId: string,
+  signal?: AbortSignal
+): Promise<PreprocessResponse> {
   const res = await apiFetch(`/api/documents/${documentId}/process-department-regulation`, {
     method: 'POST',
+    signal,
   })
   if (!res.ok) {
     const t = await res.text()
@@ -187,6 +203,56 @@ export async function submitDepartmentChecklist(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t || `Сохранение чеклиста: ${res.status}`)
+  }
+  return res.json()
+}
+
+/** Обработать шаблонный документ (БП/Стратегия/Регламент) через LLM и сохранить JSON. */
+export async function processTemplateDocument(
+  documentId: string,
+  signal?: AbortSignal
+): Promise<PreprocessResponse> {
+  const res = await apiFetch(`/api/settings/template-documents/${documentId}/preprocess`, {
+    method: 'POST',
+    signal,
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t || `Обработка шаблона: ${res.status}`)
+  }
+  return res.json()
+}
+
+/** Сохранить проверенный JSON для шаблонного документа. */
+export async function submitTemplateChecklist(
+  documentId: string,
+  parsedJson: Record<string, unknown>
+): Promise<DocumentMeta> {
+  const res = await apiFetch(`/api/settings/template-documents/${documentId}/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parsed_json: parsedJson }),
+  })
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(t || `Сохранение шаблона: ${res.status}`)
+  }
+  return res.json()
+}
+
+/** Сохранить проверенный JSON для чеклиста в коллекции (БП/Стратегия/Регламент). */
+export async function submitDocumentChecklist(
+  documentId: string,
+  parsedJson: Record<string, unknown>
+): Promise<DocumentMeta> {
+  const res = await apiFetch(`/api/documents/${documentId}/submit-checklist`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parsed_json: parsedJson }),
   })
   if (!res.ok) {
     const t = await res.text()

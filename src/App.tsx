@@ -12,7 +12,8 @@ function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Navigate to="/kpi" replace />} />
-        <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/ppr" element={<GoalsPage />} />
+        <Route path="/goals" element={<Navigate to="/ppr" replace />} />
         <Route path="/kpi" element={<KpiPage />} />
         <Route path="/knowledge" element={<ImportPage />} />
         <Route path="/settings" element={<SettingsPage />} />

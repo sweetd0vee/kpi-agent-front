@@ -6,7 +6,10 @@ import {
   updateCollection,
   deleteCollection,
   generateCollectionJson,
+  getDocument,
   listDocuments,
+  preprocessDocument,
+  submitDocumentChecklist,
   uploadDocument,
   deleteDocument,
   getTemplateDocuments,
@@ -19,8 +22,55 @@ import {
 import { PaperclipIcon, PersonIcon } from '@/components/Icons'
 import { downloadGoalsTemplate } from '@/lib/exportGoals'
 import { DepartmentChecklistModal } from './Import/DepartmentChecklistModal'
+import { TemplateChecklistModal, type TemplateChecklistState } from './TemplateChecklistModal'
 import { SLOT_TYPES, TEMPLATE_SLOT_IDS, createInitialFiles, type SlotTypeId } from './Import/constants'
 import styles from './ImportPage.module.css'
+
+const CHECKLIST_LABELS: Record<string, string> = {
+  business_plan_checklist: 'Бизнес-план',
+  strategy_checklist: 'Стратегия',
+  reglament_checklist: 'Регламент',
+}
+
+function getChecklistTitle(typeId: string): string {
+  const label = CHECKLIST_LABELS[typeId] ?? 'Чеклист'
+  return `Чеклист: ${label}`
+}
+
+function normalizeChecklistItems(raw: unknown): DepartmentChecklistItem[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((item) => {
+    const obj = (item ?? {}) as Record<string, unknown>
+    return {
+      id: String(obj.id ?? '').trim(),
+      text: String(obj.text ?? '').trim(),
+      section: String(obj.section ?? '').trim(),
+      checked: Boolean(obj.checked),
+    }
+  })
+}
+
+function buildChecklistParsedJson(state: TemplateChecklistState): Record<string, unknown> {
+  const items = state.items.map((item) => ({
+    id: String(item.id ?? '').trim(),
+    text: String(item.text ?? '').trim(),
+    section: String(item.section ?? '').trim(),
+    checked: Boolean(item.checked),
+  }))
+  if (state.mode === 'rules') {
+    return { rules: items }
+  }
+  const sections: string[] = []
+  const seen = new Set<string>()
+  items.forEach((item) => {
+    const section = item.section?.trim()
+    if (section && !seen.has(section)) {
+      seen.add(section)
+      sections.push(section)
+    }
+  })
+  return { sections, items }
+}
 
 export function ImportPage() {
   const [collections, setCollections] = useState<CollectionMeta[]>([])
@@ -39,6 +89,8 @@ export function ImportPage() {
   const [filterMode, setFilterMode] = useState<'mine' | 'processed'>('mine')
   const [templateDocs, setTemplateDocs] = useState<Record<string, DocumentMeta | null>>({})
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const departmentAbortRef = useRef<AbortController | null>(null)
+  const checklistAbortRef = useRef<AbortController | null>(null)
   // Модальное окно валидации чеклиста по положению о департаменте
   const [departmentChecklist, setDepartmentChecklist] = useState<{
     documentId: string
@@ -52,6 +104,9 @@ export function ImportPage() {
     error?: string
     submitting?: boolean
   } | null>(null)
+  const [documentChecklist, setDocumentChecklist] = useState<(TemplateChecklistState & { collectionId: string }) | null>(
+    null
+  )
 
   const loadCollections = useCallback(async () => {
     try {
@@ -69,6 +124,9 @@ export function ImportPage() {
       SLOT_TYPES.forEach((s) => (by[s.id] = []))
       res.items.forEach((d) => {
         if (by[d.document_type]) by[d.document_type].push(d)
+      })
+      Object.keys(by).forEach((key) => {
+        by[key].sort((a, b) => (b.uploaded_at ?? '').localeCompare(a.uploaded_at ?? ''))
       })
       setDocsByCollection((prev) => ({ ...prev, [collectionId]: by }))
     } catch {
@@ -111,6 +169,18 @@ export function ImportPage() {
     return () => clearInterval(id)
   }, [departmentChecklist?.loading])
 
+  useEffect(() => {
+    if (!documentChecklist?.loading) return
+    const id = setInterval(() => {
+      setDocumentChecklist((prev) => {
+        if (!prev?.loading) return prev
+        const next = Math.min((prev.loadingProgress ?? 0) + 8, 90)
+        return next === (prev.loadingProgress ?? 0) ? prev : { ...prev, loadingProgress: next }
+      })
+    }, 800)
+    return () => clearInterval(id)
+  }, [documentChecklist?.loading])
+
   const setFile = (typeId: SlotTypeId, file: File | null) => {
     setFiles((prev) => ({ ...prev, [typeId]: file }))
   }
@@ -143,6 +213,10 @@ export function ImportPage() {
         }
       }
       if (departmentDocId) {
+        departmentAbortRef.current?.abort()
+        const controller = new AbortController()
+        departmentAbortRef.current = controller
+        const { signal } = controller
         setDepartmentChecklist({
           documentId: departmentDocId,
           collectionId: col.id,
@@ -154,7 +228,7 @@ export function ImportPage() {
           loadingProgress: 0,
         })
         try {
-          const prep = await processDepartmentRegulation(departmentDocId)
+          const prep = await processDepartmentRegulation(departmentDocId, signal)
           if (prep.error) {
             setDepartmentChecklist((prev) =>
               prev
@@ -196,15 +270,21 @@ export function ImportPage() {
             )
           }
         } catch (e) {
-          setDepartmentChecklist((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  loading: false,
-                  error: e instanceof Error ? e.message : 'Ошибка обработки документа',
-                }
-              : null
-          )
+          if (e instanceof DOMException && e.name === 'AbortError') {
+            // Пользователь отменил обработку
+          } else {
+            setDepartmentChecklist((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    loading: false,
+                    error: e instanceof Error ? e.message : 'Ошибка обработки документа',
+                  }
+                : null
+            )
+          }
+        } finally {
+          if (departmentAbortRef.current === controller) departmentAbortRef.current = null
         }
       }
       if (owuErrors.length > 0) {
@@ -299,6 +379,10 @@ export function ImportPage() {
 
   const openDepartmentChecklistForDoc = useCallback(
     async (doc: DocumentMeta, collectionId: string) => {
+      departmentAbortRef.current?.abort()
+      const controller = new AbortController()
+      departmentAbortRef.current = controller
+      const { signal } = controller
       setDepartmentChecklist({
         documentId: doc.id,
         collectionId,
@@ -311,7 +395,7 @@ export function ImportPage() {
         error: undefined,
       })
       try {
-        const prep = await processDepartmentRegulation(doc.id)
+        const prep = await processDepartmentRegulation(doc.id, signal)
         if (prep.error) {
           setDepartmentChecklist((prev) =>
             prev ? { ...prev, loading: false, error: prep.error ?? 'Ошибка' } : null
@@ -353,6 +437,9 @@ export function ImportPage() {
             : null
         )
       } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          return
+        }
         setDepartmentChecklist((prev) =>
           prev
             ? {
@@ -362,9 +449,81 @@ export function ImportPage() {
               }
             : null
         )
+      } finally {
+        if (departmentAbortRef.current === controller) departmentAbortRef.current = null
       }
     },
     []
+  )
+
+  const openChecklistForDoc = useCallback(
+    async (doc: DocumentMeta, collectionId: string, forceProcess = false) => {
+      const mode: TemplateChecklistState['mode'] =
+        doc.document_type === 'reglament_checklist' ? 'rules' : 'items'
+      checklistAbortRef.current?.abort()
+      const controller = new AbortController()
+      checklistAbortRef.current = controller
+      const { signal } = controller
+      setDocumentChecklist({
+        documentId: doc.id,
+        collectionId,
+        documentName: doc.name,
+        documentType: doc.document_type,
+        title: getChecklistTitle(doc.document_type),
+        mode,
+        items: [],
+        loading: true,
+        loadingProgress: 0,
+      })
+      try {
+        let parsed: Record<string, unknown> | undefined
+        if (!forceProcess && doc.preprocessed) {
+          const full = await getDocument(doc.id, true, signal)
+          parsed = full.parsed_json as Record<string, unknown> | undefined
+        }
+        if (!parsed) {
+          const prep = await preprocessDocument(doc.id, signal)
+          if (prep.error) {
+            setDocumentChecklist((prev) =>
+              prev ? { ...prev, loading: false, error: prep.error ?? 'Ошибка обработки' } : null
+            )
+            return
+          }
+          parsed = prep.parsed_json as Record<string, unknown> | undefined
+          if (prep.preprocessed) {
+            await loadDocumentsForCollection(collectionId)
+          }
+        }
+        if (!parsed || typeof parsed !== 'object') {
+          setDocumentChecklist((prev) =>
+            prev ? { ...prev, loading: false, error: 'LLM не вернул данные для проверки' } : null
+          )
+          return
+        }
+        const itemsSource =
+          mode === 'rules' ? (parsed as { rules?: unknown }).rules : (parsed as { items?: unknown }).items
+        const items = normalizeChecklistItems(itemsSource)
+        setDocumentChecklist((prev) =>
+          prev ? { ...prev, loading: false, items, error: undefined } : null
+        )
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          return
+        }
+        setDocumentChecklist((prev) =>
+          prev
+            ? {
+                ...prev,
+                loading: false,
+                error: e instanceof Error ? e.message : 'Ошибка обработки документа',
+              }
+            : null
+        )
+      } finally {
+        if (checklistAbortRef.current === controller) checklistAbortRef.current = null
+      }
+    },
+    [loadDocumentsForCollection]
   )
 
   const updateDepartmentChecklist = useCallback(
@@ -449,6 +608,45 @@ export function ImportPage() {
     })
   }, [])
 
+  const toggleChecklistItem = useCallback((index: number) => {
+    setDocumentChecklist((prev) => {
+      if (!prev) return null
+      const next = [...prev.items]
+      next[index] = { ...next[index], checked: !next[index].checked }
+      return { ...prev, items: next }
+    })
+  }, [])
+
+  const updateChecklistItem = useCallback(
+    (index: number, field: keyof DepartmentChecklistItem, value: string | boolean) => {
+      setDocumentChecklist((prev) => {
+        if (!prev) return null
+        const next = [...prev.items]
+        next[index] = { ...next[index], [field]: value }
+        return { ...prev, items: next }
+      })
+    },
+    []
+  )
+
+  const addChecklistItem = useCallback(() => {
+    setDocumentChecklist((prev) => {
+      if (!prev) return null
+      return {
+        ...prev,
+        items: [...prev.items, { id: '', text: '', section: '', checked: false }],
+      }
+    })
+  }, [])
+
+  const removeChecklistItem = useCallback((index: number) => {
+    setDocumentChecklist((prev) => {
+      if (!prev) return null
+      const next = prev.items.filter((_, i) => i !== index)
+      return { ...prev, items: next }
+    })
+  }, [])
+
   const submitDepartmentChecklistHandler = useCallback(async () => {
     if (!departmentChecklist) return
     setDepartmentChecklist((prev) => (prev ? { ...prev, submitting: true, error: undefined } : null))
@@ -472,6 +670,27 @@ export function ImportPage() {
       )
     }
   }, [departmentChecklist, loadDocumentsForCollection])
+
+  const submitChecklistHandler = useCallback(async () => {
+    if (!documentChecklist) return
+    setDocumentChecklist((prev) => (prev ? { ...prev, submitting: true, error: undefined } : null))
+    try {
+      const parsedJson = buildChecklistParsedJson(documentChecklist)
+      await submitDocumentChecklist(documentChecklist.documentId, parsedJson)
+      setDocumentChecklist(null)
+      await loadDocumentsForCollection(documentChecklist.collectionId)
+    } catch (e) {
+      setDocumentChecklist((prev) =>
+        prev
+          ? {
+              ...prev,
+              submitting: false,
+              error: e instanceof Error ? e.message : 'Ошибка сохранения',
+            }
+          : null
+      )
+    }
+  }, [documentChecklist, loadDocumentsForCollection])
 
   const handleGenerateJson = useCallback(
     async (col: CollectionMeta) => {
@@ -762,6 +981,22 @@ export function ImportPage() {
                                     Сформировать чеклист
                                   </button>
                                 )}
+                                {(slot.id === 'business_plan_checklist' ||
+                                  slot.id === 'strategy_checklist' ||
+                                  slot.id === 'reglament_checklist') && (
+                                  <button
+                                    type="button"
+                                    className={styles.cardSlotBtn}
+                                    onClick={() => openChecklistForDoc(doc, col.id)}
+                                    title={
+                                      doc.preprocessed
+                                        ? 'Проверить и при необходимости поправить JSON'
+                                        : 'Обработать документ и сформировать чеклист'
+                                    }
+                                  >
+                                    {doc.preprocessed ? 'Проверить JSON' : 'Обработать'}
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   className={styles.cardSlotDel}
@@ -804,6 +1039,11 @@ export function ImportPage() {
           state={departmentChecklist}
           actions={{
             onClose: () => setDepartmentChecklist(null),
+            cancelProcessing: () => {
+              departmentAbortRef.current?.abort()
+              departmentAbortRef.current = null
+              setDepartmentChecklist(null)
+            },
             updateDepartment: (value) => updateDepartmentChecklist(() => ({ department: value })),
             toggleGoalChecked,
             toggleTaskChecked,
@@ -814,6 +1054,25 @@ export function ImportPage() {
             removeGoal,
             removeTask,
             submit: submitDepartmentChecklistHandler,
+          }}
+        />
+      )}
+
+      {documentChecklist && (
+        <TemplateChecklistModal
+          state={documentChecklist}
+          actions={{
+            onClose: () => setDocumentChecklist(null),
+            cancelProcessing: () => {
+              checklistAbortRef.current?.abort()
+              checklistAbortRef.current = null
+              setDocumentChecklist(null)
+            },
+            toggleItem: toggleChecklistItem,
+            updateItem: updateChecklistItem,
+            addItem: addChecklistItem,
+            removeItem: removeChecklistItem,
+            submit: submitChecklistHandler,
           }}
         />
       )}

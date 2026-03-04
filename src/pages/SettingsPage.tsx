@@ -1,10 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   getTemplateDocuments,
+  getDocument,
+  processTemplateDocument,
+  submitTemplateChecklist,
   uploadTemplateDocument,
+  type DepartmentChecklistItem,
   type TemplateDocumentTypeId,
   type DocumentMeta,
 } from '@/api/documents'
+import { TemplateChecklistModal, type TemplateChecklistState } from './TemplateChecklistModal'
 import styles from './SettingsPage.module.css'
 
 const TEMPLATE_SLOTS: {
@@ -17,6 +22,48 @@ const TEMPLATE_SLOTS: {
   { id: 'strategy_checklist', label: 'Стратегия', description: 'Чеклист по стратегии банка', icon: 'strategy' },
   { id: 'reglament_checklist', label: 'Регламент', description: 'Чеклист по регламенту банка', icon: 'reglament' },
 ]
+
+const TEMPLATE_EXTENSIONS = ['.docx', '.txt']
+
+function normalizeChecklistItems(raw: unknown): DepartmentChecklistItem[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((item) => {
+    const obj = (item ?? {}) as Record<string, unknown>
+    return {
+      id: String(obj.id ?? '').trim(),
+      text: String(obj.text ?? '').trim(),
+      section: String(obj.section ?? '').trim(),
+      checked: Boolean(obj.checked),
+    }
+  })
+}
+
+function getTemplateTitle(typeId: TemplateDocumentTypeId): string {
+  const label = TEMPLATE_SLOTS.find((slot) => slot.id === typeId)?.label ?? 'Чеклист'
+  return `Чеклист: ${label}`
+}
+
+function buildTemplateParsedJson(state: TemplateChecklistState): Record<string, unknown> {
+  const items = state.items.map((item) => ({
+    id: String(item.id ?? '').trim(),
+    text: String(item.text ?? '').trim(),
+    section: String(item.section ?? '').trim(),
+    checked: Boolean(item.checked),
+  }))
+  if (state.mode === 'rules') {
+    return { rules: items }
+  }
+  const sections: string[] = []
+  const seen = new Set<string>()
+  items.forEach((item) => {
+    const section = item.section?.trim()
+    if (section && !seen.has(section)) {
+      seen.add(section)
+      sections.push(section)
+    }
+  })
+  return { sections, items }
+}
 
 function DocIcon({ type }: { type: 'plan' | 'strategy' | 'reglament' }) {
   const className = `${styles.docIcon} ${styles[`docIcon_${type}`]}`
@@ -51,8 +98,22 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [templateChecklist, setTemplateChecklist] = useState<TemplateChecklistState | null>(null)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const abortRef = useRef<AbortController | null>(null)
+  const preprocessAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    if (!templateChecklist?.loading) return
+    const id = setInterval(() => {
+      setTemplateChecklist((prev) => {
+        if (!prev?.loading) return prev
+        const next = Math.min((prev.loadingProgress ?? 0) + 8, 90)
+        return next === (prev.loadingProgress ?? 0) ? prev : { ...prev, loadingProgress: next }
+      })
+    }, 800)
+    return () => clearInterval(id)
+  }, [templateChecklist?.loading])
 
   const loadTemplates = useCallback(async (signal?: AbortSignal) => {
     abortRef.current?.abort()
@@ -83,20 +144,160 @@ export function SettingsPage() {
     }
   }, [loadTemplates])
 
+  const updateTemplateDoc = useCallback((doc: DocumentMeta) => {
+    setTemplateDocs((prev) => ({ ...prev, [doc.document_type]: doc }))
+  }, [])
+
+  const openTemplateChecklistForDoc = useCallback(
+    async (doc: DocumentMeta, typeId: TemplateDocumentTypeId, forceProcess = false) => {
+      const mode: TemplateChecklistState['mode'] = typeId === 'reglament_checklist' ? 'rules' : 'items'
+      preprocessAbortRef.current?.abort()
+      const controller = new AbortController()
+      preprocessAbortRef.current = controller
+      const { signal } = controller
+      setTemplateChecklist({
+        documentId: doc.id,
+        documentName: doc.name,
+        documentType: typeId,
+        title: getTemplateTitle(typeId),
+        mode,
+        items: [],
+        loading: true,
+        loadingProgress: 0,
+      })
+      try {
+        let parsed: Record<string, unknown> | undefined
+        if (!forceProcess && doc.preprocessed) {
+          const full = await getDocument(doc.id, true, signal)
+          parsed = full.parsed_json as Record<string, unknown> | undefined
+        }
+        if (!parsed) {
+          const prep = await processTemplateDocument(doc.id, signal)
+          if (prep.error) {
+            setTemplateChecklist((prev) =>
+              prev ? { ...prev, loading: false, error: prep.error ?? 'Ошибка обработки' } : null
+            )
+            return
+          }
+          parsed = prep.parsed_json as Record<string, unknown> | undefined
+          if (prep.preprocessed) updateTemplateDoc({ ...doc, preprocessed: true })
+        }
+        if (!parsed || typeof parsed !== 'object') {
+          setTemplateChecklist((prev) =>
+            prev ? { ...prev, loading: false, error: 'LLM не вернул данные для проверки' } : null
+          )
+          return
+        }
+        const itemsSource =
+          typeId === 'reglament_checklist'
+            ? (parsed as { rules?: unknown }).rules
+            : (parsed as { items?: unknown }).items
+        const items = normalizeChecklistItems(itemsSource)
+        setTemplateChecklist((prev) =>
+          prev ? { ...prev, loading: false, items, error: undefined } : null
+        )
+        updateTemplateDoc({ ...doc, preprocessed: true })
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          return
+        }
+        setTemplateChecklist((prev) =>
+          prev
+            ? {
+                ...prev,
+                loading: false,
+                error: e instanceof Error ? e.message : 'Ошибка обработки документа',
+              }
+            : null
+        )
+      } finally {
+        if (preprocessAbortRef.current === controller) preprocessAbortRef.current = null
+      }
+    },
+    [updateTemplateDoc]
+  )
+
+  const toggleTemplateChecklistItem = useCallback((index: number) => {
+    setTemplateChecklist((prev) => {
+      if (!prev) return null
+      const next = [...prev.items]
+      next[index] = { ...next[index], checked: !next[index].checked }
+      return { ...prev, items: next }
+    })
+  }, [])
+
+  const updateTemplateChecklistItem = useCallback(
+    (index: number, field: keyof DepartmentChecklistItem, value: string | boolean) => {
+      setTemplateChecklist((prev) => {
+        if (!prev) return null
+        const next = [...prev.items]
+        next[index] = { ...next[index], [field]: value }
+        return { ...prev, items: next }
+      })
+    },
+    []
+  )
+
+  const addTemplateChecklistItem = useCallback(() => {
+    setTemplateChecklist((prev) => {
+      if (!prev) return null
+      return {
+        ...prev,
+        items: [...prev.items, { id: '', text: '', section: '', checked: false }],
+      }
+    })
+  }, [])
+
+  const removeTemplateChecklistItem = useCallback((index: number) => {
+    setTemplateChecklist((prev) => {
+      if (!prev) return null
+      const next = prev.items.filter((_, i) => i !== index)
+      return { ...prev, items: next }
+    })
+  }, [])
+
+  const submitTemplateChecklistHandler = useCallback(async () => {
+    if (!templateChecklist) return
+    setTemplateChecklist((prev) => (prev ? { ...prev, submitting: true, error: undefined } : null))
+    try {
+      const parsedJson = buildTemplateParsedJson(templateChecklist)
+      const updated = await submitTemplateChecklist(templateChecklist.documentId, parsedJson)
+      updateTemplateDoc(updated)
+      setTemplateChecklist(null)
+    } catch (e) {
+      setTemplateChecklist((prev) =>
+        prev
+          ? {
+              ...prev,
+              submitting: false,
+              error: e instanceof Error ? e.message : 'Ошибка сохранения',
+            }
+          : null
+      )
+    }
+  }, [templateChecklist, updateTemplateDoc])
+
   const handleUpload = useCallback(
     async (typeId: TemplateDocumentTypeId, file: File) => {
       setError(null)
+      const lowerName = file.name.toLowerCase()
+      const ext = lowerName.includes('.') ? `.${lowerName.split('.').pop()}` : ''
+      if (!TEMPLATE_EXTENSIONS.includes(ext)) {
+        setError('Файл должен быть в формате .docx или .txt')
+        return
+      }
       setUploading(typeId)
       try {
         const doc = await uploadTemplateDocument(typeId, file)
-        setTemplateDocs((prev) => ({ ...prev, [typeId]: doc }))
+        updateTemplateDoc(doc)
+        await openTemplateChecklistForDoc(doc, typeId, true)
       } catch (e) {
         setError(e instanceof Error ? e.message : `Ошибка загрузки: ${file.name}`)
       } finally {
         setUploading(null)
       }
     },
-    []
+    [openTemplateChecklistForDoc, updateTemplateDoc]
   )
 
   const handleDrop = (typeId: TemplateDocumentTypeId, e: React.DragEvent) => {
@@ -144,7 +345,7 @@ export function SettingsPage() {
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Стандартные документы</h2>
         <p className={styles.sectionDesc}>
-          Загрузите каждый документ один раз. Форматы: PDF, DOCX, XLSX, TXT.
+          Загрузите каждый документ один раз. Форматы: DOCX или TXT.
         </p>
         {loading ? (
           <div className={styles.loadingWrap}>
@@ -156,6 +357,11 @@ export function SettingsPage() {
             {TEMPLATE_SLOTS.map((slot) => {
               const doc = templateDocs[slot.id] ?? null
               const isUploading = uploading === slot.id
+              const isProcessing =
+                !!doc &&
+                templateChecklist?.documentId === doc.id &&
+                (templateChecklist.loading || templateChecklist.submitting)
+              const isBusy = isUploading || isProcessing
               return (
                 <li key={slot.id} className={styles.card}>
                   <div
@@ -175,7 +381,7 @@ export function SettingsPage() {
                       ref={(el) => { fileInputRefs.current[slot.id] = el }}
                       type="file"
                       className={styles.hiddenInput}
-                      accept=".pdf,.docx,.xlsx,.xls,.txt"
+                      accept=".docx,.txt"
                       onChange={(e) => {
                         const f = e.target.files?.[0]
                         if (f) handleUpload(slot.id, f)
@@ -186,23 +392,46 @@ export function SettingsPage() {
                       <div className={styles.cardFile}>
                         <span className={styles.cardFileName} title={doc.name}>
                           {doc.name}
+                          {doc.preprocessed && <span className={styles.cardJsonBadge}>JSON</span>}
                         </span>
-                        <button
-                          type="button"
-                          className={styles.cardReplace}
-                          onClick={() => fileInputRefs.current[slot.id]?.click()}
-                          disabled={isUploading}
-                          title="Заменить файл"
-                        >
-                          {isUploading ? 'Загрузка…' : 'Заменить'}
-                        </button>
+                        <div className={styles.cardFileActions}>
+                          <button
+                            type="button"
+                            className={styles.cardActionBtn}
+                            onClick={() => openTemplateChecklistForDoc(doc, slot.id)}
+                            disabled={isBusy}
+                            title="Проверить JSON"
+                          >
+                            {doc.preprocessed ? 'Проверить JSON' : 'Обработать'}
+                          </button>
+                          {doc.preprocessed && (
+                            <button
+                              type="button"
+                              className={styles.cardActionBtnGhost}
+                              onClick={() => openTemplateChecklistForDoc(doc, slot.id, true)}
+                              disabled={isBusy}
+                              title="Повторно обработать через LLM"
+                            >
+                              Переобработать
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={styles.cardReplace}
+                            onClick={() => fileInputRefs.current[slot.id]?.click()}
+                            disabled={isBusy}
+                            title="Заменить файл"
+                          >
+                            {isUploading ? 'Загрузка…' : 'Заменить'}
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <button
                         type="button"
                         className={styles.cardAttach}
                         onClick={() => fileInputRefs.current[slot.id]?.click()}
-                        disabled={isUploading}
+                        disabled={isBusy}
                       >
                         {isUploading ? (
                           <>
@@ -224,6 +453,25 @@ export function SettingsPage() {
           </ul>
         )}
       </section>
+
+      {templateChecklist && (
+        <TemplateChecklistModal
+          state={templateChecklist}
+          actions={{
+            onClose: () => setTemplateChecklist(null),
+            cancelProcessing: () => {
+              preprocessAbortRef.current?.abort()
+              preprocessAbortRef.current = null
+              setTemplateChecklist(null)
+            },
+            toggleItem: toggleTemplateChecklistItem,
+            updateItem: updateTemplateChecklistItem,
+            addItem: addTemplateChecklistItem,
+            removeItem: removeTemplateChecklistItem,
+            submit: submitTemplateChecklistHandler,
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import styles from './Layout.module.css'
 
 const iconSize = 20
@@ -45,21 +46,71 @@ const icons = {
   ),
 }
 
+const goalsItems = [
+  { to: '/kpi', label: 'КПЭ' },
+  { to: '/ppr', label: 'ППР' },
+] as const
+
 const navItems = [
-  { to: '/kpi', label: 'КПЭ', icon: icons.kpi },
-  { to: '/goals', label: 'ППР', icon: icons.goals },
   { to: '/knowledge', label: 'База знаний', icon: icons.knowledge },
   { to: '/chat', label: 'Чат с моделью', icon: icons.chat },
   { to: '/dashboards', label: 'Дашборды', icon: icons.dashboards },
   { to: '/settings', label: 'Настройки', icon: icons.settings },
 ] as const
 
+const goalsSubnavId = 'sidebar-goals-links'
+
+const isPathActive = (pathname: string, target: string) => pathname === target || pathname.startsWith(`${target}/`)
+
 export function Layout({ children }: { children?: React.ReactNode }) {
+  const location = useLocation()
+  const isGoalsActive = goalsItems.some((item) => isPathActive(location.pathname, item.to))
+  const [goalsOpen, setGoalsOpen] = useState(isGoalsActive)
+
+  useEffect(() => {
+    if (isGoalsActive) setGoalsOpen(true)
+  }, [isGoalsActive])
+
   return (
     <div className={styles.root}>
       <aside className={styles.sidebar}>
         <h1 className={styles.title}>AI KPI</h1>
         <nav className={styles.nav}>
+          <div className={styles.navGroup}>
+            <button
+              type="button"
+              className={[
+                styles.navLink,
+                styles.navGroupButton,
+                isGoalsActive ? styles.navLinkActive : '',
+                goalsOpen ? styles.navGroupOpen : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => setGoalsOpen((prev) => !prev)}
+              aria-expanded={goalsOpen}
+              aria-controls={goalsSubnavId}
+            >
+              <span className={styles.navIcon}>{icons.goals}</span>
+              <span className={styles.navGroupLabel}>Цели</span>
+              <span className={styles.navCaret} aria-hidden />
+            </button>
+            {goalsOpen && (
+              <div className={styles.navSubnav} id={goalsSubnavId}>
+                {goalsItems.map(({ to, label }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    className={({ isActive }) =>
+                      [styles.navLink, styles.navSubLink, isActive ? styles.navLinkActive : ''].filter(Boolean).join(' ')
+                    }
+                  >
+                    {label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
           {navItems.map(({ to, label, icon }) => (
             <NavLink
               key={to}
