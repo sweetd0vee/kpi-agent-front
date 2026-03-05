@@ -110,6 +110,9 @@ export function ChatPage() {
   const [editingDraft, setEditingDraft] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const resizeStateRef = useRef<{ startY: number; startHeight: number } | null>(null)
+  const [inputHeight, setInputHeight] = useState(44)
+  const [isResizing, setIsResizing] = useState(false)
 
   const setSettings = useCallback((next: ChatSettings) => {
     setSettingsState(next)
@@ -158,6 +161,31 @@ export function ChatPage() {
   useEffect(() => {
     saveChats(chats)
   }, [chats])
+
+  useEffect(() => {
+    if (!isResizing) return
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeStateRef.current) return
+      const { startY, startHeight } = resizeStateRef.current
+      const delta = e.clientY - startY
+      const nextHeight = Math.max(44, startHeight - delta)
+      setInputHeight(nextHeight)
+    }
+    const handleMouseUp = () => {
+      resizeStateRef.current = null
+      setIsResizing(false)
+    }
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizing])
 
   useEffect(() => {
     if (!settings.apiKey.trim()) {
@@ -806,6 +834,18 @@ export function ChatPage() {
                 onKeyDown={handleKeyDown}
                 disabled={loading}
                 rows={1}
+                style={{ height: `${inputHeight}px` }}
+              />
+              <button
+                type="button"
+                className={styles.textareaResizeHandle}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  resizeStateRef.current = { startY: e.clientY, startHeight: inputHeight }
+                  setIsResizing(true)
+                }}
+                aria-label="Изменить высоту поля ввода"
+                title="Изменить высоту"
               />
             </div>
             <button

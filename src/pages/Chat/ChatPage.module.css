@@ -322,8 +322,8 @@
 .inputRow {
   display: flex;
   gap: 0.5rem;
-  align-items: stretch;
-  height: 44px;
+  align-items: flex-end;
+  height: auto;
 }
 
 .attachBtn {
@@ -472,12 +472,13 @@
 .textareaWrap {
   flex: 1;
   min-width: 0;
-  height: 44px;
+  height: auto;
+  position: relative;
 }
 
 .textarea {
   width: 100%;
-  height: 100%;
+  min-height: 44px;
   padding: 0.5rem 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -490,6 +491,34 @@
   transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
   overflow-y: auto;
+}
+
+.textareaResizeHandle {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: row-resize;
+}
+
+.textareaResizeHandle::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid #cbd5e1;
+  border-left: 8px solid transparent;
+  opacity: 0.85;
+}
+
+.textareaResizeHandle:hover::before {
+  border-top-color: #94a3b8;
 }
 
 .textarea::placeholder {
