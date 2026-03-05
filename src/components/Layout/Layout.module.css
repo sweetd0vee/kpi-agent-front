@@ -32,6 +32,12 @@
   padding: 0 0.75rem;
 }
 
+.navFooter {
+  margin-top: auto;
+  padding: 1rem 0.75rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .navGroup {
   display: flex;
   flex-direction: column;
@@ -50,6 +56,15 @@
 }
 
 .navGroupButton {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.navButton {
   width: 100%;
   border: 0;
   background: transparent;

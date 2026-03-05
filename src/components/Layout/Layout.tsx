@@ -44,6 +44,13 @@ const icons = {
       <circle cx="12" cy="12" r="3" />
     </svg>
   ),
+  logout: (
+    <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  ),
 }
 
 const goalsItems = [
@@ -62,7 +69,13 @@ const goalsSubnavId = 'sidebar-goals-links'
 
 const isPathActive = (pathname: string, target: string) => pathname === target || pathname.startsWith(`${target}/`)
 
-export function Layout({ children }: { children?: React.ReactNode }) {
+export function Layout({
+  children,
+  onLogout,
+}: {
+  children?: React.ReactNode
+  onLogout?: () => void
+}) {
   const location = useLocation()
   const isGoalsActive = goalsItems.some((item) => isPathActive(location.pathname, item.to))
   const [goalsOpen, setGoalsOpen] = useState(isGoalsActive)
@@ -124,6 +137,18 @@ export function Layout({ children }: { children?: React.ReactNode }) {
             </NavLink>
           ))}
         </nav>
+        {onLogout && (
+          <div className={styles.navFooter}>
+            <button
+              type="button"
+              className={[styles.navLink, styles.navButton].filter(Boolean).join(' ')}
+              onClick={onLogout}
+            >
+              <span className={styles.navIcon}>{icons.logout}</span>
+              Выход
+            </button>
+          </div>
+        )}
       </aside>
       <main className={styles.main}>
         {children ?? <Outlet />}
