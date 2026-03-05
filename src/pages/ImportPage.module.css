@@ -906,6 +906,28 @@
   gap: 1rem;
 }
 
+.promptSearchInput {
+  width: 100%;
+  max-width: 100%;
+  padding: 0.5rem 0.875rem 0.5rem 2.25rem;
+  font-size: 0.875rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 0.65rem center;
+  color: #334155;
+  transition: border-color 0.2s;
+}
+
+.promptSearchInput::placeholder {
+  color: #94a3b8;
+}
+
+.promptSearchInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background-color: #fff;
+}
+
 .promptsGroupTitle {
   margin: 0;
   font-size: 1.05rem;

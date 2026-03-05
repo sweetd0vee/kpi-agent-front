@@ -38,6 +38,7 @@ export function PromptsTab() {
   const [editingContent, setEditingContent] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
   const [pendingDeletePrompt, setPendingDeletePrompt] = useState<StoredPrompt | null>(null)
+  const [promptSearch, setPromptSearch] = useState('')
 
   useEffect(() => {
     savePrompts(customPrompts)
@@ -47,6 +48,15 @@ export function PromptsTab() {
     () => [...customPrompts].sort((a, b) => b.updatedAt - a.updatedAt),
     [customPrompts]
   )
+  const normalizedPromptSearch = promptSearch.trim().toLowerCase()
+  const filteredCustomPrompts = useMemo(() => {
+    if (!normalizedPromptSearch) return sortedCustomPrompts
+    return sortedCustomPrompts.filter((prompt) => {
+      const title = prompt.title.toLowerCase()
+      const content = prompt.content.toLowerCase()
+      return title.includes(normalizedPromptSearch) || content.includes(normalizedPromptSearch)
+    })
+  }, [normalizedPromptSearch, sortedCustomPrompts])
 
   const resetEditing = useCallback(() => {
     setEditingPromptId(null)
@@ -199,13 +209,25 @@ export function PromptsTab() {
 
       <div className={styles.promptsGroup}>
         <h3 className={styles.promptsGroupTitle}>Пользовательские</h3>
+        <input
+          type="search"
+          className={styles.promptSearchInput}
+          placeholder="Поиск промпта"
+          value={promptSearch}
+          onChange={(e) => setPromptSearch(e.target.value)}
+          aria-label="Поиск промпта"
+        />
         {sortedCustomPrompts.length === 0 ? (
           <div className={styles.empty}>
             <p>Пока нет пользовательских промптов. Создайте первый выше.</p>
           </div>
+        ) : filteredCustomPrompts.length === 0 ? (
+          <div className={styles.empty}>
+            <p>Ничего не найдено по запросу.</p>
+          </div>
         ) : (
           <div className={styles.promptsGrid}>
-            {sortedCustomPrompts.map((prompt) => {
+            {filteredCustomPrompts.map((prompt) => {
               const isEditing = editingPromptId === prompt.id
               return (
                 <article key={prompt.id} className={styles.promptCard}>
