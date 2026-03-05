@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react'
-import { getGoalsState, getKpiState } from '@/lib/storage'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { getKpiRows, getPprRows } from '@/api/goals'
+import type { GoalRow } from '@/lib/storage'
 import styles from './DashboardsPage.module.css'
 
 type DashboardSubTab = 'kpi' | 'ppr'
@@ -20,11 +21,60 @@ function parseWeightYear(s: string): number | null {
 
 export function DashboardsPage() {
   const [activeTab, setActiveTab] = useState<DashboardSubTab>('kpi')
-  const rows = useMemo(
-    () => (activeTab === 'kpi' ? getKpiState().rows : getGoalsState().rows),
-    [activeTab]
-  )
+  const [kpiRows, setKpiRows] = useState<GoalRow[]>([])
+  const [pprRows, setPprRows] = useState<GoalRow[]>([])
+  const [kpiLoading, setKpiLoading] = useState(true)
+  const [pprLoading, setPprLoading] = useState(true)
+  const [kpiError, setKpiError] = useState<string | null>(null)
+  const [pprError, setPprError] = useState<string | null>(null)
+  const rows = useMemo(() => (activeTab === 'kpi' ? kpiRows : pprRows), [activeTab, kpiRows, pprRows])
+  const activeLoading = activeTab === 'kpi' ? kpiLoading : pprLoading
+  const activeError = activeTab === 'kpi' ? kpiError : pprError
   const tabLabel = activeTab === 'kpi' ? 'КПЭ' : 'ППР'
+
+  useEffect(() => {
+    let active = true
+    setKpiLoading(true)
+    getKpiRows()
+      .then((rows) => {
+        if (!active) return
+        setKpiRows(rows)
+        setKpiError(null)
+      })
+      .catch((err) => {
+        if (!active) return
+        setKpiError(err instanceof Error ? err.message : 'Не удалось загрузить KPI данные.')
+      })
+      .finally(() => {
+        if (!active) return
+        setKpiLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    setPprLoading(true)
+    getPprRows()
+      .then((rows) => {
+        if (!active) return
+        setPprRows(rows)
+        setPprError(null)
+      })
+      .catch((err) => {
+        if (!active) return
+        setPprError(err instanceof Error ? err.message : 'Не удалось загрузить PPR данные.')
+      })
+      .finally(() => {
+        if (!active) return
+        setPprLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const stats = useMemo(() => {
     const uniqueNames = new Set(rows.map((r) => r.lastName?.trim()).filter(Boolean))
@@ -155,11 +205,19 @@ export function DashboardsPage() {
         aria-labelledby={activeTab === 'kpi' ? 'dashboard-tab-kpi' : 'dashboard-tab-ppr'}
         className={styles.tabPanel}
       >
-        {rows.length === 0 ? (
+        {activeError ? (
+          <div className={styles.emptyState} role="alert">
+            {activeError}
+          </div>
+        ) : activeLoading ? (
+          <div className={styles.emptyState} role="status">
+            Загрузка данных...
+          </div>
+        ) : rows.length === 0 ? (
           <div className={styles.emptyState}>
             Нет данных для дашбордов. Заполните таблицу «{tabLabel}» на соответствующей вкладке или загрузите данные.
           </div>
-      ) : (
+        ) : (
         <>
           <section className={styles.eulerSection} aria-labelledby="goal-managers-title">
             <h2 id="goal-managers-title" className={styles.eulerSectionTitle}>Цель: руководители и данные</h2>

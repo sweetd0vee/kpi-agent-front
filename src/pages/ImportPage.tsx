@@ -13,10 +13,13 @@ import {
   uploadDocument,
   deleteDocument,
   getTemplateDocuments,
+  getDepartments,
+  getResponsibles,
   processDepartmentRegulation,
   submitDepartmentChecklist,
   type DocumentMeta,
   type CollectionMeta,
+  type DepartmentItem,
   type DepartmentChecklistItem,
 } from '@/api/documents'
 import { PaperclipIcon, PersonIcon } from '@/components/Icons'
@@ -32,6 +35,13 @@ const CHECKLIST_LABELS: Record<string, string> = {
   business_plan_checklist: 'Бизнес-план',
   strategy_checklist: 'Стратегия',
   reglament_checklist: 'Регламент',
+}
+
+type CollectionCardDraft = {
+  name: string
+  department: string
+  responsibles: string
+  summary: string
 }
 
 function getChecklistTitle(typeId: string): string {
@@ -78,19 +88,23 @@ export function ImportPage() {
   const [collections, setCollections] = useState<CollectionMeta[]>([])
   const [activeTab, setActiveTab] = useState<'collections' | 'prompts'>('collections')
   const [collectionName, setCollectionName] = useState('')
-  const [collectionDescription, setCollectionDescription] = useState('')
+  const [collectionDepartment, setCollectionDepartment] = useState('')
+  const [collectionResponsibles, setCollectionResponsibles] = useState('')
+  const [collectionSummary, setCollectionSummary] = useState('')
   const [files, setFiles] = useState<Record<SlotTypeId, File | null>>(createInitialFiles)
   const [creating, setCreating] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [generatingJsonId, setGeneratingJsonId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingName, setEditingName] = useState('')
+  const [editingDraft, setEditingDraft] = useState<CollectionCardDraft | null>(null)
   const [deleteConfirmCollection, setDeleteConfirmCollection] = useState<CollectionMeta | null>(null)
   const [docsByCollection, setDocsByCollection] = useState<Record<string, Record<string, DocumentMeta[]>>>({})
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterMode, setFilterMode] = useState<'mine' | 'processed'>('mine')
   const [templateDocs, setTemplateDocs] = useState<Record<string, DocumentMeta | null>>({})
+  const [responsiblesOptions, setResponsiblesOptions] = useState<string[]>([])
+  const [departmentOptions, setDepartmentOptions] = useState<DepartmentItem[]>([])
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const departmentAbortRef = useRef<AbortController | null>(null)
   const checklistAbortRef = useRef<AbortController | null>(null)
@@ -143,6 +157,31 @@ export function ImportPage() {
   }, [loadCollections])
 
   useEffect(() => {
+    let active = true
+    getResponsibles()
+      .then((items) => {
+        if (!active) return
+        setResponsiblesOptions(items)
+      })
+      .catch(() => {
+        if (!active) return
+        setResponsiblesOptions([])
+      })
+    getDepartments()
+      .then((items) => {
+        if (!active) return
+        setDepartmentOptions(items)
+      })
+      .catch(() => {
+        if (!active) return
+        setDepartmentOptions([])
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
     collections.forEach((c) => loadDocumentsForCollection(c.id))
   }, [collections, loadDocumentsForCollection])
 
@@ -193,7 +232,12 @@ export function ImportPage() {
     setError(null)
     setCreating(true)
     try {
-      const col = await createCollection(name)
+      const col = await createCollection({
+        name,
+        department: collectionDepartment.trim(),
+        responsibles: collectionResponsibles.trim(),
+        summary: collectionSummary.trim(),
+      })
       setCollections((prev) => [col, ...prev])
       setDocsByCollection((prev) => ({ ...prev, [col.id]: {} }))
       setFilterMode('mine')
@@ -295,7 +339,9 @@ export function ImportPage() {
       }
       setUploading(false)
       setCollectionName('')
-      setCollectionDescription('')
+      setCollectionDepartment('')
+      setCollectionResponsibles('')
+      setCollectionSummary('')
       setFiles(createInitialFiles())
       await loadDocumentsForCollection(col.id)
     } catch (e) {
@@ -329,25 +375,45 @@ export function ImportPage() {
 
   const startEdit = (c: CollectionMeta) => {
     setEditingId(c.id)
-    setEditingName(c.name)
+    setEditingDraft({
+      name: c.name ?? '',
+      department: c.department ?? '',
+      responsibles: c.responsibles ?? '',
+      summary: c.summary ?? '',
+    })
+  }
+
+  const updateEditingDraft = (patch: Partial<CollectionCardDraft>) => {
+    setEditingDraft((prev) => (prev ? { ...prev, ...patch } : prev))
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditingDraft(null)
   }
 
   const saveEdit = useCallback(async () => {
-    if (!editingId || !editingName.trim()) {
-      setEditingId(null)
+    if (!editingId || !editingDraft) {
+      cancelEdit()
       return
+    }
+    const payload = {
+      name: editingDraft.name.trim() || 'Без названия',
+      department: editingDraft.department.trim(),
+      responsibles: editingDraft.responsibles.trim(),
+      summary: editingDraft.summary.trim(),
     }
     setError(null)
     try {
-      await updateCollection(editingId, editingName.trim())
+      const updated = await updateCollection(editingId, payload)
       setCollections((prev) =>
-        prev.map((c) => (c.id === editingId ? { ...c, name: editingName.trim() } : c))
+        prev.map((c) => (c.id === editingId ? { ...c, ...updated } : c))
       )
-      setEditingId(null)
+      cancelEdit()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка переименования')
+      setError(e instanceof Error ? e.message : 'Ошибка сохранения')
     }
-  }, [editingId, editingName])
+  }, [editingId, editingDraft])
 
   const handleDeleteCollection = useCallback(async (id: string) => {
     setDeleteConfirmCollection(null)
@@ -738,6 +804,17 @@ export function ImportPage() {
         <h1 className={styles.title}>База знаний</h1>
       </header>
 
+      <datalist id="responsibles-options">
+        {responsiblesOptions.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
+      <datalist id="departments-options">
+        {departmentOptions.map((dep) => (
+          <option key={dep.id} value={dep.name} />
+        ))}
+      </datalist>
+
       <div className={styles.tabs} role="tablist" aria-label="Разделы базы знаний">
         <button
           id="knowledge-tab-collections-btn"
@@ -801,15 +878,39 @@ export function ImportPage() {
               />
             </label>
             <label className={styles.descriptionLabel}>
-              Описание
+              Краткое описание
               <textarea
                 className={styles.descriptionInput}
-                placeholder="Краткое описание коллекции"
-                value={collectionDescription}
-                onChange={(e) => setCollectionDescription(e.target.value)}
+                placeholder="Например: ключевые цели и ожидаемый результат"
+                value={collectionSummary}
+                onChange={(e) => setCollectionSummary(e.target.value)}
                 rows={3}
               />
             </label>
+            <div className={styles.inlineFieldsRow}>
+              <label className={`${styles.descriptionLabel} ${styles.inlineField}`}>
+                ФИО ответственные
+                <input
+                  type="text"
+                  className={styles.nameInput}
+                  placeholder="Например: ключевые цели и ожидаемый результат"
+                  list="responsibles-options"
+                  value={collectionResponsibles}
+                  onChange={(e) => setCollectionResponsibles(e.target.value)}
+                />
+              </label>
+              <label className={`${styles.descriptionLabel} ${styles.inlineField}`}>
+                Подразделение
+                <input
+                  type="text"
+                  className={styles.nameInput}
+                  placeholder="Выберите подразделение"
+                  list="departments-options"
+                  value={collectionDepartment}
+                  onChange={(e) => setCollectionDepartment(e.target.value)}
+                />
+              </label>
+            </div>
             <div className={styles.slotsGrid}>
               {SLOT_TYPES.map((slot) => {
                 const isTemplateSlot = TEMPLATE_SLOT_IDS.includes(slot.id)
@@ -964,6 +1065,9 @@ export function ImportPage() {
                   const isEditing = editingId === col.id
                   const isGenerating = generatingJsonId === col.id
                   const hasDocs = Object.values(docs).some((arr) => arr.length > 0)
+                  const departmentValue = (col.department ?? '').trim() || '—'
+                  const responsiblesValue = (col.responsibles ?? '').trim() || '—'
+                  const summaryValue = (col.summary ?? '').trim() || '—'
                   return (
                     <li key={col.id} className={styles.collectionCard}>
                       <div className={styles.cardHead}>
@@ -971,12 +1075,11 @@ export function ImportPage() {
                           <input
                             type="text"
                             className={styles.cardNameInput}
-                            value={editingName}
-                            onChange={(e) => setEditingName(e.target.value)}
-                            onBlur={saveEdit}
+                            value={editingDraft?.name ?? ''}
+                            onChange={(e) => updateEditingDraft({ name: e.target.value })}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') saveEdit()
-                              if (e.key === 'Escape') setEditingId(null)
+                              if (e.key === 'Escape') cancelEdit()
                             }}
                             autoFocus
                           />
@@ -988,7 +1091,8 @@ export function ImportPage() {
                             type="button"
                             className={styles.cardBtn}
                             onClick={() => startEdit(col)}
-                            title="Переименовать"
+                            title="Редактировать карточку"
+                            disabled={isEditing}
                           >
                             ✎
                           </button>
@@ -1001,6 +1105,75 @@ export function ImportPage() {
                             ×
                           </button>
                         </div>
+                      </div>
+                      <div className={styles.cardMeta}>
+                        {isEditing ? (
+                          <>
+                            <div className={styles.cardMetaRowGrid}>
+                              <label className={styles.cardMetaField}>
+                                ФИО ответственные
+                                <input
+                                  type="text"
+                                  className={styles.cardMetaTextarea}
+                                  list="responsibles-options"
+                                  value={editingDraft?.responsibles ?? ''}
+                                  onChange={(e) => updateEditingDraft({ responsibles: e.target.value })}
+                                  placeholder="Например: ключевые цели и ожидаемый результат"
+                                />
+                              </label>
+                              <label className={styles.cardMetaField}>
+                                Подразделение
+                                <input
+                                  type="text"
+                                  className={styles.cardMetaTextarea}
+                                  list="departments-options"
+                                  value={editingDraft?.department ?? ''}
+                                  onChange={(e) => updateEditingDraft({ department: e.target.value })}
+                                  placeholder="Выберите подразделение"
+                                />
+                              </label>
+                            </div>
+                            <label className={styles.cardMetaField}>
+                              Краткое описание
+                              <textarea
+                                className={styles.cardMetaTextarea}
+                                rows={2}
+                                value={editingDraft?.summary ?? ''}
+                                onChange={(e) => updateEditingDraft({ summary: e.target.value })}
+                                placeholder="Краткое описание коллекции"
+                              />
+                            </label>
+                            <div className={styles.cardMetaActions}>
+                              <button type="button" className={styles.cardMetaSaveBtn} onClick={saveEdit}>
+                                Сохранить
+                              </button>
+                              <button type="button" className={styles.cardMetaCancelBtn} onClick={cancelEdit}>
+                                Отмена
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className={styles.cardMetaList}>
+                            <div className={styles.cardMetaRow}>
+                              <span className={styles.cardMetaLabel}>ФИО ответственные</span>
+                              <span className={styles.cardMetaValue} title={responsiblesValue}>
+                                {responsiblesValue}
+                              </span>
+                            </div>
+                            <div className={styles.cardMetaRow}>
+                              <span className={styles.cardMetaLabel}>Подразделение</span>
+                              <span className={styles.cardMetaValue} title={departmentValue}>
+                                {departmentValue}
+                              </span>
+                            </div>
+                            <div className={styles.cardMetaRow}>
+                              <span className={styles.cardMetaLabel}>Краткое описание</span>
+                              <span className={styles.cardMetaValue} title={summaryValue}>
+                                {summaryValue}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className={styles.cardSlotsGrid}>
                         {SLOT_TYPES.map((slot) => {

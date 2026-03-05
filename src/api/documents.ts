@@ -41,6 +41,11 @@ export type CollectionMeta = {
   name: string
   created_at?: string
   updated_at?: string
+  department?: string
+  period?: string
+  responsibles?: string
+  summary?: string
+  status?: string
 }
 
 export type DocumentListResponse = {
@@ -277,23 +282,58 @@ export async function getCollections(): Promise<CollectionMeta[]> {
   }
 }
 
-export async function createCollection(name: string): Promise<CollectionMeta> {
+export type CreateCollectionPayload = {
+  name: string
+  department?: string
+  period?: string
+  responsibles?: string
+  summary?: string
+  status?: string
+}
+
+export type UpdateCollectionPayload = {
+  name?: string
+  department?: string
+  period?: string
+  responsibles?: string
+  summary?: string
+  status?: string
+}
+
+export async function createCollection(payload: CreateCollectionPayload): Promise<CollectionMeta> {
   const res = await apiFetch('/api/collections', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name || 'Новая коллекция' }),
+    body: JSON.stringify({
+      name: payload.name || 'Новая коллекция',
+      department: payload.department,
+      period: payload.period,
+      responsibles: payload.responsibles,
+      summary: payload.summary,
+      status: payload.status,
+    }),
   })
   if (!res.ok) throw new Error(`Создание: ${res.status}`)
   return res.json()
 }
 
-export async function updateCollection(collectionId: string, name: string): Promise<CollectionMeta> {
+export async function updateCollection(
+  collectionId: string,
+  payload: UpdateCollectionPayload
+): Promise<CollectionMeta> {
   const res = await apiFetch(`/api/collections/${collectionId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({
+      name: payload.name,
+      department: payload.department,
+      period: payload.period,
+      responsibles: payload.responsibles,
+      summary: payload.summary,
+      status: payload.status,
+    }),
   })
-  if (!res.ok) throw new Error(`Переименование: ${res.status}`)
+  if (!res.ok) throw new Error(`Обновление: ${res.status}`)
   return res.json()
 }
 
@@ -350,6 +390,49 @@ export async function syncCollectionToOpenWebUI(collectionId: string): Promise<S
     throw new Error(t || `Синхронизация: ${res.status}`)
   }
   return res.json()
+}
+
+export type DepartmentItem = {
+  id: string
+  name: string
+}
+
+type DepartmentListResponse = {
+  items: DepartmentItem[]
+}
+
+type ResponsiblesListResponse = {
+  items: string[]
+}
+
+export async function getDepartments(): Promise<DepartmentItem[]> {
+  const res = await apiFetch('/api/departments')
+  const text = await res.text()
+  if (!res.ok) throw new Error(text?.slice(0, 200) || `Подразделения: ${res.status}`)
+  if (text.trimStart().toLowerCase().startsWith('<!')) {
+    throw new Error('Backend не доступен. Запустите backend на порту 8000.')
+  }
+  try {
+    const data = JSON.parse(text) as DepartmentListResponse
+    return Array.isArray(data?.items) ? data.items : []
+  } catch {
+    throw new Error('Ответ не JSON.')
+  }
+}
+
+export async function getResponsibles(): Promise<string[]> {
+  const res = await apiFetch('/api/reference/responsibles')
+  const text = await res.text()
+  if (!res.ok) throw new Error(text?.slice(0, 200) || `Ответственные: ${res.status}`)
+  if (text.trimStart().toLowerCase().startsWith('<!')) {
+    throw new Error('Backend не доступен. Запустите backend на порту 8000.')
+  }
+  try {
+    const data = JSON.parse(text) as ResponsiblesListResponse
+    return Array.isArray(data?.items) ? data.items : []
+  } catch {
+    throw new Error('Ответ не JSON.')
+  }
 }
 
 /** Типы шаблонных документов (загружаются один раз в Настройках). */

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { generateId, getKpiState, saveKpiState, type GoalRow } from '@/lib/storage'
+import { getKpiRows, saveKpiRows } from '@/api/goals'
+import { generateId, type GoalRow } from '@/lib/storage'
 import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exportGoalsPDF } from '@/lib/exportGoals'
 import { parseKpiXlsxToRows } from '@/lib/importGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
@@ -78,24 +79,10 @@ const buildOptions = (rows: GoalRow[], key: GoalField, collator: Intl.Collator):
 }
 
 export function KpiPage() {
-  const [goalsState, setGoalsState] = useState(() => {
-    const stored = getKpiState()
-    if (stored.rows.length === 0) {
-      const empty = { rows: [] as GoalRow[] }
-      saveKpiState(empty)
-      return empty
-    }
-    const rows: GoalRow[] = stored.rows.map((row) => ({
-      ...row,
-      reportYear: 'reportYear' in row && String((row as GoalRow).reportYear).trim() !== '' ? (row as GoalRow).reportYear : '',
-    }))
-    const hadMissing = stored.rows.some((r) => !('reportYear' in r))
-    if (hadMissing) {
-      saveKpiState({ rows })
-      return { rows }
-    }
-    return stored
-  })
+  const [goalsState, setGoalsState] = useState<{ rows: GoalRow[] }>({ rows: [] })
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [editingDraft, setEditingDraft] = useState<GoalRow | null>(null)
   const [page, setPage] = useState(1)
@@ -115,6 +102,7 @@ export function KpiPage() {
   const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
+  const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const lastNameRef = useRef<HTMLDivElement>(null)
@@ -123,8 +111,41 @@ export function KpiPage() {
   const reportYearRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    saveKpiState(goalsState)
-  }, [goalsState])
+    let active = true
+    setIsLoading(true)
+    getKpiRows()
+      .then((rows) => {
+        if (!active) return
+        setGoalsState({ rows })
+        setDataError(null)
+        setIsLoaded(true)
+        skipSyncRef.current = true
+      })
+      .catch((err) => {
+        if (!active) return
+        setDataError(err instanceof Error ? err.message : 'Не удалось загрузить данные.')
+      })
+      .finally(() => {
+        if (!active) return
+        setIsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isLoaded) return
+    if (skipSyncRef.current) {
+      skipSyncRef.current = false
+      return
+    }
+    void saveKpiRows(goalsState.rows)
+      .then(() => setDataError(null))
+      .catch((err) => {
+        setDataError(err instanceof Error ? err.message : 'Не удалось сохранить данные.')
+      })
+  }, [goalsState, isLoaded])
 
   const normalizedFilters = useMemo(
     () =>
@@ -546,6 +567,16 @@ export function KpiPage() {
             </button>
           </div>
         </header>
+        {dataError && (
+          <div className={styles.importError} role="alert">
+            {dataError}
+          </div>
+        )}
+        {isLoading && !dataError && (
+          <div className={styles.importError} role="status">
+            Загрузка данных...
+          </div>
+        )}
         {importError && (
           <div className={styles.importError} role="alert">
             {importError}
