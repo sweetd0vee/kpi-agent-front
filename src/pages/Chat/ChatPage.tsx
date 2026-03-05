@@ -129,6 +129,7 @@ export function ChatPage() {
   const [editingDraft, setEditingDraft] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const resizeStateRef = useRef<{ startY: number; startHeight: number } | null>(null)
   const inputRef = useRef(input)
   inputRef.current = input
@@ -238,8 +239,14 @@ export function ChatPage() {
     setCurrentChatId(id)
     setAttachments([])
     setInput('')
+    inputRef.current = ''
     setError(null)
   }, [currentChat?.modelId, defaultModelId, models])
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    inputRef.current = value
+    setInput(value)
+  }, [])
 
   const handleSelectChat = useCallback((id: string) => {
     setCurrentChatId(id)
@@ -370,17 +377,30 @@ export function ChatPage() {
       : next
     inputRef.current = value
     setInput(value)
+    const lineCount = value.split('\n').length
+    const targetHeight = Math.min(360, Math.max(120, lineCount * 22 + 20))
+    setInputHeight((prevHeight) => Math.max(prevHeight, targetHeight))
+    setTimeout(() => textareaRef.current?.focus(), 0)
     setShowPromptPicker(false)
   }, [])
 
   const sendMessage = useCallback(async (textOverride?: string) => {
+    const override = typeof textOverride === 'string' ? textOverride : undefined
     const rawText =
-      textOverride !== undefined && textOverride !== null
-        ? textOverride
-        : inputRef.current
-    const text = typeof rawText === 'string' ? rawText.trim() : ''
-    const hasAttachments = attachments.length > 0 && textOverride === undefined
-    if ((!text && !hasAttachments) || !settings.apiKey) return
+      override !== undefined && override !== null
+        ? override
+        : inputRef.current || input
+    const text = typeof rawText === 'string' ? rawText : ''
+    const trimmedText = text.trim()
+    const hasAttachments = attachments.length > 0 && override === undefined
+    if (!trimmedText && !hasAttachments) {
+      setError('Введите сообщение или прикрепите файл/коллекцию.')
+      return
+    }
+    if (!settings.apiKey) {
+      setError('Сначала укажите API ключ в настройках.')
+      return
+    }
     if (!currentChat && !models.length) {
       setError('Сначала укажите API ключ и выберите модель')
       return
@@ -394,14 +414,17 @@ export function ChatPage() {
 
     setLoading(true)
     setError(null)
-    if (textOverride === undefined) setInput('')
+    if (override === undefined) {
+      setInput('')
+      inputRef.current = ''
+    }
 
     let chat = currentChat
     if (!chat) {
       const id = generateId()
       chat = {
         id,
-        title: getChatTitle([{ role: 'user', content: text }]),
+        title: getChatTitle([{ role: 'user', content: trimmedText || text }]),
         modelId,
         messages: [],
         createdAt: Date.now(),
@@ -413,9 +436,9 @@ export function ChatPage() {
 
     const userMessage: StoredMessage = {
       role: 'user',
-      content: typeof text === 'string' ? text : '',
+      content: text,
       attachments:
-        textOverride === undefined && attachments.length > 0
+        override === undefined && attachments.length > 0
           ? attachments.map((a) => ({
               name: a.name,
               type: 'fileId' in a ? ('file' as const) : ('collection' as const),
@@ -437,7 +460,7 @@ export function ChatPage() {
     )
 
     const collectionAttachments =
-      textOverride === undefined
+      override === undefined
         ? attachments.filter((a): a is AttachedCollection => 'collectionId' in a)
         : []
     let userContentWithContext = text
@@ -465,7 +488,7 @@ export function ChatPage() {
       return { role: m.role, content }
     })
     const fileAttachments =
-      textOverride === undefined
+      override === undefined
         ? attachments.filter((a): a is AttachedFile => 'fileId' in a)
         : []
     const files =
@@ -497,7 +520,7 @@ export function ChatPage() {
             : c
         )
       )
-      if (textOverride === undefined) setAttachments([])
+      if (override === undefined) setAttachments([])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка запроса')
       setChats((prev) =>
@@ -874,10 +897,11 @@ export function ChatPage() {
             </div>
             <div className={styles.textareaWrap}>
               <textarea
+                ref={textareaRef}
                 className={styles.textarea}
                 placeholder="Сообщение… (Enter — отправить, Shift+Enter — новая строка)"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 disabled={loading}
                 rows={1}
@@ -898,7 +922,7 @@ export function ChatPage() {
             <button
               type="button"
               className={styles.sendBtn}
-              onClick={sendMessage}
+              onClick={() => sendMessage()}
               disabled={loading || (!input.trim() && attachments.length === 0)}
               title="Отправить"
             >
