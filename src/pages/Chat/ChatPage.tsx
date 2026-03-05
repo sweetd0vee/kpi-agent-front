@@ -69,11 +69,30 @@ const PromptIcon = ({ className }: { className?: string }) => (
   <PencilIcon className={className} size={14} />
 )
 
+const ResendIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    width="12"
+    height="12"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+  </svg>
+)
+
 function getChatTitle(messages: StoredMessage[]): string {
   const first = messages.find((m) => m.role === 'user')
-  if (!first?.content) return 'Новый чат'
-  const text = first.content.trim().slice(0, 50)
-  return text + (first.content.length > 50 ? '…' : '')
+  const content = first && typeof first.content === 'string' ? first.content : ''
+  if (!content.trim()) return 'Новый чат'
+  const text = content.trim().slice(0, 50)
+  return text + (content.length > 50 ? '…' : '')
 }
 
 type PromptOption = {
@@ -111,6 +130,8 @@ export function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const resizeStateRef = useRef<{ startY: number; startHeight: number } | null>(null)
+  const inputRef = useRef(input)
+  inputRef.current = input
   const [inputHeight, setInputHeight] = useState(44)
   const [isResizing, setIsResizing] = useState(false)
 
@@ -287,7 +308,7 @@ export function ChatPage() {
     setShowCollectionPicker(false)
     setShowPromptPicker(true)
     const customPrompts = getPrompts()
-      .filter((prompt) => prompt.content.trim().length > 0)
+      .filter((prompt) => typeof prompt.content === 'string' && prompt.content.trim().length > 0)
       .map((prompt) => ({
         id: prompt.id,
         title: prompt.title,
@@ -342,18 +363,23 @@ export function ChatPage() {
   }, [])
 
   const handleSelectPrompt = useCallback((prompt: PromptOption) => {
-    setInput((prev) => {
-      const next = prompt.content || ''
-      if (!prev.trim()) return next
-      const separator = prev.endsWith('\n') ? '\n' : '\n\n'
-      return `${prev}${separator}${next}`
-    })
+    const next = typeof prompt.content === 'string' ? prompt.content : ''
+    const prev = inputRef.current
+    const value = typeof prev === 'string' && prev.trim()
+      ? prev + (prev.endsWith('\n') ? '\n' : '\n\n') + next
+      : next
+    inputRef.current = value
+    setInput(value)
     setShowPromptPicker(false)
   }, [])
 
-  const sendMessage = useCallback(async () => {
-    const text = input.trim()
-    const hasAttachments = attachments.length > 0
+  const sendMessage = useCallback(async (textOverride?: string) => {
+    const rawText =
+      textOverride !== undefined && textOverride !== null
+        ? textOverride
+        : inputRef.current
+    const text = typeof rawText === 'string' ? rawText.trim() : ''
+    const hasAttachments = attachments.length > 0 && textOverride === undefined
     if ((!text && !hasAttachments) || !settings.apiKey) return
     if (!currentChat && !models.length) {
       setError('Сначала укажите API ключ и выберите модель')
@@ -368,7 +394,7 @@ export function ChatPage() {
 
     setLoading(true)
     setError(null)
-    setInput('')
+    if (textOverride === undefined) setInput('')
 
     let chat = currentChat
     if (!chat) {
@@ -387,9 +413,9 @@ export function ChatPage() {
 
     const userMessage: StoredMessage = {
       role: 'user',
-      content: text,
+      content: typeof text === 'string' ? text : '',
       attachments:
-        attachments.length > 0
+        textOverride === undefined && attachments.length > 0
           ? attachments.map((a) => ({
               name: a.name,
               type: 'fileId' in a ? ('file' as const) : ('collection' as const),
@@ -410,9 +436,10 @@ export function ChatPage() {
       )
     )
 
-    const collectionAttachments = attachments.filter(
-      (a): a is AttachedCollection => 'collectionId' in a
-    )
+    const collectionAttachments =
+      textOverride === undefined
+        ? attachments.filter((a): a is AttachedCollection => 'collectionId' in a)
+        : []
     let userContentWithContext = text
     if (collectionAttachments.length > 0) {
       const contextParts: string[] = []
@@ -434,12 +461,13 @@ export function ChatPage() {
 
     const apiMessages = nextMessages.map((m, i) => {
       const isLastUser = i === nextMessages.length - 1 && m.role === 'user'
-      return {
-        role: m.role,
-        content: isLastUser ? userContentWithContext : m.content,
-      }
+      const content = isLastUser ? userContentWithContext : (typeof m.content === 'string' ? m.content : '')
+      return { role: m.role, content }
     })
-    const fileAttachments = attachments.filter((a): a is AttachedFile => 'fileId' in a)
+    const fileAttachments =
+      textOverride === undefined
+        ? attachments.filter((a): a is AttachedFile => 'fileId' in a)
+        : []
     const files =
       fileAttachments.length > 0
         ? fileAttachments.map((a) => ({ type: 'file' as const, id: a.fileId }))
@@ -469,7 +497,7 @@ export function ChatPage() {
             : c
         )
       )
-      setAttachments([])
+      if (textOverride === undefined) setAttachments([])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка запроса')
       setChats((prev) =>
@@ -481,7 +509,6 @@ export function ChatPage() {
       setLoading(false)
     }
   }, [
-    input,
     settings.apiKey,
     settings.apiUrl,
     currentChat,
@@ -656,20 +683,40 @@ export function ChatPage() {
             currentChat.messages.map((msg, i) => (
               <div
                 key={i}
-                className={`${styles.message} ${
-                  msg.role === 'user' ? styles.messageUser : styles.messageAssistant
+                className={`${styles.messageWrap} ${
+                  msg.role === 'user' ? styles.messageWrapUser : ''
                 }`}
               >
-                {msg.content}
-                {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
-                  <div className={styles.messageAttachments}>
-                    {msg.attachments.map((att, j) => (
-                      <span key={j} className={styles.messageFileChip}>
-                        {att.type === 'collection' ? <CollectionIcon /> : <FileIcon />}{' '}
-                        {att.type === 'collection' ? `Коллекция: ${att.name}` : att.name}
-                      </span>
-                    ))}
+                <div
+                  className={`${styles.message} ${
+                    msg.role === 'user' ? styles.messageUser : styles.messageAssistant
+                  }`}
+                >
+                  <div className={styles.messageBody}>
+                    {typeof msg.content === 'string' ? msg.content : ''}
+                    {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
+                      <div className={styles.messageAttachments}>
+                        {msg.attachments.map((att, j) => (
+                          <span key={j} className={styles.messageFileChip}>
+                            {att.type === 'collection' ? <CollectionIcon /> : <FileIcon />}{' '}
+                            {att.type === 'collection' ? `Коллекция: ${att.name}` : att.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                </div>
+                {msg.role === 'user' && typeof msg.content === 'string' && msg.content.trim() && (
+                  <button
+                    type="button"
+                    className={styles.messageResendBtn}
+                    onClick={() => sendMessage(typeof msg.content === 'string' ? msg.content : '')}
+                    disabled={loading}
+                    title="Отправить это сообщение ещё раз"
+                    aria-label="Отправить снова"
+                  >
+                    <ResendIcon />
+                  </button>
                 )}
               </div>
             ))

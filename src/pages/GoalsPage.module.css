@@ -486,7 +486,8 @@
 }
 
 .colSurname {
-  width: 11%;
+  width: 8%;
+  min-width: 6rem;
 }
 
 .colGoal {
