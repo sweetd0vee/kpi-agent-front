@@ -19,15 +19,34 @@ function parseWeightYear(s: string): number | null {
   return n != null && n >= 0 && n <= 100 ? n : null
 }
 
+const collatorRu = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
+
 export function DashboardsPage() {
   const [activeTab, setActiveTab] = useState<DashboardSubTab>('kpi')
   const [kpiRows, setKpiRows] = useState<GoalRow[]>([])
   const [pprRows, setPprRows] = useState<GoalRow[]>([])
+  const [kpiReportYear, setKpiReportYear] = useState<string>('')
   const [kpiLoading, setKpiLoading] = useState(true)
   const [pprLoading, setPprLoading] = useState(true)
   const [kpiError, setKpiError] = useState<string | null>(null)
   const [pprError, setPprError] = useState<string | null>(null)
-  const rows = useMemo(() => (activeTab === 'kpi' ? kpiRows : pprRows), [activeTab, kpiRows, pprRows])
+
+  /** Уникальные отчётные годы по данным КПЭ (для фильтра на вкладке КПЭ) */
+  const kpiReportYearOptions = useMemo(() => {
+    const set = new Set<string>()
+    kpiRows.forEach((r) => {
+      const y = String(r.reportYear ?? '').trim()
+      if (y) set.add(y)
+    })
+    return Array.from(set).sort((a, b) => collatorRu.compare(a, b))
+  }, [kpiRows])
+
+  /** Строки для отображения: на вкладке КПЭ — с фильтром по году, на ППР — все */
+  const rows = useMemo(() => {
+    if (activeTab === 'ppr') return pprRows
+    if (!kpiReportYear) return kpiRows
+    return kpiRows.filter((r) => String(r.reportYear ?? '').trim() === kpiReportYear)
+  }, [activeTab, kpiRows, pprRows, kpiReportYear])
   const activeLoading = activeTab === 'kpi' ? kpiLoading : pprLoading
   const activeError = activeTab === 'kpi' ? kpiError : pprError
   const tabLabel = activeTab === 'kpi' ? 'КПЭ' : 'ППР'
@@ -153,6 +172,10 @@ export function DashboardsPage() {
 
   const [selectedGoal, setSelectedGoal] = useState('')
 
+  useEffect(() => {
+    setSelectedGoal('')
+  }, [kpiReportYear])
+
   /** Строки данных по выбранной цели: все руководители с этой целью, веса и показатели */
   const goalRowsForSelected = useMemo(() => {
     if (!selectedGoal) return []
@@ -219,6 +242,31 @@ export function DashboardsPage() {
           </div>
         ) : (
         <>
+          {activeTab === 'kpi' && (
+            <section className={styles.yearFilterSection} aria-labelledby="dashboard-report-year-label">
+              <h2 id="dashboard-report-year-label" className={styles.sectionTitle}>Отчётный год</h2>
+              <p className={styles.yearFilterDesc}>
+                Сначала выберите год — ниже отобразятся цели и метрики только за выбранный отчётный год.
+              </p>
+              <div className={styles.eulerSelects}>
+                <label className={styles.eulerSelectLabel}>
+                  Год
+                  <select
+                    className={styles.eulerSelect}
+                    value={kpiReportYear}
+                    onChange={(e) => setKpiReportYear(e.target.value)}
+                    aria-label="Выберите отчётный год"
+                  >
+                    <option value="">Все годы</option>
+                    {kpiReportYearOptions.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </section>
+          )}
+
           <section className={styles.eulerSection} aria-labelledby="goal-managers-title">
             <h2 id="goal-managers-title" className={styles.eulerSectionTitle}>Цель: руководители и данные</h2>
             <p className={styles.eulerSectionDesc}>
