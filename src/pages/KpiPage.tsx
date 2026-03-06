@@ -124,6 +124,7 @@ export function KpiPage() {
       .catch((err) => {
         if (!active) return
         setDataError(err instanceof Error ? err.message : 'Не удалось загрузить данные.')
+        setIsLoaded(true)
       })
       .finally(() => {
         if (!active) return
