@@ -529,9 +529,14 @@
   word-break: break-word;
 }
 
+.leaderGoalsTable th .sortBtn {
+  justify-content: center;
+  text-align: center;
+}
+
 .leaderGoalsTable th .sortBtn .headerLabel {
   white-space: pre-line;
-  text-align: left;
+  text-align: center;
 }
 
 .leaderGoalsTable th.colGoal,
