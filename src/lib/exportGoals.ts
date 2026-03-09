@@ -323,7 +323,7 @@ export function exportLeaderGoalsHTML(rows: LeaderGoalRow[], filenamePrefix = '�
   <style>
     table { border-collapse: collapse; width: 100%; font-size: 12px; }
     th, td { border: 1px solid #cbd5e1; padding: 0.35rem 0.5rem; text-align: left; }
-    th { background: #1e3a8a; color: #fff; font-weight: 600; }
+    th { background: #008000; color: #fff; font-weight: 600; }
     tr:nth-child(even) { background: #f8fafc; }
   </style>
 </head>
@@ -357,7 +357,7 @@ export function exportGoalsHTML(rows: GoalRow[], filenamePrefix = 'ппр'): voi
   <style>
     table { border-collapse: collapse; width: 100%; font-size: 14px; }
     th, td { border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; text-align: left; }
-    th { background: #1e3a8a; color: #fff; font-weight: 600; }
+    th { background: #008000; color: #fff; font-weight: 600; }
     tr:nth-child(even) { background: #f8fafc; }
   </style>
 </head>

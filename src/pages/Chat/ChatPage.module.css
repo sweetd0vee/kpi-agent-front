@@ -31,7 +31,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.625rem 1rem;
-  background: #1e3a8a;
+  background: #008000;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -42,7 +42,7 @@
 }
 
 .newChatBtn:hover {
-  background: #1e40af;
+  background: #009900;
 }
 
 .settingsWrap {
@@ -105,8 +105,8 @@
 }
 
 .chatItemRow.chatItemActive {
-  background: #eff6ff;
-  color: #1e40af;
+  background: #e6f9e6;
+  color: #009900;
 }
 
 .chatItemTitle {
@@ -121,7 +121,7 @@
   flex: 1;
   min-width: 0;
   padding: 0.25rem 0.5rem;
-  border: 1px solid #1e40af;
+  border: 1px solid #009900;
   border-radius: 6px;
   font-size: 0.875rem;
   background: #fff;
@@ -165,8 +165,8 @@
 }
 
 .chatItemActive .chatItemBtn:hover {
-  background: #c7d2fe;
-  color: #1e40af;
+  background: #b8e6b8;
+  color: #009900;
 }
 
 .main {
@@ -206,7 +206,7 @@
 
 .modelSelect:focus {
   outline: none;
-  border-color: #1e40af;
+  border-color: #009900;
   box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.15);
 }
 
@@ -245,7 +245,7 @@
 }
 
 .messageUser {
-  background: #1e40af;
+  background: #009900;
   color: #fff;
   border-bottom-right-radius: 4px;
 }
@@ -268,7 +268,7 @@
 
 .messageResendBtn:hover:not(:disabled) {
   background: #e2e8f0;
-  color: #1e40af;
+  color: #009900;
   border-color: #cbd5e1;
 }
 
@@ -292,19 +292,19 @@
   font-size: 0.9375rem;
   font-weight: 500;
   padding: 0.5rem 1rem;
-  background: #1e3a8a;
+  background: #008000;
   color: #fff;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s, transform 0.15s;
-  box-shadow: 0 1px 3px rgba(30, 58, 138, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 128, 0, 0.3);
 }
 
 .exportGoalsBtn:hover:not(:disabled) {
-  background: #1e40af;
+  background: #009900;
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(30, 58, 138, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 128, 0, 0.4);
 }
 
 .exportGoalsBtn:active:not(:disabled) {
@@ -379,7 +379,7 @@
   align-items: center;
   gap: 0.375rem;
   padding: 0.375rem 0.625rem;
-  background: #e0e7ff;
+  background: #d4f0d4;
   color: #3730a3;
   border-radius: 6px;
   font-size: 0.8125rem;
@@ -395,7 +395,7 @@
   margin: 0;
   background: none;
   border: none;
-  color: #6366f1;
+  color: #008000;
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
@@ -404,7 +404,7 @@
 
 .fileChipRemove:hover {
   opacity: 1;
-  color: #4338ca;
+  color: #006600;
 }
 
 .inputRow {
@@ -431,8 +431,8 @@
 
 .attachBtn:hover {
   background: #f1f5f9;
-  color: #1e40af;
-  border-color: #c7d2fe;
+  color: #009900;
+  border-color: #b8e6b8;
 }
 
 .attachBtn:disabled {
@@ -615,7 +615,7 @@
 
 .textarea:focus {
   outline: none;
-  border-color: #1e40af;
+  border-color: #009900;
   box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.12);
 }
 
@@ -626,7 +626,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1e40af;
+  background: #009900;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -635,7 +635,7 @@
 }
 
 .sendBtn:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #006600;
 }
 
 .sendBtn:disabled {
@@ -684,14 +684,14 @@
 
 .settingsInput:focus {
   outline: none;
-  border-color: #1e40af;
+  border-color: #009900;
 }
 
 .settingsSaveBtn {
   width: 100%;
   margin-top: 0.75rem;
   padding: 0.5rem 1rem;
-  background: #1e40af;
+  background: #009900;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -702,7 +702,7 @@
 }
 
 .settingsSaveBtn:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #006600;
 }
 
 .settingsSaveBtn:disabled {

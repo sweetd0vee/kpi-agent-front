@@ -87,7 +87,7 @@
 .textarea:focus,
 .textareaSingle:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #009900;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.16);
 }
@@ -132,12 +132,12 @@
 }
 
 .btnSave {
-  background: #1e3a8a;
+  background: #008000;
   color: #fff;
-  border-color: #1e3a8a;
+  border-color: #008000;
 }
 
 .btnSave:hover {
-  background: #1e40af;
-  border-color: #1e40af;
+  background: #009900;
+  border-color: #009900;
 }

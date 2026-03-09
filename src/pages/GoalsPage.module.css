@@ -21,7 +21,7 @@
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1e3a8a;
+  color: #008000;
   letter-spacing: -0.02em;
 }
 
@@ -67,16 +67,16 @@
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
-  border: 1px solid #1e3a8a;
+  border: 1px solid #008000;
   border-radius: 50%;
-  background: #1e3a8a;
+  background: #008000;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
 }
 
 .addBtn:hover:not(:disabled) {
-  background: #1e40af;
-  border-color: #1e40af;
+  background: #009900;
+  border-color: #009900;
 }
 
 .addBtnIcon {
@@ -98,16 +98,16 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: #fff;
-  background: #1e3a8a;
-  border: 1px solid #1e3a8a;
+  background: #008000;
+  border: 1px solid #008000;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
 
 .importBtn:hover:not(:disabled) {
-  background: #1e40af;
-  border-color: #1e40af;
+  background: #009900;
+  border-color: #009900;
   color: #fff;
 }
 
@@ -120,17 +120,17 @@
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #1e3a8a;
+  color: #008000;
   background: transparent;
-  border: 1px solid #1e3a8a;
+  border: 1px solid #008000;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
 
 .clearTableBtn:hover:not(:disabled) {
-  background: #eff6ff;
-  color: #1e40af;
+  background: #e6f9e6;
+  color: #009900;
 }
 
 .clearTableBtn:disabled {
@@ -207,7 +207,7 @@
 
 .filterInput:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #009900;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.16);
 }
@@ -234,7 +234,7 @@
 
 .filterSelectButton:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #009900;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.16);
 }
@@ -330,7 +330,7 @@
   color: #fff;
   text-transform: none;
   letter-spacing: 0.01em;
-  background: #1e3a8a;
+  background: #008000;
   border: 1px solid #cbd5e1;
   min-width: 0;
   overflow: hidden;
@@ -433,8 +433,8 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.15rem 0.35rem;
-  background: #102a66;
-  border: 1px solid #2a4fa3;
+  background: #004d00;
+  border: 1px solid #006600;
   border-radius: 6px;
   min-height: 1.5rem;
   min-width: 0;
@@ -450,7 +450,7 @@
 }
 
 .searchField:focus-within {
-  border-color: #60a5fa;
+  border-color: #00b300;
   box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
 }
 
@@ -629,7 +629,7 @@
 
 .input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #009900;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.16);
 }
@@ -688,13 +688,13 @@
 }
 
 .editBtn {
-  background: #eff6ff;
-  color: #2563eb;
-  border-color: #bfdbfe;
+  background: #e6f9e6;
+  color: #008000;
+  border-color: #b8e6b8;
 }
 
 .editBtn:hover:not(:disabled) {
-  background: #dbeafe;
+  background: #d4f0d4;
 }
 
 .editBtn:disabled {
@@ -703,13 +703,13 @@
 }
 
 .saveBtn {
-  background: #1e3a8a;
+  background: #008000;
   color: #fff;
-  border-color: #1e3a8a;
+  border-color: #008000;
 }
 
 .saveBtn:hover:not(:disabled) {
-  background: #1e40af;
+  background: #009900;
 }
 
 .saveBtn:disabled {
@@ -749,9 +749,9 @@
 }
 
 .iconBtnEdit:hover:not(:disabled) {
-  background: #eff6ff;
-  color: #2563eb;
-  border-color: #bfdbfe;
+  background: #e6f9e6;
+  color: #008000;
+  border-color: #b8e6b8;
 }
 
 .iconBtnDanger:hover:not(:disabled) {
@@ -803,16 +803,16 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: #fff;
-  background: #1e3a8a;
-  border: 1px solid #1e3a8a;
+  background: #008000;
+  border: 1px solid #008000;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
 
 .exportBtn:hover:not(:disabled) {
-  background: #1e40af;
-  border-color: #1e40af;
+  background: #009900;
+  border-color: #009900;
   color: #fff;
 }
 
@@ -878,8 +878,8 @@
 
 .paginationBtn:hover:not(:disabled) {
   background: #f8fafc;
-  color: #1e3a8a;
-  border-color: #93c5fd;
+  color: #008000;
+  border-color: #7acc7a;
   box-shadow: 0 2px 4px rgba(30, 58, 138, 0.12);
 }
 
@@ -889,15 +889,15 @@
 }
 
 .paginationBtnActive {
-  background: #1e3a8a;
+  background: #008000;
   color: #fff;
-  border-color: #1e3a8a;
+  border-color: #008000;
   box-shadow: 0 2px 4px rgba(30, 58, 138, 0.25);
 }
 
 .paginationBtnActive:hover:not(:disabled) {
-  background: #1e40af;
-  border-color: #1e40af;
+  background: #009900;
+  border-color: #009900;
   color: #fff;
   box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);
 }
