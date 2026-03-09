@@ -1291,8 +1291,10 @@ export function ImportPage() {
           className={styles.tabPanel}
         >
           <section className={styles.promptsSection}>
-            <h2 className={styles.promptsTitle}>Таблицы</h2>
-            <p className={styles.promptsSubtitle}>Сохранённые фрагменты из базы данных (КПЭ, ППР, Линейный менеджмент). В Чате используйте кнопку «Прикрепить таблицу», чтобы подставить выбранное в промпт.</p>
+            <div className={styles.promptsIntro}>
+              <h2 className={styles.promptsTitle}>Таблицы</h2>
+              <p className={styles.promptsSubtitle}>Сохранённые фрагменты из базы данных (КПЭ, ППР, Линейный менеджмент). В Чате используйте кнопку «Прикрепить таблицу», чтобы подставить выбранное в промпт.</p>
+            </div>
             <div className={styles.promptsGroup}>
               <h3 className={styles.promptsGroupTitle}>Сохранённые таблицы</h3>
               {attachablesList.length > 0 && (
