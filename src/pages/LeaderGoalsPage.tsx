@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { generateId, getLeaderGoalsState, saveLeaderGoalsState, type LeaderGoalRow } from '@/lib/storage'
+import {
+  exportLeaderGoalsCSV,
+  exportLeaderGoalsDOCX,
+  exportLeaderGoalsExcel,
+  exportLeaderGoalsHTML,
+  exportLeaderGoalsPDF,
+} from '@/lib/exportGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditLeaderGoalModal, type EditLeaderGoalField } from '@/components/EditLeaderGoalModal'
 import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
@@ -96,7 +103,9 @@ export function LeaderGoalsPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const skipSyncRef = useRef(true)
+  const exportDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setGoalsState(getLeaderGoalsState())
@@ -109,6 +118,18 @@ export function LeaderGoalsPage() {
     }
     saveLeaderGoalsState(goalsState)
   }, [goalsState])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setExportDropdownOpen(false)
+      }
+    }
+    if (exportDropdownOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [exportDropdownOpen])
 
   const normalizedFilter = filterText.trim().toLowerCase()
   const filteredRows = useMemo(() => {
@@ -187,6 +208,29 @@ export function LeaderGoalsPage() {
   }, [])
 
   const hasFilter = normalizedFilter.length > 0
+
+  const handleExport = useCallback(
+    (format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
+      setExportDropdownOpen(false)
+      const rows = goalsState.rows
+      const prefix = 'руководители'
+      if (format === 'csv') exportLeaderGoalsCSV(rows, prefix)
+      else if (format === 'xlsx') exportLeaderGoalsExcel(rows, prefix)
+      else if (format === 'html') exportLeaderGoalsHTML(rows, prefix)
+      else if (format === 'pdf') {
+        exportLeaderGoalsPDF(rows, prefix).catch((err) => {
+          console.error('Ошибка экспорта PDF:', err)
+          alert('Не удалось создать PDF. Проверьте консоль браузера (F12).')
+        })
+      } else if (format === 'docx') {
+        exportLeaderGoalsDOCX(rows, prefix).catch((err) => {
+          console.error('Ошибка экспорта DOCX:', err)
+          alert('Не удалось создать DOCX. Проверьте консоль браузера (F12).')
+        })
+      }
+    },
+    [goalsState.rows]
+  )
 
   return (
     <div className={styles.page}>
@@ -325,13 +369,44 @@ export function LeaderGoalsPage() {
           </table>
         </div>
 
-        <div className={styles.tableFooter}>
+        <div className={`${styles.tableFooter} ${styles.tableFooterRight}`}>
+          <div className={styles.exportWrap} ref={exportDropdownRef}>
+            <button
+              type="button"
+              className={styles.exportBtn}
+              onClick={() => setExportDropdownOpen((v) => !v)}
+              disabled={!!editingRowId || goalsState.rows.length === 0}
+              aria-expanded={exportDropdownOpen}
+              aria-haspopup="true"
+            >
+              Экспорт
+            </button>
+            {exportDropdownOpen && (
+              <div className={styles.exportDropdown}>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('pdf')}>
+                  PDF
+                </button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('xlsx')}>
+                  EXCEL
+                </button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('docx')}>
+                  DOCX
+                </button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('csv')}>
+                  CSV
+                </button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('html')}>
+                  HTML
+                </button>
+              </div>
+            )}
+          </div>
           <span className={styles.paginationSummary}>
             {sortedRows.length} записей
-            {totalPages > 1 && `, стр. ${page} из ${totalPages}`}
+            {sortedRows.length > 0 && `, стр. ${page} из ${totalPages}`}
           </span>
           {totalPages > 1 && (
-            <div className={styles.pagination}>
+            <div className={styles.pagination} aria-label="Пагинация таблицы">
               <button
                 type="button"
                 className={styles.paginationBtn}

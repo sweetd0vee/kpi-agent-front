@@ -785,6 +785,15 @@
   color: #64748b;
 }
 
+/* Подвал таблицы «Руководители»: сводка, экспорт и пагинация справа */
+.tableFooterRight {
+  justify-content: flex-end;
+}
+
+.tableFooterRight .paginationSummary {
+  margin-right: 0;
+}
+
 .exportWrap {
   position: relative;
 }
