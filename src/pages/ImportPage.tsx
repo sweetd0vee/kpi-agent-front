@@ -1296,15 +1296,16 @@ export function ImportPage() {
             <div className={styles.promptsGroup}>
               <h3 className={styles.promptsGroupTitle}>Сохранённые таблицы</h3>
               {attachablesList.length > 0 && (
-                <input
-                  type="search"
-                  className={styles.searchInput}
-                  placeholder="Поиск по названию"
-                  value={attachablesSearchQuery}
-                  onChange={(e) => setAttachablesSearchQuery(e.target.value)}
-                  aria-label="Поиск сохранённых таблиц"
-                  style={{ maxWidth: '20rem', marginBottom: '0.75rem' }}
-                />
+                <div className={styles.attachablesSearchWrap}>
+                  <input
+                    type="search"
+                    className={`${styles.searchInput} ${styles.searchInputAttachables}`}
+                    placeholder="Поиск по названию"
+                    value={attachablesSearchQuery}
+                    onChange={(e) => setAttachablesSearchQuery(e.target.value)}
+                    aria-label="Поиск сохранённых таблиц"
+                  />
+                </div>
               )}
               {attachablesList.length === 0 ? (
                 <p className={styles.promptsSubtitle}>Пока нет. Сохраните таблицу на вкладках КПЭ / ППР / Линейный менеджмент.</p>

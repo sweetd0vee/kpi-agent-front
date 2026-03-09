@@ -1127,6 +1127,17 @@
   background-color: #fff;
 }
 
+.attachablesSearchWrap {
+  max-width: 42rem;
+  margin-bottom: 0.25rem;
+}
+
+.searchInputAttachables {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
 .promptsGroupTitle {
   margin: 0;
   font-size: 1.05rem;
