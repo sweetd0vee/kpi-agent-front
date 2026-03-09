@@ -7,8 +7,8 @@
 .sidebar {
   width: 260px;
   flex-shrink: 0;
-  background: #008000;
-  border-right: 1px solid #009900;
+  background: #1e3a8a;
+  border-right: 1px solid #1e40af;
   display: flex;
   flex-direction: column;
   padding: 1.25rem 0;

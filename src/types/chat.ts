@@ -1,8 +1,8 @@
 export type StoredMessage = {
   role: 'user' | 'assistant'
   content: string
-  /** Прикреплённые файлы и/или коллекции (только у сообщений пользователя) */
-  attachments?: { name: string; type?: 'file' | 'collection' | 'prompt' }[]
+  /** Прикреплённые файлы, коллекции, таблицы (только у сообщений пользователя) */
+  attachments?: { name: string; type?: 'file' | 'collection' | 'prompt' | 'table' }[]
 }
 
 export type StoredChat = {

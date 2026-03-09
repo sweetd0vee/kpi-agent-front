@@ -9,7 +9,7 @@
   margin: 0 0 2.5rem;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #008000;
+  color: #1e3a8a;
   text-align: center;
 }
 
@@ -34,12 +34,12 @@
 }
 
 .tab:hover {
-  color: #008000;
+  color: #1e3a8a;
 }
 
 .tabActive {
-  color: #008000;
-  border-bottom-color: #008000;
+  color: #1e3a8a;
+  border-bottom-color: #1e3a8a;
 }
 
 .tabPanel {
@@ -71,7 +71,7 @@
 .cardValue {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #008000;
+  color: #1e3a8a;
   line-height: 1.2;
 }
 
@@ -134,7 +134,7 @@
 .bar {
   width: 100%;
   min-height: 4px;
-  background: linear-gradient(180deg, #009900 0%, #006600 100%);
+  background: linear-gradient(180deg, #1e40af 0%, #1e3a5f 100%);
   border-radius: 6px 6px 0 0;
   transition: height 0.3s ease;
 }
@@ -185,7 +185,7 @@
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%) translateY(-0.5rem);
-  background: #008000;
+  background: #1e3a8a;
   color: #fff;
   padding: 0.4rem 0.75rem;
   border-radius: 8px;
@@ -227,7 +227,7 @@
 .donutTotal {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #008000;
+  color: #1e3a8a;
   line-height: 1.2;
 }
 
@@ -260,7 +260,7 @@
 }
 
 .donutLegendItemActive {
-  background: #e6f9e6;
+  background: #eff6ff;
   font-weight: 600;
 }
 
@@ -307,7 +307,7 @@
 
 .weightBar {
   height: 100%;
-  background: linear-gradient(90deg, #00b300 0%, #008000 100%);
+  background: linear-gradient(90deg, #2563eb 0%, #1e3a8a 100%);
   border-radius: 6px;
   min-width: 2px;
   transition: width 0.3s ease;
@@ -317,7 +317,7 @@
   flex: 0 0 2.5rem;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #008000;
+  color: #1e3a8a;
   text-align: right;
 }
 
@@ -399,7 +399,7 @@
 .quarterFillBar {
   width: 100%;
   min-height: 4px;
-  background: linear-gradient(180deg, #009900 0%, #006600 100%);
+  background: linear-gradient(180deg, #1e40af 0%, #1e3a5f 100%);
   border-radius: 8px 8px 0 0;
   transition: height 0.3s ease;
 }
@@ -413,7 +413,7 @@
 .quarterFillPct {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #008000;
+  color: #1e3a8a;
 }
 
 /* Фильтр по отчётному году (вкладка КПЭ) */
@@ -451,7 +451,7 @@
   margin: 0 0 0.5rem;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #008000;
+  color: #1e3a8a;
   text-align: center;
   letter-spacing: -0.02em;
 }
@@ -478,7 +478,7 @@
 
 .goalManagerName {
   font-weight: 600;
-  color: #008000;
+  color: #1e3a8a;
 }
 
 .eulerSelects {
@@ -505,13 +505,13 @@
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
-  color: #008000;
+  color: #1e3a8a;
   cursor: pointer;
 }
 
 .eulerSelect:hover,
 .eulerSelect:focus {
-  border-color: #008000;
+  border-color: #1e3a8a;
   outline: none;
 }
 
@@ -564,7 +564,7 @@
 .eulerZoneCount {
   font-size: 1.5rem;
   font-weight: 800;
-  fill: #008000;
+  fill: #1e3a8a;
   pointer-events: none;
   font-family: inherit;
 }
@@ -593,7 +593,7 @@
 .eulerCommonBox {
   pointer-events: auto;
   background: #fff;
-  border: 2px solid #008000;
+  border: 2px solid #1e3a8a;
   border-radius: 12px;
   padding: 0.75rem 1rem;
   box-shadow: 0 4px 20px rgba(30, 58, 138, 0.2);
@@ -606,7 +606,7 @@
 .eulerCommonTitle {
   font-size: 0.8125rem;
   font-weight: 700;
-  color: #008000;
+  color: #1e3a8a;
   margin-bottom: 0.5rem;
   flex-shrink: 0;
 }
@@ -650,7 +650,7 @@
 .eulerNumberLarge {
   font-size: 2rem;
   font-weight: 800;
-  fill: #008000;
+  fill: #1e3a8a;
   pointer-events: none;
   font-family: inherit;
 }
@@ -673,7 +673,7 @@
 .eulerNumberSmall {
   font-size: 1.25rem;
   font-weight: 700;
-  fill: #008000;
+  fill: #1e3a8a;
   pointer-events: none;
   font-family: inherit;
 }
@@ -688,7 +688,7 @@
 .eulerCircleLabel {
   font-size: 0.625rem;
   font-weight: 600;
-  fill: #008000;
+  fill: #1e3a8a;
   pointer-events: none;
   font-family: inherit;
 }
@@ -716,7 +716,7 @@
   transform: translateX(-50%);
   top: 0.5rem;
   padding: 0.6rem 1rem;
-  background: #008000;
+  background: #1e3a8a;
   color: #fff;
   border-radius: 10px;
   font-size: 0.875rem;
@@ -800,7 +800,7 @@
 .eulerLabel {
   font-size: 1.25rem;
   font-weight: 700;
-  fill: #008000;
+  fill: #1e3a8a;
   pointer-events: none;
 }
 
@@ -875,7 +875,7 @@
 }
 
 .heatmapCellFilled {
-  background: linear-gradient(135deg, #7acc7a 0%, #009900 100%);
+  background: linear-gradient(135deg, #93c5fd 0%, #1e40af 100%);
   color: #fff;
   font-weight: 500;
 }
@@ -916,13 +916,13 @@
 
 .employeeBar {
   height: 100%;
-  background: linear-gradient(90deg, #34d399 0%, #059669 100%);
+  background: linear-gradient(90deg, #60a5fa 0%, #1e40af 100%);
   border-radius: 6px;
   min-width: 2px;
 }
 
 .barOk {
-  background: linear-gradient(90deg, #34d399 0%, #059669 100%);
+  background: linear-gradient(90deg, #60a5fa 0%, #1e40af 100%);
 }
 
 .barWarn {
@@ -937,7 +937,7 @@
   flex: 0 0 2rem;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #059669;
+  color: #1e40af;
   text-align: right;
 }
 
@@ -976,7 +976,7 @@
 }
 
 .completenessBarHigh {
-  background: linear-gradient(90deg, #34d399 0%, #059669 100%);
+  background: linear-gradient(90deg, #60a5fa 0%, #1e40af 100%);
 }
 
 .completenessBarMid {
@@ -1046,7 +1046,7 @@
 .goalGroupTitle {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #008000;
+  color: #1e3a8a;
   margin-bottom: 0.25rem;
 }
 

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getLeaderGoalRows, saveLeaderGoalRows } from '@/api/goals'
-import { generateId, type LeaderGoalRow } from '@/lib/storage'
+import { addAttachable, generateId, getDefaultAttachableLabel, type LeaderGoalRow } from '@/lib/storage'
 import {
   exportLeaderGoalsCSV,
   exportLeaderGoalsDOCX,
   exportLeaderGoalsExcel,
   exportLeaderGoalsHTML,
   exportLeaderGoalsPDF,
+  serializeLeaderGoalsRowsToText,
 } from '@/lib/exportGoals'
 import { parseLeaderGoalsXlsxToRows } from '@/lib/importGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
@@ -106,6 +107,7 @@ export function LeaderGoalsPage() {
   const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  const [savedToChatToast, setSavedToChatToast] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -265,6 +267,16 @@ export function LeaderGoalsPage() {
     setPage(1)
     setPendingClearTable(false)
   }, [])
+
+  const saveToChatContext = useCallback(() => {
+    const content = serializeLeaderGoalsRowsToText(sortedRows)
+    if (!content.trim()) return
+    const label = getDefaultAttachableLabel('leader_goals')
+    const filterDescription = filterText.trim() ? `Поиск: ${filterText.trim()}` : undefined
+    addAttachable({ type: 'leader_goals', label, content, filterDescription })
+    setSavedToChatToast(true)
+    setTimeout(() => setSavedToChatToast(false), 2500)
+  }, [sortedRows, filterText])
 
   const hasFilter = normalizedFilter.length > 0
 
@@ -524,6 +536,18 @@ export function LeaderGoalsPage() {
         </div>
 
         <div className={`${styles.tableFooter} ${styles.tableFooterRight}`}>
+          <div className={styles.saveTableWrap}>
+            <button
+              type="button"
+              className={styles.saveToChatBtn}
+              onClick={saveToChatContext}
+              disabled={sortedRows.length === 0 || !!editingRowId}
+              title="Сохранить отфильтрованную таблицу для прикрепления в Чате"
+            >
+              Сохранить таблицу
+            </button>
+            {savedToChatToast && <span className={styles.saveToChatToast}>Таблица сохранена в Базу знаний</span>}
+          </div>
           <div className={styles.exportWrap} ref={exportDropdownRef}>
             <button
               type="button"

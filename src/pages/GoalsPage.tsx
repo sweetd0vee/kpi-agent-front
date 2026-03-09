@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getPprRows, savePprRows } from '@/api/goals'
-import { generateId, type GoalRow } from '@/lib/storage'
-import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exportGoalsPDF } from '@/lib/exportGoals'
+import { addAttachable, generateId, getDefaultAttachableLabel, type GoalRow } from '@/lib/storage'
+import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exportGoalsPDF, serializePprRowsToText } from '@/lib/exportGoals'
 import { parseKpiXlsxToRows } from '@/lib/importGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditRowModal, type EditRowField } from '@/components/EditRowModal/EditRowModal'
@@ -98,6 +98,7 @@ export function GoalsPage() {
   const [sortKey, setSortKey] = useState<GoalField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  const [savedToChatToast, setSavedToChatToast] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
@@ -566,6 +567,31 @@ export function GoalsPage() {
     setPendingClearTable(false)
   }, [])
 
+  const buildFilterDescription = useCallback((): string | undefined => {
+    const parts: string[] = []
+    if (lastNameFilter.length > 0) parts.push(`ФИО: ${lastNameFilter.join(', ')}`)
+    if (weightQFilter.length > 0) parts.push(`Вес квартал: ${weightQFilter.map(formatFilterValue).join(', ')}`)
+    if (weightYearFilter.length > 0) parts.push(`Вес год: ${weightYearFilter.map(formatFilterValue).join(', ')}`)
+    if (reportYearFilter.length > 0) parts.push(`Отчётный год: ${reportYearFilter.map(formatFilterValue).join(', ')}`)
+    const textFilterKeys: GoalField[] = ['metricGoals', 'q1', 'q2', 'q3', 'q4', 'year']
+    const columnByKey = Object.fromEntries(columns.map((c) => [c.key, c]))
+    for (const key of textFilterKeys) {
+      const v = (filters[key] ?? '').trim()
+      if (v) parts.push(`${columnByKey[key]?.label ?? key}: ${v}`)
+    }
+    return parts.length > 0 ? parts.join('; ') : undefined
+  }, [filters, lastNameFilter, weightQFilter, weightYearFilter, reportYearFilter, columns])
+
+  const saveToChatContext = useCallback(() => {
+    const content = serializePprRowsToText(sortedRows)
+    if (!content.trim()) return
+    const label = getDefaultAttachableLabel('ppr')
+    const filterDescription = buildFilterDescription()
+    addAttachable({ type: 'ppr', label, content, filterDescription })
+    setSavedToChatToast(true)
+    setTimeout(() => setSavedToChatToast(false), 2500)
+  }, [sortedRows, buildFilterDescription])
+
   const handleImportClick = useCallback(() => {
     setImportError(null)
     importInputRef.current?.click()
@@ -978,6 +1004,18 @@ export function GoalsPage() {
         </div>
 
         <div className={styles.tableFooter}>
+          <div className={styles.saveTableWrap}>
+            <button
+              type="button"
+              className={styles.saveToChatBtn}
+              onClick={saveToChatContext}
+              disabled={sortedRows.length === 0 || !!editingRowId}
+              title="Сохранить отфильтрованную таблицу для прикрепления в Чате"
+            >
+              Сохранить таблицу
+            </button>
+            {savedToChatToast && <span className={styles.saveToChatToast}>Таблица сохранена в Базу знаний</span>}
+          </div>
           <div className={styles.exportWrap} ref={exportDropdownRef}>
             <button
               type="button"

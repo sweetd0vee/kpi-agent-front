@@ -13,6 +13,7 @@ import {
 } from '@/api/documents'
 import { contentHasGoalsTable, exportGoalsXlsx } from '@/api/chatExport'
 import {
+  getAttachables,
   getChats,
   saveChats,
   getSettings,
@@ -63,6 +64,27 @@ const CollectionIcon = ({ className }: { className?: string }) => (
     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
     <line x1="12" y1="11" x2="12" y2="17" />
     <line x1="9" y1="14" x2="15" y2="14" />
+  </svg>
+)
+
+const TableIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <rect x="3" y="3" width="18" height="18" rx="1" />
+    <line x1="3" y1="9" x2="21" y2="9" />
+    <line x1="3" y1="15" x2="21" y2="15" />
+    <line x1="9" y1="3" x2="9" y2="21" />
+    <line x1="15" y1="3" x2="15" y2="21" />
   </svg>
 )
 
@@ -134,6 +156,8 @@ export function ChatPage() {
   const [showAttachDropdown, setShowAttachDropdown] = useState(false)
   const [showCollectionPicker, setShowCollectionPicker] = useState(false)
   const [showPromptPicker, setShowPromptPicker] = useState(false)
+  const [showTablePicker, setShowTablePicker] = useState(false)
+  const [tableAttachments, setTableAttachments] = useState<{ id: string; attachableId: string; name: string }[]>([])
   const [collectionList, setCollectionList] = useState<CollectionMeta[]>([])
   const [collectionListLoading, setCollectionListLoading] = useState(false)
   const [collectionListError, setCollectionListError] = useState<string | null>(null)
@@ -185,18 +209,19 @@ export function ChatPage() {
         setShowSettings(false)
       }
       if (
-        (showAttachDropdown || showCollectionPicker || showPromptPicker) &&
+        (showAttachDropdown || showCollectionPicker || showPromptPicker || showTablePicker) &&
         attachDropdownRef.current &&
         !attachDropdownRef.current.contains(target)
       ) {
         setShowAttachDropdown(false)
         setShowCollectionPicker(false)
         setShowPromptPicker(false)
+        setShowTablePicker(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showSettings, showAttachDropdown, showCollectionPicker, showPromptPicker])
+  }, [showSettings, showAttachDropdown, showCollectionPicker, showPromptPicker, showTablePicker])
 
   const currentChat = currentChatId
     ? chats.find((c) => c.id === currentChatId)
@@ -318,6 +343,7 @@ export function ChatPage() {
   const handleAttachCollectionClick = useCallback(async () => {
     setShowAttachDropdown(false)
     setShowPromptPicker(false)
+    setShowTablePicker(false)
     setShowCollectionPicker(true)
     setCollectionListLoading(true)
     setCollectionListError(null)
@@ -335,6 +361,7 @@ export function ChatPage() {
   const handleAttachPromptClick = useCallback(() => {
     setShowAttachDropdown(false)
     setShowCollectionPicker(false)
+    setShowTablePicker(false)
     setShowPromptPicker(true)
     const customPrompts = getPrompts()
       .filter((prompt) => typeof prompt.content === 'string' && prompt.content.trim().length > 0)
@@ -376,6 +403,7 @@ export function ChatPage() {
   )
 
   const removeAttachment = useCallback((id: string) => {
+    setTableAttachments((prev) => prev.filter((t) => t.id !== id))
     setAttachments((prev) => prev.filter((a) => a.id !== id))
   }, [])
 
@@ -440,9 +468,9 @@ export function ChatPage() {
         : inputRef.current || input
     const text = typeof rawText === 'string' ? rawText : ''
     const trimmedText = text.trim()
-    const hasAttachments = attachments.length > 0 && override === undefined
+    const hasAttachments = (attachments.length > 0 || tableAttachments.length > 0) && override === undefined
     if (!trimmedText && !hasAttachments) {
-      setError('Введите сообщение или прикрепите файл/коллекцию.')
+      setError('Введите сообщение или прикрепите файл, коллекцию или таблицу.')
       return
     }
     if (!settings.apiKey) {
@@ -487,11 +515,14 @@ export function ChatPage() {
       role: 'user',
       content: text,
       attachments:
-        override === undefined && attachments.length > 0
-          ? attachments.map((a) => ({
-              name: a.name,
-              type: 'fileId' in a ? ('file' as const) : ('collection' as const),
-            }))
+        override === undefined && (attachments.length > 0 || tableAttachments.length > 0)
+          ? [
+              ...attachments.map((a) => ({
+                name: 'fileId' in a ? a.name : `Коллекция: ${a.name}`,
+                type: 'fileId' in a ? ('file' as const) : ('collection' as const),
+              })),
+              ...tableAttachments.map((t) => ({ name: t.name, type: 'table' as const })),
+            ]
           : undefined,
     }
     const nextMessages: StoredMessage[] = [...chat.messages, userMessage]
@@ -513,7 +544,19 @@ export function ChatPage() {
         ? attachments.filter((a): a is AttachedCollection => 'collectionId' in a)
         : []
     let userContentWithContext = text
-    if (collectionAttachments.length > 0) {
+    const tableParts: string[] = []
+    if (override === undefined && tableAttachments.length > 0) {
+      const attachables = getAttachables()
+      for (const ta of tableAttachments) {
+        const a = attachables.find((x) => x.id === ta.attachableId)
+        if (a) tableParts.push(`--- ${a.label} ---\n\n${a.content}`)
+      }
+    }
+    if (tableParts.length > 0) {
+      const tableBlock = `Прикреплённые таблицы и фрагменты:\n\n${tableParts.join('\n\n')}`
+      userContentWithContext = userContentWithContext ? `${tableBlock}\n\n---\n\n${userContentWithContext}` : tableBlock
+    }
+    if (override === undefined && collectionAttachments.length > 0) {
       const contextParts: string[] = []
       for (const a of collectionAttachments) {
         try {
@@ -528,7 +571,7 @@ export function ChatPage() {
         }
       }
       const contextBlock = `Контекст из прикреплённых коллекций (база знаний):\n\n${contextParts.join('\n\n---\n\n')}`
-      userContentWithContext = text ? `${contextBlock}\n\n---\n\n${text}` : contextBlock
+      userContentWithContext = userContentWithContext ? `${contextBlock}\n\n---\n\n${userContentWithContext}` : contextBlock
     }
 
     const apiMessages = nextMessages.map((m, i) => {
@@ -569,7 +612,10 @@ export function ChatPage() {
             : c
         )
       )
-      if (override === undefined) setAttachments([])
+      if (override === undefined) {
+        setAttachments([])
+        setTableAttachments([])
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка запроса')
       setChats((prev) =>
@@ -588,6 +634,7 @@ export function ChatPage() {
     defaultModelId,
     models,
     attachments,
+    tableAttachments,
   ])
 
   const handleKeyDown = useCallback(
@@ -770,8 +817,14 @@ export function ChatPage() {
                       <div className={styles.messageAttachments}>
                         {msg.attachments.map((att, j) => (
                           <span key={j} className={styles.messageFileChip}>
-                            {att.type === 'collection' ? <CollectionIcon /> : <FileIcon />}{' '}
-                            {att.type === 'collection' ? `Коллекция: ${att.name}` : att.name}
+                            {att.type === 'table' ? (
+                              <TableIcon className={styles.messageChipIcon} />
+                            ) : att.type === 'collection' ? (
+                              <CollectionIcon className={styles.messageChipIcon} />
+                            ) : (
+                              <FileIcon className={styles.messageChipIcon} />
+                            )}{' '}
+                            {att.type === 'table' ? `Таблица: ${att.name}` : att.name}
                           </span>
                         ))}
                       </div>
@@ -831,7 +884,7 @@ export function ChatPage() {
           {(error || exportError) && (
             <div className={styles.errorBar}>{exportError ?? error}</div>
           )}
-          {attachments.length > 0 && (
+          {(attachments.length > 0 || tableAttachments.length > 0) && (
             <div className={styles.attachments}>
               {attachments.map((a) => (
                 <span key={a.id} className={styles.fileChip}>
@@ -845,6 +898,20 @@ export function ChatPage() {
                     type="button"
                     className={styles.fileChipRemove}
                     onClick={() => removeAttachment(a.id)}
+                    aria-label="Удалить"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {tableAttachments.map((t) => (
+                <span key={t.id} className={styles.fileChip}>
+                  <TableIcon className={styles.fileChipIcon} />
+                  {' '}{t.name}
+                  <button
+                    type="button"
+                    className={styles.fileChipRemove}
+                    onClick={() => removeAttachment(t.id)}
                     aria-label="Удалить"
                   >
                     ×
@@ -869,14 +936,15 @@ export function ChatPage() {
                   setShowAttachDropdown((v) => !v)
                   setShowCollectionPicker(false)
                   setShowPromptPicker(false)
+                  setShowTablePicker(false)
                 }}
                 disabled={!settings.apiKey}
                 title="Прикрепить файл, коллекцию или промпт"
-                aria-expanded={showAttachDropdown || showCollectionPicker || showPromptPicker}
+                aria-expanded={showAttachDropdown || showCollectionPicker || showPromptPicker || showTablePicker}
               >
                 <FileIcon />
               </button>
-              {showAttachDropdown && !showCollectionPicker && !showPromptPicker && (
+              {showAttachDropdown && !showCollectionPicker && !showPromptPicker && !showTablePicker && (
                 <div className={styles.attachDropdown}>
                   <button
                     type="button"
@@ -891,6 +959,18 @@ export function ChatPage() {
                     onClick={handleAttachCollectionClick}
                   >
                     <CollectionIcon className={styles.attachDropdownIcon} /> Прикрепить коллекцию
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.attachDropdownItem}
+                    onClick={() => {
+                      setShowAttachDropdown(false)
+                      setShowCollectionPicker(false)
+                      setShowPromptPicker(false)
+                      setShowTablePicker(true)
+                    }}
+                  >
+                    <TableIcon className={styles.attachDropdownIcon} /> Прикрепить таблицу
                   </button>
                   <button
                     type="button"
@@ -926,6 +1006,37 @@ export function ChatPage() {
                             onClick={() => handleSelectCollection(col)}
                           >
                             <CollectionIcon className={styles.fileChipIcon} /> {col.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {showTablePicker && (
+                <div className={styles.collectionPicker}>
+                  <div className={styles.collectionPickerTitle}>Прикрепить таблицу или фрагмент</div>
+                  {getAttachables().length === 0 ? (
+                    <div className={styles.collectionPickerEmpty}>
+                      Нет сохранённых приложений. Сохраните таблицу на вкладках КПЭ / ППР / Линейный менеджмент или фрагмент в База знаний → Таблицы.
+                    </div>
+                  ) : (
+                    <ul className={styles.collectionPickerList}>
+                      {getAttachables().map((a) => (
+                        <li key={a.id}>
+                          <button
+                            type="button"
+                            className={styles.collectionPickerItem}
+                            onClick={() => {
+                              setTableAttachments((prev) => [...prev, { id: generateId(), attachableId: a.id, name: a.label }])
+                              setShowTablePicker(false)
+                            }}
+                          >
+                            <TableIcon className={styles.fileChipIcon} />
+                            <span className={styles.promptPickerItemText}>{a.label}</span>
+                            <span className={styles.collectionPickerMeta}>
+                              {a.type === 'kpi' ? 'КПЭ' : a.type === 'ppr' ? 'ППР' : a.type === 'leader_goals' ? 'Линейный менеджмент' : 'Фрагмент'}
+                            </span>
                           </button>
                         </li>
                       ))}
@@ -992,7 +1103,7 @@ export function ChatPage() {
               type="button"
               className={styles.sendBtn}
               onClick={() => sendMessage()}
-              disabled={loading || (!input.trim() && attachments.length === 0)}
+              disabled={loading || (!input.trim() && attachments.length === 0 && tableAttachments.length === 0)}
               title="Отправить"
             >
               →

@@ -96,12 +96,12 @@
 }
 
 .btnConfirm {
-  background: #008000;
+  background: #1e3a8a;
   color: #fff;
-  border-color: #008000;
+  border-color: #1e3a8a;
 }
 
 .btnConfirm:hover {
-  background: #009900;
-  border-color: #009900;
+  background: #1e40af;
+  border-color: #1e40af;
 }

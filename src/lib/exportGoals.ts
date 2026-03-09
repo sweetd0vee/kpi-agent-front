@@ -323,7 +323,7 @@ export function exportLeaderGoalsHTML(rows: LeaderGoalRow[], filenamePrefix = '�
   <style>
     table { border-collapse: collapse; width: 100%; font-size: 12px; }
     th, td { border: 1px solid #cbd5e1; padding: 0.35rem 0.5rem; text-align: left; }
-    th { background: #008000; color: #fff; font-weight: 600; }
+    th { background: #1e3a8a; color: #fff; font-weight: 600; }
     tr:nth-child(even) { background: #f8fafc; }
   </style>
 </head>
@@ -357,7 +357,7 @@ export function exportGoalsHTML(rows: GoalRow[], filenamePrefix = 'ппр'): voi
   <style>
     table { border-collapse: collapse; width: 100%; font-size: 14px; }
     th, td { border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; text-align: left; }
-    th { background: #008000; color: #fff; font-weight: 600; }
+    th { background: #1e3a8a; color: #fff; font-weight: 600; }
     tr:nth-child(even) { background: #f8fafc; }
   </style>
 </head>
@@ -370,4 +370,26 @@ export function exportGoalsHTML(rows: GoalRow[], filenamePrefix = 'ппр'): voi
 </html>`
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
   downloadBlob(blob, `${filenamePrefix}.html`)
+}
+
+/** Сериализация таблиц в текст для прикрепления к промпту в чате */
+function escapeCsv(s: string, sep: string): string {
+  const t = String(s ?? '').replace(/"/g, '""')
+  return t.includes(sep) || t.includes('"') || t.includes('\n') ? `"${t}"` : t
+}
+
+export function serializeKpiRowsToText(rows: GoalRow[]): string {
+  const headerLine = EXPORT_HEADERS.map((h) => escapeCsv(h, ',')).join(',')
+  const dataLines = rows.map((row) => rowToCells(row).map((c) => escapeCsv(c, ',')).join(','))
+  return [headerLine, ...dataLines].join('\n')
+}
+
+export function serializePprRowsToText(rows: GoalRow[]): string {
+  return serializeKpiRowsToText(rows)
+}
+
+export function serializeLeaderGoalsRowsToText(rows: LeaderGoalRow[]): string {
+  const headerLine = LEADER_EXPORT_HEADERS.map((h) => escapeCsv(h, ';')).join(';')
+  const dataLines = rows.map((row) => leaderRowToCells(row).map((c) => escapeCsv(c, ';')).join(';'))
+  return [headerLine, ...dataLines].join('\n')
 }

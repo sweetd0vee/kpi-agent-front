@@ -21,7 +21,7 @@
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
-  color: #008000;
+  color: #1e3a8a;
   letter-spacing: -0.02em;
 }
 
@@ -58,6 +58,37 @@
 .sectionActions {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
+}
+
+.saveToChatBtn {
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  background: #1e3a8a;
+  color: #fff;
+  border: 1px solid #1e3a8a;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+
+.saveToChatBtn:hover:not(:disabled) {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: #fff;
+}
+
+.saveToChatBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.saveToChatToast {
+  font-size: 0.8125rem;
+  color: #008000;
+  margin-left: 0.25rem;
 }
 
 .addBtn {
@@ -67,16 +98,16 @@
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
-  border: 1px solid #008000;
+  border: 1px solid #1e3a8a;
   border-radius: 50%;
-  background: #008000;
+  background: #1e3a8a;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
 }
 
 .addBtn:hover:not(:disabled) {
-  background: #009900;
-  border-color: #009900;
+  background: #1e40af;
+  border-color: #1e40af;
 }
 
 .addBtnIcon {
@@ -98,16 +129,16 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: #fff;
-  background: #008000;
-  border: 1px solid #008000;
+  background: #1e3a8a;
+  border: 1px solid #1e3a8a;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
 
 .importBtn:hover:not(:disabled) {
-  background: #009900;
-  border-color: #009900;
+  background: #1e40af;
+  border-color: #1e40af;
   color: #fff;
 }
 
@@ -120,17 +151,17 @@
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #008000;
+  color: #1e3a8a;
   background: transparent;
-  border: 1px solid #008000;
+  border: 1px solid #1e3a8a;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
 
 .clearTableBtn:hover:not(:disabled) {
-  background: #e6f9e6;
-  color: #009900;
+  background: #eff6ff;
+  color: #1e40af;
 }
 
 .clearTableBtn:disabled {
@@ -207,7 +238,7 @@
 
 .filterInput:focus {
   outline: none;
-  border-color: #009900;
+  border-color: #1e40af;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.16);
 }
@@ -234,7 +265,7 @@
 
 .filterSelectButton:focus {
   outline: none;
-  border-color: #009900;
+  border-color: #1e40af;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.16);
 }
@@ -330,7 +361,7 @@
   color: #fff;
   text-transform: none;
   letter-spacing: 0.01em;
-  background: #008000;
+  background: #1e3a8a;
   border: 1px solid #cbd5e1;
   min-width: 0;
   overflow: hidden;
@@ -433,8 +464,8 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.15rem 0.35rem;
-  background: #004d00;
-  border: 1px solid #006600;
+  background: #0f2d5c;
+  border: 1px solid #1e3a5f;
   border-radius: 6px;
   min-height: 1.5rem;
   min-width: 0;
@@ -450,7 +481,7 @@
 }
 
 .searchField:focus-within {
-  border-color: #00b300;
+  border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
 }
 
@@ -643,7 +674,7 @@
 
 .input:focus {
   outline: none;
-  border-color: #009900;
+  border-color: #1e40af;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.16);
 }
@@ -702,9 +733,9 @@
 }
 
 .editBtn {
-  background: #e6f9e6;
-  color: #008000;
-  border-color: #b8e6b8;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-color: #bfdbfe;
 }
 
 .editBtn:hover:not(:disabled) {
@@ -717,13 +748,13 @@
 }
 
 .saveBtn {
-  background: #008000;
+  background: #1e3a8a;
   color: #fff;
-  border-color: #008000;
+  border-color: #1e3a8a;
 }
 
 .saveBtn:hover:not(:disabled) {
-  background: #009900;
+  background: #1e40af;
 }
 
 .saveBtn:disabled {
@@ -763,9 +794,9 @@
 }
 
 .iconBtnEdit:hover:not(:disabled) {
-  background: #e6f9e6;
-  color: #008000;
-  border-color: #b8e6b8;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-color: #bfdbfe;
 }
 
 .iconBtnDanger:hover:not(:disabled) {
@@ -793,6 +824,13 @@
   margin-top: 0.75rem;
 }
 
+.saveTableWrap {
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .paginationSummary {
   margin-right: auto;
   font-size: 0.875rem;
@@ -817,16 +855,16 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: #fff;
-  background: #008000;
-  border: 1px solid #008000;
+  background: #1e3a8a;
+  border: 1px solid #1e3a8a;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
 }
 
 .exportBtn:hover:not(:disabled) {
-  background: #009900;
-  border-color: #009900;
+  background: #1e40af;
+  border-color: #1e40af;
   color: #fff;
 }
 
@@ -892,8 +930,8 @@
 
 .paginationBtn:hover:not(:disabled) {
   background: #f8fafc;
-  color: #008000;
-  border-color: #7acc7a;
+  color: #1e3a8a;
+  border-color: #93c5fd;
   box-shadow: 0 2px 4px rgba(30, 58, 138, 0.12);
 }
 
@@ -903,15 +941,15 @@
 }
 
 .paginationBtnActive {
-  background: #008000;
+  background: #1e3a8a;
   color: #fff;
-  border-color: #008000;
+  border-color: #1e3a8a;
   box-shadow: 0 2px 4px rgba(30, 58, 138, 0.25);
 }
 
 .paginationBtnActive:hover:not(:disabled) {
-  background: #009900;
-  border-color: #009900;
+  background: #1e40af;
+  border-color: #1e40af;
   color: #fff;
   box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);
 }

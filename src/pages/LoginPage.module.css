@@ -26,7 +26,7 @@
   text-align: center;
   font-size: 2rem;
   font-weight: 700;
-  color: #008000;
+  color: #1e3a8a;
   letter-spacing: -0.02em;
 }
 
@@ -63,7 +63,7 @@
 
 .input:focus {
   outline: none;
-  border-color: #009900;
+  border-color: #1e40af;
   box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.15);
 }
 
@@ -72,7 +72,7 @@
   padding: 0.65rem 1rem;
   border: none;
   border-radius: 10px;
-  background: #008000;
+  background: #1e3a8a;
   color: #fff;
   font-size: 0.9375rem;
   font-weight: 500;
@@ -81,6 +81,6 @@
 }
 
 .submit:hover {
-  background: #009900;
+  background: #1e40af;
   box-shadow: 0 2px 8px rgba(30, 58, 138, 0.25);
 }

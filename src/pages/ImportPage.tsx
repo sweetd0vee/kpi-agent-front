@@ -22,8 +22,10 @@ import {
   type DepartmentItem,
   type DepartmentChecklistItem,
 } from '@/api/documents'
-import { PaperclipIcon, PersonIcon } from '@/components/Icons'
+import { PaperclipIcon, PencilIcon, PersonIcon, TrashIcon } from '@/components/Icons'
+import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { downloadGoalsTemplate } from '@/lib/exportGoals'
+import { addAttachable, getAttachables, removeAttachable, updateAttachable, type StoredAttachable } from '@/lib/storage'
 import { downloadJsonFile } from '@/lib/downloadJson'
 import { DepartmentChecklistModal } from './Import/DepartmentChecklistModal'
 import { PromptsTab } from './Import/PromptsTab'
@@ -86,7 +88,7 @@ function buildChecklistParsedJson(state: TemplateChecklistState): Record<string,
 
 export function ImportPage() {
   const [collections, setCollections] = useState<CollectionMeta[]>([])
-  const [activeTab, setActiveTab] = useState<'collections' | 'prompts'>('collections')
+  const [activeTab, setActiveTab] = useState<'collections' | 'prompts' | 'attachables'>('collections')
   const [collectionName, setCollectionName] = useState('')
   const [collectionDepartment, setCollectionDepartment] = useState('')
   const [collectionResponsibles, setCollectionResponsibles] = useState('')
@@ -98,6 +100,11 @@ export function ImportPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingDraft, setEditingDraft] = useState<CollectionCardDraft | null>(null)
   const [deleteConfirmCollection, setDeleteConfirmCollection] = useState<CollectionMeta | null>(null)
+  const [attachablesList, setAttachablesList] = useState<StoredAttachable[]>([])
+  const [attachablesSearchQuery, setAttachablesSearchQuery] = useState('')
+  const [editingAttachableId, setEditingAttachableId] = useState<string | null>(null)
+  const [editingAttachableLabel, setEditingAttachableLabel] = useState('')
+  const [pendingDeleteAttachable, setPendingDeleteAttachable] = useState<StoredAttachable | null>(null)
   const [docsByCollection, setDocsByCollection] = useState<Record<string, Record<string, DocumentMeta[]>>>({})
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -222,6 +229,10 @@ export function ImportPage() {
     }, 800)
     return () => clearInterval(id)
   }, [documentChecklist?.loading])
+
+  useEffect(() => {
+    if (activeTab === 'attachables') setAttachablesList(getAttachables())
+  }, [activeTab])
 
   const setFile = (typeId: SlotTypeId, file: File | null) => {
     setFiles((prev) => ({ ...prev, [typeId]: file }))
@@ -840,6 +851,18 @@ export function ImportPage() {
         >
           Промпты
         </button>
+        <button
+          id="knowledge-tab-attachables-btn"
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'attachables'}
+          aria-controls="knowledge-tab-attachables"
+          tabIndex={activeTab === 'attachables' ? 0 : -1}
+          className={activeTab === 'attachables' ? `${styles.tab} ${styles.tabActive}` : styles.tab}
+          onClick={() => setActiveTab('attachables')}
+        >
+          Таблицы
+        </button>
       </div>
 
       {activeTab === 'collections' ? (
@@ -1251,7 +1274,7 @@ export function ImportPage() {
             )}
           </section>
         </div>
-      ) : (
+      ) : activeTab === 'prompts' ? (
         <div
           role="tabpanel"
           id="knowledge-tab-prompts"
@@ -1260,7 +1283,156 @@ export function ImportPage() {
         >
           <PromptsTab />
         </div>
+      ) : (
+        <div
+          role="tabpanel"
+          id="knowledge-tab-attachables"
+          aria-labelledby="knowledge-tab-attachables-btn"
+          className={styles.tabPanel}
+        >
+          <section className={styles.promptsSection}>
+            <h2 className={styles.promptsTitle}>Таблицы</h2>
+            <p className={styles.promptsSubtitle}>Сохранённые фрагменты из базы данных (КПЭ, ППР, Линейный менеджмент). В Чате используйте кнопку «Прикрепить таблицу», чтобы подставить выбранное в промпт.</p>
+            <div className={styles.promptsGroup}>
+              <h3 className={styles.promptsGroupTitle}>Сохранённые таблицы</h3>
+              {attachablesList.length > 0 && (
+                <input
+                  type="search"
+                  className={styles.searchInput}
+                  placeholder="Поиск по названию"
+                  value={attachablesSearchQuery}
+                  onChange={(e) => setAttachablesSearchQuery(e.target.value)}
+                  aria-label="Поиск сохранённых таблиц"
+                  style={{ maxWidth: '20rem', marginBottom: '0.75rem' }}
+                />
+              )}
+              {attachablesList.length === 0 ? (
+                <p className={styles.promptsSubtitle}>Пока нет. Сохраните таблицу на вкладках КПЭ / ППР / Линейный менеджмент.</p>
+              ) : (() => {
+                const q = attachablesSearchQuery.trim().toLowerCase()
+                const filtered = q ? attachablesList.filter((a) => a.label.toLowerCase().includes(q)) : attachablesList
+                return filtered.length === 0 ? (
+                  <p className={styles.promptsSubtitle}>Нет таблиц по запросу «{attachablesSearchQuery}».</p>
+                ) : (
+                <ul className={styles.promptsGrid} style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {filtered.map((a) => {
+                    const isEditing = editingAttachableId === a.id
+                    return (
+                      <li key={a.id} className={styles.promptCard}>
+                        <div className={styles.promptCardHead}>
+                          <div className={styles.promptCardTitleWrap}>
+                            <h4 className={styles.promptCardTitle}>
+                              {isEditing ? 'Редактирование' : a.label}
+                            </h4>
+                            <span className={styles.promptBadge}>
+                              {a.type === 'kpi' ? 'КПЭ' : a.type === 'ppr' ? 'ППР' : a.type === 'leader_goals' ? 'Линейный менеджмент' : 'Фрагмент'}
+                            </span>
+                          </div>
+                          <div className={styles.promptCardActions}>
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className={`${styles.promptActionBtn} ${styles.promptActionBtnGhost}`}
+                                  onClick={() => {
+                                    setEditingAttachableId(null)
+                                    setEditingAttachableLabel('')
+                                  }}
+                                >
+                                  Отмена
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`${styles.promptActionBtn} ${styles.promptActionBtnPrimary}`}
+                                  onClick={() => {
+                                    const label = editingAttachableLabel.trim() || a.label
+                                    updateAttachable(a.id, { label })
+                                    setAttachablesList(getAttachables())
+                                    setEditingAttachableId(null)
+                                    setEditingAttachableLabel('')
+                                  }}
+                                >
+                                  Сохранить
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  className={`${styles.promptIconBtn} ${styles.promptIconBtnEdit}`}
+                                  onClick={() => {
+                                    setEditingAttachableId(a.id)
+                                    setEditingAttachableLabel(a.label)
+                                  }}
+                                  aria-label="Редактировать название"
+                                  title="Редактировать"
+                                >
+                                  <PencilIcon className={styles.promptIcon} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`${styles.promptIconBtn} ${styles.promptIconBtnDanger}`}
+                                  onClick={() => setPendingDeleteAttachable(a)}
+                                  aria-label="Удалить таблицу"
+                                  title="Удалить"
+                                >
+                                  <TrashIcon className={styles.promptIcon} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {isEditing ? (
+                          <div className={styles.promptFormGrid}>
+                            <label className={styles.promptField}>
+                              Название
+                              <input
+                                type="text"
+                                className={styles.promptInput}
+                                value={editingAttachableLabel}
+                                onChange={(e) => setEditingAttachableLabel(e.target.value)}
+                              />
+                            </label>
+                          </div>
+                        ) : (
+                          <>
+                            {a.filterDescription && (
+                              <p className={styles.attachableFilterDesc} title="Фильтры на момент сохранения">
+                                <span className={styles.attachableFilterLabel}>Фильтры:</span> {a.filterDescription}
+                              </p>
+                            )}
+                            <p className={styles.promptCardText} style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                              {a.content.slice(0, 150)}{a.content.length > 150 ? '…' : ''}
+                            </p>
+                          </>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+                )
+              })()}
+            </div>
+          </section>
+        </div>
       )}
+
+      <ConfirmModal
+        open={pendingDeleteAttachable !== null}
+        title="Удаление таблицы"
+        message={`Удалить таблицу «${pendingDeleteAttachable?.label ?? ''}»?`}
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        onConfirm={() => {
+          if (pendingDeleteAttachable) {
+            removeAttachable(pendingDeleteAttachable.id)
+            setAttachablesList(getAttachables())
+          }
+          setPendingDeleteAttachable(null)
+        }}
+        onCancel={() => setPendingDeleteAttachable(null)}
+        danger
+      />
 
       {departmentChecklist && (
         <DepartmentChecklistModal

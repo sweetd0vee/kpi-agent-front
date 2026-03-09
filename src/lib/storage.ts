@@ -8,6 +8,7 @@ const GOALS_KEY = 'kpi-cascading-goals'
 const KPI_GOALS_KEY = 'kpi-cascading-kpi-goals'
 const LEADER_GOALS_KEY = 'kpi-cascading-leader-goals'
 const PROMPTS_KEY = 'kpi-cascading-prompts'
+const CHAT_ATTACHABLES_KEY = 'kpi-cascading-chat-attachables'
 const DEMO_CLEAR_KEY = 'kpi-cascading-demo-cleared'
 
 function clearDemoGoalsOnce(): void {
@@ -49,6 +50,17 @@ export type StoredPrompt = {
 export type ChatSettings = {
   apiUrl: string
   apiKey: string
+}
+
+/** Сохранённое приложение к чату: таблица (КПЭ/ППР/Линейный менеджмент) или фрагмент базы знаний */
+export type StoredAttachable = {
+  id: string
+  type: 'kpi' | 'ppr' | 'leader_goals' | 'knowledge_chunk'
+  label: string
+  content: string
+  /** Описание фильтров на момент сохранения (для воспроизведения логики отбора) */
+  filterDescription?: string
+  createdAt: number
 }
 
 export type GoalRow = {
@@ -162,6 +174,63 @@ export function getPrompts(): StoredPrompt[] {
 
 export function savePrompts(prompts: StoredPrompt[]): void {
   localStorage.setItem(PROMPTS_KEY, JSON.stringify(prompts))
+}
+
+export function getAttachables(): StoredAttachable[] {
+  try {
+    const raw = localStorage.getItem(CHAT_ATTACHABLES_KEY)
+    if (!raw) return []
+    const list = JSON.parse(raw) as StoredAttachable[]
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
+export function saveAttachables(items: StoredAttachable[]): void {
+  localStorage.setItem(CHAT_ATTACHABLES_KEY, JSON.stringify(items))
+}
+
+export function addAttachable(item: Omit<StoredAttachable, 'id' | 'createdAt'>): StoredAttachable {
+  const list = getAttachables()
+  const now = Date.now()
+  const newItem: StoredAttachable = {
+    ...item,
+    id: generateId(),
+    createdAt: now,
+  }
+  saveAttachables([...list, newItem])
+  return newItem
+}
+
+export function removeAttachable(id: string): void {
+  saveAttachables(getAttachables().filter((a) => a.id !== id))
+}
+
+const ATTACHABLE_TYPE_BASE: Record<StoredAttachable['type'], string> = {
+  kpi: 'КПЭ',
+  ppr: 'ППР',
+  leader_goals: 'Линейный менеджмент',
+  knowledge_chunk: 'Фрагмент',
+}
+
+/** Имя по умолчанию для новой таблицы: «КПЭ - 1», «КПЭ - 2» и т.д., если предыдущие заняты. */
+export function getDefaultAttachableLabel(type: StoredAttachable['type']): string {
+  const base = ATTACHABLE_TYPE_BASE[type]
+  const list = getAttachables().filter((a) => a.type === type)
+  const re = new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*-\\s*(\\d+)$`)
+  let maxN = 0
+  list.forEach((a) => {
+    const m = a.label.trim().match(re)
+    if (m) maxN = Math.max(maxN, Number(m[1]))
+  })
+  return `${base} - ${maxN + 1}`
+}
+
+export function updateAttachable(id: string, updates: Partial<Pick<StoredAttachable, 'label'>>): void {
+  const list = getAttachables()
+  const next = list.map((a) => (a.id === id ? { ...a, ...updates } : a))
+  saveAttachables(next)
 }
 
 export function getUploadedFiles(): StoredUploadedFile[] {
