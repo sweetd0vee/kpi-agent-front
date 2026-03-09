@@ -11,6 +11,7 @@ import {
   getCollectionContext,
   type CollectionMeta,
 } from '@/api/documents'
+import { contentHasGoalsTable, exportGoalsXlsx } from '@/api/chatExport'
 import {
   getChats,
   saveChats,
@@ -87,6 +88,25 @@ const ResendIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const DownloadIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+)
+
 function getChatTitle(messages: StoredMessage[]): string {
   const first = messages.find((m) => m.role === 'user')
   const content = first && typeof first.content === 'string' ? first.content : ''
@@ -135,6 +155,8 @@ export function ChatPage() {
   inputRef.current = input
   const [inputHeight, setInputHeight] = useState(44)
   const [isResizing, setIsResizing] = useState(false)
+  const [exportingMsgIndex, setExportingMsgIndex] = useState<number | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const setSettings = useCallback((next: ChatSettings) => {
     setSettingsState(next)
@@ -369,6 +391,32 @@ export function ChatPage() {
     setShowCollectionPicker(false)
   }, [])
 
+  const handleExportGoals = useCallback(async (content: string, msgIndex: number) => {
+    setExportError(null)
+    setExportingMsgIndex(msgIndex)
+    try {
+      const { blob, filename } = await exportGoalsXlsx(content)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Не удалось выгрузить xlsx'
+      const isNetwork = /failed to fetch|network error|load failed/i.test(msg)
+      let display = isNetwork
+        ? 'Нет связи с бэкендом. Запустите бэкенд (порт 8000) или проверьте proxy/VITE_API_URL.'
+        : msg
+      if (!isNetwork && /internal server error/i.test(msg)) {
+        display += ' Подробности: консоль браузера (F12) или логи бэкенда.'
+      }
+      setExportError(display)
+    } finally {
+      setExportingMsgIndex(null)
+    }
+  }, [])
+
   const handleSelectPrompt = useCallback((prompt: PromptOption) => {
     const next = typeof prompt.content === 'string' ? prompt.content : ''
     const prev = inputRef.current
@@ -414,6 +462,7 @@ export function ChatPage() {
 
     setLoading(true)
     setError(null)
+    setExportError(null)
     if (override === undefined) {
       setInput('')
       inputRef.current = ''
@@ -728,6 +777,24 @@ export function ChatPage() {
                       </div>
                     )}
                   </div>
+                  {msg.role === 'assistant' &&
+                    typeof msg.content === 'string' &&
+                    contentHasGoalsTable(msg.content) && (
+                      <div className={styles.messageActions}>
+                        <button
+                          type="button"
+                          className={styles.exportGoalsBtn}
+                          onClick={() => handleExportGoals(msg.content as string, i)}
+                          disabled={exportingMsgIndex !== null}
+                          title="Скачать таблицу целей в Excel"
+                        >
+                          <DownloadIcon className={styles.exportGoalsBtnIcon} />
+                          <span className={styles.exportGoalsBtnText}>
+                            {exportingMsgIndex === i ? 'Загрузка…' : 'Скачать цели (xlsx)'}
+                          </span>
+                        </button>
+                      </div>
+                    )}
                 </div>
                 {msg.role === 'user' && typeof msg.content === 'string' && msg.content.trim() && (
                   <button
@@ -761,7 +828,9 @@ export function ChatPage() {
         </div>
 
         <div className={styles.inputWrap}>
-          {error && <div className={styles.errorBar}>{error}</div>}
+          {(error || exportError) && (
+            <div className={styles.errorBar}>{exportError ?? error}</div>
+          )}
           {attachments.length > 0 && (
             <div className={styles.attachments}>
               {attachments.map((a) => (

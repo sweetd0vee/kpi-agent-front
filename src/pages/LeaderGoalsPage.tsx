@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { generateId, getLeaderGoalsState, saveLeaderGoalsState, type LeaderGoalRow } from '@/lib/storage'
+import { getLeaderGoalRows, saveLeaderGoalRows } from '@/api/goals'
+import { generateId, type LeaderGoalRow } from '@/lib/storage'
 import {
   exportLeaderGoalsCSV,
   exportLeaderGoalsDOCX,
@@ -7,6 +8,7 @@ import {
   exportLeaderGoalsHTML,
   exportLeaderGoalsPDF,
 } from '@/lib/exportGoals'
+import { parseLeaderGoalsXlsxToRows } from '@/lib/importGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditLeaderGoalModal, type EditLeaderGoalField } from '@/components/EditLeaderGoalModal'
 import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
@@ -104,20 +106,51 @@ export function LeaderGoalsPage() {
   const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setGoalsState(getLeaderGoalsState())
+    let active = true
+    setIsLoading(true)
+    getLeaderGoalRows()
+      .then((rows) => {
+        if (!active) return
+        setGoalsState({ rows })
+        setDataError(null)
+        setIsLoaded(true)
+        skipSyncRef.current = true
+      })
+      .catch((err) => {
+        if (!active) return
+        setDataError(err instanceof Error ? err.message : 'Не удалось загрузить данные.')
+        setIsLoaded(true)
+      })
+      .finally(() => {
+        if (!active) return
+        setIsLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   useEffect(() => {
+    if (!isLoaded) return
     if (skipSyncRef.current) {
       skipSyncRef.current = false
       return
     }
-    saveLeaderGoalsState(goalsState)
-  }, [goalsState])
+    void saveLeaderGoalRows(goalsState.rows)
+      .then(() => setDataError(null))
+      .catch((err) => {
+        setDataError(err instanceof Error ? err.message : 'Не удалось сохранить данные.')
+      })
+  }, [goalsState, isLoaded])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -209,6 +242,36 @@ export function LeaderGoalsPage() {
 
   const hasFilter = normalizedFilter.length > 0
 
+  const handleImportClick = useCallback(() => {
+    setImportError(null)
+    importInputRef.current?.click()
+  }, [])
+
+  const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const isXlsx = /\.xlsx$/i.test(file.name)
+    if (!isXlsx) {
+      setImportError('Выберите файл .xlsx')
+      return
+    }
+    parseLeaderGoalsXlsxToRows(file)
+      .then((rows) => {
+        if (rows.length === 0) {
+          setImportError(
+            'В файле нет данных или заголовки не совпадают. Ожидаются: ФИО, № цели, Наименование КПЭ, Тип цели, Вид цели, Ед. изм., кварталы и год, Комментарии, Методика расчёта, Источник информации, Отчётный год.'
+          )
+          return
+        }
+        setGoalsState((prev) => ({ ...prev, rows: [...prev.rows, ...rows] }))
+        setImportError(null)
+      })
+      .catch((err) => {
+        setImportError(err instanceof Error ? err.message : 'Ошибка загрузки файла')
+      })
+  }, [])
+
   const handleExport = useCallback(
     (format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
       setExportDropdownOpen(false)
@@ -244,6 +307,23 @@ export function LeaderGoalsPage() {
         <header className={styles.sectionHeader}>
           <div className={styles.sectionSpacer} aria-hidden />
           <div className={styles.sectionActions}>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx"
+              className={styles.hiddenInput}
+              aria-hidden
+              onChange={handleImportFile}
+            />
+            <button
+              type="button"
+              className={styles.importBtn}
+              onClick={handleImportClick}
+              disabled={!!editingRowId}
+              title="Импорт из xlsx"
+            >
+              Импортировать
+            </button>
             <button
               type="button"
               className={styles.clearTableBtn}
@@ -289,6 +369,22 @@ export function LeaderGoalsPage() {
             </button>
           )}
         </div>
+
+        {dataError && (
+          <div className={styles.importError} role="alert">
+            {dataError}
+          </div>
+        )}
+        {isLoading && !dataError && (
+          <div className={styles.importError} role="status">
+            Загрузка данных...
+          </div>
+        )}
+        {importError && (
+          <div className={styles.importError} role="alert">
+            {importError}
+          </div>
+        )}
 
         <div className={styles.tableWrap}>
           <table className={`${styles.table} ${styles.leaderGoalsTable}`}>

@@ -1,4 +1,4 @@
-import type { GoalRow } from '@/lib/storage'
+import type { GoalRow, LeaderGoalRow } from '@/lib/storage'
 import { generateId } from '@/lib/storage'
 import * as XLSX from 'xlsx'
 
@@ -102,6 +102,120 @@ export function parseKpiXlsxToRows(file: File): Promise<GoalRow[]> {
               q4: row.q4 ?? '',
               reportYear: row.reportYear ?? '',
               year: row.year ?? '',
+            })
+          }
+        }
+        resolve(rows)
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error('Ошибка разбора xlsx'))
+      }
+    }
+    reader.onerror = () => reject(new Error('Не удалось прочитать файл'))
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+/** Заголовки xlsx для таблицы «Руководители» (сопоставление по названию колонки) */
+const LEADER_HEADER_TO_FIELD: Record<string, keyof Omit<LeaderGoalRow, 'id'>> = {
+  'ФИО': 'lastName',
+  '№ цели': 'goalNum',
+  'Наименование КПЭ': 'name',
+  'Тип цели': 'goalType',
+  'Вид цели': 'goalKind',
+  'Ед. изм.': 'unit',
+  'Единица измерения': 'unit',
+  'I кв. Вес %': 'q1Weight',
+  'I квартал Вес %': 'q1Weight',
+  'I кв. План. / веха': 'q1Value',
+  'I квартал Плановое значение': 'q1Value',
+  'II кв. Вес %': 'q2Weight',
+  'II квартал Вес %': 'q2Weight',
+  'II кв. План. / веха': 'q2Value',
+  'III кв. Вес %': 'q3Weight',
+  'III кв. План. / веха': 'q3Value',
+  'IV кв. Вес %': 'q4Weight',
+  'IV кв. План. / веха': 'q4Value',
+  'Год Вес %': 'yearWeight',
+  'Год План. / веха': 'yearValue',
+  'Комментарии': 'comments',
+  'Методика расчёта': 'methodDesc',
+  'Источник информации': 'sourceInfo',
+  'Отчётный год': 'reportYear',
+}
+
+/**
+ * Парсит xlsx и возвращает строки для таблицы «Руководители».
+ * Первая строка листа — заголовки (ФИО, № цели, Наименование КПЭ, …).
+ */
+export function parseLeaderGoalsXlsxToRows(file: File): Promise<LeaderGoalRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result
+        if (!data || !(data instanceof ArrayBuffer)) {
+          reject(new Error('Не удалось прочитать файл'))
+          return
+        }
+        const workbook = XLSX.read(data, { type: 'array' })
+        const firstSheetName = workbook.SheetNames[0]
+        if (!firstSheetName) {
+          reject(new Error('В файле нет листов'))
+          return
+        }
+        const sheet = workbook.Sheets[firstSheetName]
+        const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, {
+          header: 1,
+          defval: '',
+          raw: false,
+        }) as unknown[][]
+
+        if (!Array.isArray(rawRows) || rawRows.length < 2) {
+          resolve([])
+          return
+        }
+
+        const headerRow = rawRows[0].map(normalizeHeader)
+        const colIndexToField = new Map<number, keyof Omit<LeaderGoalRow, 'id'>>()
+        headerRow.forEach((header, index) => {
+          const field = LEADER_HEADER_TO_FIELD[header]
+          if (field) colIndexToField.set(index, field)
+        })
+
+        const rows: LeaderGoalRow[] = []
+        const emptyRow: Record<string, string> = {
+          lastName: '',
+          goalNum: '',
+          name: '',
+          goalType: '',
+          goalKind: '',
+          unit: '',
+          q1Weight: '',
+          q1Value: '',
+          q2Weight: '',
+          q2Value: '',
+          q3Weight: '',
+          q3Value: '',
+          q4Weight: '',
+          q4Value: '',
+          yearWeight: '',
+          yearValue: '',
+          comments: '',
+          methodDesc: '',
+          sourceInfo: '',
+          reportYear: '',
+        }
+        for (let i = 1; i < rawRows.length; i++) {
+          const cells = rawRows[i] as unknown[]
+          const row = { ...emptyRow }
+          colIndexToField.forEach((field, colIndex) => {
+            row[field] = normalizeCell(cells[colIndex])
+          })
+          const hasAny = Object.keys(row).some((k) => row[k as keyof typeof row] !== '')
+          if (hasAny) {
+            rows.push({
+              id: generateId(),
+              ...row,
             })
           }
         }
