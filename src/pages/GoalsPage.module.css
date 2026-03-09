@@ -492,6 +492,17 @@
   max-width: 10rem;
 }
 
+/* Колонка ФИО в таблице «Руководители» — чуть уже */
+.colLeaderSurname {
+  width: 6%;
+  min-width: 4rem;
+  max-width: 7rem;
+}
+
+.leaderGoalsTable th.colLeaderSurname {
+  max-width: 7rem;
+}
+
 .colGoal {
   width: 11%;
   max-width: 14rem;
@@ -539,6 +550,17 @@
 
 .leaderGoalsTable th.colQuarter {
   max-width: 3.5rem;
+}
+
+/* Колонка «№ цели» */
+.colLeaderGoalNum {
+  width: 2.5%;
+  max-width: 2.75rem;
+  min-width: 0;
+}
+
+.leaderGoalsTable th.colLeaderGoalNum {
+  max-width: 2.75rem;
 }
 
 /* Узкие колонки «Вид цели» и «Ед. изм.» — таблица помещается на одну страницу */

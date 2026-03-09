@@ -42,8 +42,8 @@ const createRow = (): LeaderGoalRow => ({
 
 /** Шапка таблицы по шаблону (форма целей). В label переносы строк — через \n для компактного отображения. */
 const COLUMNS: Column[] = [
-  { key: 'lastName', label: 'ФИО', cellClassName: styles.colSurname },
-  { key: 'goalNum', label: '№ цели', cellClassName: styles.colQuarter },
+  { key: 'lastName', label: 'ФИО', cellClassName: styles.colLeaderSurname },
+  { key: 'goalNum', label: '№ цели', cellClassName: styles.colLeaderGoalNum },
   { key: 'name', label: 'Наименование КПЭ', cellClassName: styles.colLeaderName },
   { key: 'goalType', label: 'Тип цели\n(типовая/групповая/индивидуальная)', cellClassName: styles.colGoal },
   { key: 'goalKind', label: 'Вид цели', cellClassName: styles.colLeaderNarrow },
