@@ -529,11 +529,20 @@
   word-break: break-word;
 }
 
-.leaderGoalsTable th.colGoal {
-  max-width: 8rem;
+.leaderGoalsTable th .sortBtn .headerLabel {
+  white-space: pre-line;
+  text-align: left;
 }
 
-.leaderGoalsTable th.colGoal .leaderGoalThLabel {
+.leaderGoalsTable th.colGoal,
+.leaderGoalsTable td.colGoal {
+  width: 5%;
+  max-width: 5.5rem;
+  min-width: 0;
+}
+
+.leaderGoalsTable th.colGoal .leaderGoalThLabel,
+.leaderGoalsTable th.colGoal .sortBtn .headerLabel {
   max-width: none;
 }
 

@@ -54,7 +54,7 @@ const COLUMNS: Column[] = [
   { key: 'lastName', label: 'ФИО', cellClassName: styles.colLeaderSurname },
   { key: 'goalNum', label: '№ цели', cellClassName: styles.colLeaderGoalNum },
   { key: 'name', label: 'Наименование КПЭ', cellClassName: styles.colLeaderName },
-  { key: 'goalType', label: 'Тип цели\n(типовая/групповая/индивидуальная)', cellClassName: styles.colGoal },
+  { key: 'goalType', label: 'Тип цели', cellClassName: styles.colGoal },
   { key: 'goalKind', label: 'Вид цели', cellClassName: styles.colLeaderNarrow },
   { key: 'unit', label: 'Ед. изм.', cellClassName: styles.colLeaderNarrow },
   { key: 'q1Weight', label: 'I кв.\nВес %', cellClassName: styles.colQuarter, valueClassName: styles.valueCenter },
@@ -110,6 +110,8 @@ export function LeaderGoalsPage() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [dataError, setDataError] = useState<string | null>(null)
+  const [sortKey, setSortKey] = useState<LeaderGoalField | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -164,6 +166,8 @@ export function LeaderGoalsPage() {
     }
   }, [exportDropdownOpen])
 
+  const collator = useMemo(() => new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }), [])
+
   const normalizedFilter = filterText.trim().toLowerCase()
   const filteredRows = useMemo(() => {
     if (!normalizedFilter) return goalsState.rows
@@ -173,7 +177,25 @@ export function LeaderGoalsPage() {
     })
   }, [goalsState.rows, normalizedFilter])
 
-  const sortedRows = useMemo(() => [...filteredRows], [filteredRows])
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return filteredRows
+    return filteredRows
+      .map((row, index) => ({ row, index }))
+      .sort((a, b) => {
+        const valueA = String(a.row[sortKey] ?? '').trim()
+        const valueB = String(b.row[sortKey] ?? '').trim()
+        const emptyA = valueA.length === 0
+        const emptyB = valueB.length === 0
+        if (emptyA && emptyB) return a.index - b.index
+        if (emptyA) return 1
+        if (emptyB) return -1
+        const result = collator.compare(valueA, valueB)
+        if (result === 0) return a.index - b.index
+        return sortDirection === 'asc' ? result : -result
+      })
+      .map((item) => item.row)
+  }, [collator, filteredRows, sortDirection, sortKey])
+
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE))
   const pageRows = useMemo(
     () => sortedRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -183,6 +205,10 @@ export function LeaderGoalsPage() {
   useEffect(() => {
     setPage((prev) => Math.min(prev, totalPages))
   }, [totalPages])
+
+  useEffect(() => {
+    setPage(1)
+  }, [normalizedFilter, sortKey, sortDirection])
 
   const addRow = useCallback(() => {
     const newRow = createRow()
@@ -241,6 +267,17 @@ export function LeaderGoalsPage() {
   }, [])
 
   const hasFilter = normalizedFilter.length > 0
+
+  const handleSort = useCallback((key: LeaderGoalField) => {
+    setSortKey((prevKey) => {
+      if (prevKey === key) {
+        setSortDirection((prevDirection) => (prevDirection === 'asc' ? 'desc' : 'asc'))
+        return prevKey
+      }
+      setSortDirection('asc')
+      return key
+    })
+  }, [])
 
   const handleImportClick = useCallback(() => {
     setImportError(null)
@@ -392,7 +429,28 @@ export function LeaderGoalsPage() {
               <tr>
                 {COLUMNS.map((col) => (
                   <th key={col.key} className={col.cellClassName} scope="col">
-                    <span className={styles.leaderGoalThLabel}>{col.label}</span>
+                    <button
+                      type="button"
+                      className={styles.sortBtn}
+                      onClick={() => handleSort(col.key)}
+                      disabled={!!editingRowId}
+                      aria-label={`Сортировать по: ${col.label.replace(/\n/g, ' ')}`}
+                    >
+                      <span className={styles.headerLabel}>{col.label}</span>
+                      <span
+                        className={[
+                          styles.sortIndicator,
+                          sortKey === col.key
+                            ? sortDirection === 'asc'
+                              ? styles.sortIndicatorAsc
+                              : styles.sortIndicatorDesc
+                            : styles.sortIndicatorInactive,
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        aria-hidden
+                      />
+                    </button>
                   </th>
                 ))}
                 <th className={styles.actionsCol} scope="col">
