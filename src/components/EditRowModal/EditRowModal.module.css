@@ -69,8 +69,8 @@
   color: #334155;
 }
 
-.input,
-.textarea {
+.textarea,
+.textareaSingle {
   width: 100%;
   padding: 0.5rem 0.75rem;
   font-size: 0.9375rem;
@@ -80,10 +80,12 @@
   border-radius: 8px;
   transition: border-color 0.2s, box-shadow 0.2s;
   font-family: inherit;
+  resize: vertical;
+  min-height: 2.5rem;
 }
 
-.input:focus,
-.textarea:focus {
+.textarea:focus,
+.textareaSingle:focus {
   outline: none;
   border-color: #3b82f6;
   background: #fff;
@@ -92,7 +94,10 @@
 
 .textarea {
   min-height: 4rem;
-  resize: vertical;
+}
+
+.textareaSingle {
+  min-height: 2.5rem;
 }
 
 .actions {

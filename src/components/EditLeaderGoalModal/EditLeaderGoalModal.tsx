@@ -1,34 +1,34 @@
 import { useEffect, useState } from 'react'
-import type { GoalRow } from '@/lib/storage'
-import styles from './EditRowModal.module.css'
+import type { LeaderGoalRow } from '@/lib/storage'
+import styles from '../EditRowModal/EditRowModal.module.css'
 
-export type GoalField = keyof Omit<GoalRow, 'id'>
+export type LeaderGoalField = keyof Omit<LeaderGoalRow, 'id'>
 
-export type EditRowField = {
-  key: GoalField
+export type EditLeaderGoalField = {
+  key: LeaderGoalField
   label: string
   placeholder: string
   multiline?: boolean
 }
 
-export type EditRowModalProps = {
+export type EditLeaderGoalModalProps = {
   open: boolean
   title: string
-  row: GoalRow | null
-  fields: EditRowField[]
-  onSave: (draft: GoalRow) => void
+  row: LeaderGoalRow | null
+  fields: EditLeaderGoalField[]
+  onSave: (draft: LeaderGoalRow) => void
   onCancel: () => void
 }
 
-export function EditRowModal({
+export function EditLeaderGoalModal({
   open,
   title,
   row,
   fields,
   onSave,
   onCancel,
-}: EditRowModalProps) {
-  const [draft, setDraft] = useState<GoalRow | null>(null)
+}: EditLeaderGoalModalProps) {
+  const [draft, setDraft] = useState<LeaderGoalRow | null>(null)
 
   useEffect(() => {
     if (open && row) {
@@ -38,7 +38,7 @@ export function EditRowModal({
     }
   }, [open, row])
 
-  const update = (key: GoalField, value: string) => {
+  const update = (key: LeaderGoalField, value: string) => {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
@@ -55,20 +55,20 @@ export function EditRowModal({
       onClick={(e) => e.target === e.currentTarget && onCancel()}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="edit-row-modal-title"
+      aria-labelledby="edit-leader-goal-modal-title"
     >
       <div className={styles.card} onClick={(e) => e.stopPropagation()}>
-        <h2 id="edit-row-modal-title" className={styles.title}>
+        <h2 id="edit-leader-goal-modal-title" className={styles.title}>
           {title}
         </h2>
-        <form id="edit-row-form" onSubmit={handleSubmit} className={styles.formWrap}>
+        <form id="edit-leader-goal-form" onSubmit={handleSubmit} className={styles.formWrap}>
           {fields.map((field) => (
             <div key={field.key} className={styles.field}>
-              <label htmlFor={`edit-${field.key}`} className={styles.label}>
+              <label htmlFor={`edit-leader-${field.key}`} className={styles.label}>
                 {field.label}
               </label>
               <textarea
-                id={`edit-${field.key}`}
+                id={`edit-leader-${field.key}`}
                 className={field.multiline ? styles.textarea : styles.textareaSingle}
                 value={draft?.[field.key] ?? ''}
                 placeholder={field.placeholder}
@@ -85,7 +85,7 @@ export function EditRowModal({
           </button>
           <button
             type="submit"
-            form="edit-row-form"
+            form="edit-leader-goal-form"
             className={`${styles.btn} ${styles.btnSave}`}
             disabled={!draft}
           >

@@ -316,6 +316,7 @@
 .table {
   width: 100%;
   min-width: 0;
+  table-layout: fixed;
   border-collapse: collapse;
   border: 1px solid #cbd5e1;
   table-layout: fixed;
@@ -488,14 +489,90 @@
 .colSurname {
   width: 8%;
   min-width: 6rem;
+  max-width: 10rem;
 }
 
 .colGoal {
   width: 11%;
+  max-width: 14rem;
 }
 
 .colMetricGoals {
   width: 22%;
+  max-width: 20rem;
+}
+
+/* Таблица «Руководители»: заголовки с переносами строк */
+.leaderGoalsTable th {
+  white-space: normal;
+  overflow: visible;
+  line-height: 1.25;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.35rem;
+  max-width: 5.5rem;
+}
+
+.leaderGoalsTable th .leaderGoalThLabel {
+  display: block;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.leaderGoalsTable th.colGoal {
+  max-width: 8rem;
+}
+
+.leaderGoalsTable th.colGoal .leaderGoalThLabel {
+  max-width: none;
+}
+
+/* Колонка «Наименование КПЭ» — чуть уже */
+.colLeaderName {
+  width: 8%;
+  max-width: 6rem;
+  min-width: 0;
+}
+
+.leaderGoalsTable th.colLeaderName {
+  max-width: 6rem;
+}
+
+.leaderGoalsTable th.colQuarter {
+  max-width: 3.5rem;
+}
+
+/* Узкие колонки «Вид цели» и «Ед. изм.» — таблица помещается на одну страницу */
+.colLeaderNarrow {
+  width: 3%;
+  max-width: 4rem;
+  min-width: 0;
+}
+
+.leaderGoalsTable th.colLeaderNarrow {
+  max-width: 4rem;
+  font-size: 0.7rem;
+}
+
+/* Колонки Комментарии, Методика расчёта, Источник информации — чуть уже для компактности */
+.colLeaderMedium {
+  width: 5%;
+  max-width: 5.5rem;
+  min-width: 0;
+}
+
+.leaderGoalsTable th.colLeaderMedium {
+  max-width: 5.5rem;
+}
+
+/* Колонки «I кв. План. / веха», «II кв.» … «Год План. / веха» — уже */
+.colLeaderPlan {
+  width: 3.5%;
+  max-width: 4rem;
+  min-width: 0;
+}
+
+.leaderGoalsTable th.colLeaderPlan {
+  max-width: 4rem;
 }
 
 .colQuarter {
@@ -550,6 +627,11 @@
   color: #0f172a;
   line-height: 1.4;
   min-height: 2rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .valueMuted {
@@ -673,6 +755,12 @@
   flex-wrap: wrap;
   gap: 1rem;
   margin-top: 0.75rem;
+}
+
+.paginationSummary {
+  margin-right: auto;
+  font-size: 0.875rem;
+  color: #64748b;
 }
 
 .exportWrap {

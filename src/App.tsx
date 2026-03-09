@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { GoalsPage } from '@/pages/GoalsPage'
 import { KpiPage } from '@/pages/KpiPage'
+import { LeaderGoalsPage } from '@/pages/LeaderGoalsPage'
 import { ImportPage } from '@/pages/ImportPage'
 import { ChatPage } from '@/pages/Chat'
 import { DashboardsPage } from '@/pages/DashboardsPage'
@@ -38,6 +39,7 @@ function App() {
         <Route path="/" element={<Navigate to="/kpi" replace />} />
         <Route path="/login" element={<Navigate to="/kpi" replace />} />
         <Route path="/ppr" element={<GoalsPage />} />
+        <Route path="/leader-goals" element={<LeaderGoalsPage />} />
         <Route path="/goals" element={<Navigate to="/ppr" replace />} />
         <Route path="/kpi" element={<KpiPage />} />
         <Route path="/knowledge" element={<ImportPage />} />

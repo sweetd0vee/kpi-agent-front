@@ -6,6 +6,7 @@ const UPLOADED_FILES_KEY = 'kpi-cascading-uploaded-files'
 const COLLECTIONS_KEY = 'kpi-cascading-collections'
 const GOALS_KEY = 'kpi-cascading-goals'
 const KPI_GOALS_KEY = 'kpi-cascading-kpi-goals'
+const LEADER_GOALS_KEY = 'kpi-cascading-leader-goals'
 const PROMPTS_KEY = 'kpi-cascading-prompts'
 const DEMO_CLEAR_KEY = 'kpi-cascading-demo-cleared'
 
@@ -69,6 +70,37 @@ export type GoalRow = {
 
 export type GoalsState = {
   rows: GoalRow[]
+}
+
+/** Строка таблицы «Руководители» — шапка по шаблону формы целей (data/lead_goals_template.csv) */
+export type LeaderGoalRow = {
+  id: string
+  /** ФИО руководителя */
+  lastName: string
+  goalNum: string
+  name: string
+  goalType: string
+  goalKind: string
+  unit: string
+  q1Weight: string
+  q1Value: string
+  q2Weight: string
+  q2Value: string
+  q3Weight: string
+  q3Value: string
+  q4Weight: string
+  q4Value: string
+  yearWeight: string
+  yearValue: string
+  comments: string
+  methodDesc: string
+  sourceInfo: string
+  /** Отчётный год (например 2026) */
+  reportYear: string
+}
+
+export type LeaderGoalsState = {
+  rows: LeaderGoalRow[]
 }
 
 export function getChats(): StoredChat[] {
@@ -230,4 +262,53 @@ export function getKpiState(): GoalsState {
 
 export function saveKpiState(state: GoalsState): void {
   localStorage.setItem(KPI_GOALS_KEY, JSON.stringify(state))
+}
+
+const EMPTY_LEADER_GOALS_STATE: LeaderGoalsState = { rows: [] }
+
+function normalizeLeaderGoalRow(item: Partial<LeaderGoalRow>): LeaderGoalRow {
+  return {
+    id: typeof item.id === 'string' && item.id ? item.id : generateId(),
+    lastName: typeof item.lastName === 'string' ? item.lastName : '',
+    goalNum: typeof item.goalNum === 'string' ? item.goalNum : '',
+    name: typeof item.name === 'string' ? item.name : '',
+    goalType: typeof item.goalType === 'string' ? item.goalType : '',
+    goalKind: typeof item.goalKind === 'string' ? item.goalKind : '',
+    unit: typeof item.unit === 'string' ? item.unit : '',
+    q1Weight: typeof item.q1Weight === 'string' ? item.q1Weight : '',
+    q1Value: typeof item.q1Value === 'string' ? item.q1Value : '',
+    q2Weight: typeof item.q2Weight === 'string' ? item.q2Weight : '',
+    q2Value: typeof item.q2Value === 'string' ? item.q2Value : '',
+    q3Weight: typeof item.q3Weight === 'string' ? item.q3Weight : '',
+    q3Value: typeof item.q3Value === 'string' ? item.q3Value : '',
+    q4Weight: typeof item.q4Weight === 'string' ? item.q4Weight : '',
+    q4Value: typeof item.q4Value === 'string' ? item.q4Value : '',
+    yearWeight: typeof item.yearWeight === 'string' ? item.yearWeight : '',
+    yearValue: typeof item.yearValue === 'string' ? item.yearValue : '',
+    comments: typeof item.comments === 'string' ? item.comments : '',
+    methodDesc: typeof item.methodDesc === 'string' ? item.methodDesc : '',
+    sourceInfo: typeof item.sourceInfo === 'string' ? item.sourceInfo : '',
+    reportYear: typeof item.reportYear === 'string' ? item.reportYear : '',
+  }
+}
+
+function normalizeLeaderGoalRows(value: unknown): LeaderGoalRow[] {
+  if (!Array.isArray(value)) return []
+  return value.map((row) => normalizeLeaderGoalRow(row as Partial<LeaderGoalRow>))
+}
+
+export function getLeaderGoalsState(): LeaderGoalsState {
+  try {
+    const raw = localStorage.getItem(LEADER_GOALS_KEY)
+    if (!raw) return EMPTY_LEADER_GOALS_STATE
+    const parsed = JSON.parse(raw) as Partial<LeaderGoalsState>
+    const rows = normalizeLeaderGoalRows(parsed?.rows)
+    return { rows }
+  } catch {
+    return EMPTY_LEADER_GOALS_STATE
+  }
+}
+
+export function saveLeaderGoalsState(state: LeaderGoalsState): void {
+  localStorage.setItem(LEADER_GOALS_KEY, JSON.stringify(state))
 }

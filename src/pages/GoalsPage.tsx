@@ -416,7 +416,6 @@ export function GoalsPage() {
       placeholder: 'Например: рост эффективности операционных затрат',
       cellClassName: styles.colGoal,
       inputClassName: `${styles.input} ${styles.goalInput}`,
-      valueClassName: styles.valueMultiline,
       multiline: true,
     },
     {
@@ -425,7 +424,6 @@ export function GoalsPage() {
       placeholder: 'Например: снижение CIR на 2 п.п.',
       cellClassName: `${styles.colMetricGoals} ${styles.headerNowrap}`,
       inputClassName: `${styles.input} ${styles.goalInput}`,
-      valueClassName: styles.valueMultiline,
       multiline: true,
     },
     {
@@ -943,6 +941,7 @@ export function GoalsPage() {
                               ]
                                 .filter(Boolean)
                                 .join(' ')}
+                              title={isEmpty ? undefined : String(value)}
                             >
                               {isEmpty ? '' : value}
                             </span>
