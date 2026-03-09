@@ -336,7 +336,7 @@ export function LeaderGoalsPage() {
     <div className={styles.page}>
       <header className={styles.hero}>
         <div>
-          <h1 className={styles.title}>Руководители</h1>
+          <h1 className={styles.title}>Линейный менеджмент</h1>
         </div>
       </header>
 
@@ -608,7 +608,7 @@ export function LeaderGoalsPage() {
       <ConfirmModal
         open={pendingClearTable}
         title="Очистить таблицу"
-        message="Удалить все записи в таблице «Руководители»? Это действие нельзя отменить."
+        message="Удалить все записи в таблице «Линейный менеджмент»? Это действие нельзя отменить."
         confirmLabel="Очистить"
         onConfirm={confirmClearTable}
         onCancel={() => setPendingClearTable(false)}

@@ -134,7 +134,7 @@ async function parseLeaderGoalRowsResponse(res: Response, errorPrefix: string): 
 
 export async function getLeaderGoalRows(): Promise<LeaderGoalRow[]> {
   const res = await apiFetch('/api/leader-goals')
-  return parseLeaderGoalRowsResponse(res, 'Руководители')
+  return parseLeaderGoalRowsResponse(res, 'Линейный менеджмент')
 }
 
 export async function saveLeaderGoalRows(rows: LeaderGoalRow[]): Promise<LeaderGoalRow[]> {
@@ -143,5 +143,5 @@ export async function saveLeaderGoalRows(rows: LeaderGoalRow[]): Promise<LeaderG
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rows }),
   })
-  return parseLeaderGoalRowsResponse(res, 'Руководители')
+  return parseLeaderGoalRowsResponse(res, 'Линейный менеджмент')
 }
