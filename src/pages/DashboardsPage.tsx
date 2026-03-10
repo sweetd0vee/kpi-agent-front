@@ -176,6 +176,10 @@ export function DashboardsPage() {
     setSelectedGoal('')
   }, [kpiReportYear])
 
+  useEffect(() => {
+    setSelectedGoal('')
+  }, [activeTab])
+
   /** Строки данных по выбранной цели: все руководители с этой целью, веса и показатели */
   const goalRowsForSelected = useMemo(() => {
     if (!selectedGoal) return []
@@ -192,6 +196,64 @@ export function DashboardsPage() {
         year: (r.year ?? '').trim() || '—',
       }))
   }, [rows, selectedGoal, key])
+
+  /** Все строки по выбранной цели в КПЭ и ППР (для карточки цели) */
+  const kpiRowsForSelected = useMemo(() => {
+    if (!selectedGoal) return [] as GoalRow[]
+    return kpiRows.filter((r) => key(r) === selectedGoal)
+  }, [kpiRows, selectedGoal, key])
+
+  const pprRowsForSelected = useMemo(() => {
+    if (!selectedGoal) return [] as GoalRow[]
+    return pprRows.filter((r) => key(r) === selectedGoal)
+  }, [pprRows, selectedGoal, key])
+
+  const allRowsForSelected = useMemo(
+    () => [...kpiRowsForSelected, ...pprRowsForSelected],
+    [kpiRowsForSelected, pprRowsForSelected]
+  )
+
+  const goalCard = useMemo(() => {
+    if (!selectedGoal || allRowsForSelected.length === 0) return null
+    const sample = allRowsForSelected[0]
+    const goalText = (sample.goal ?? '').trim()
+    const metricGoalsText = (sample.metricGoals ?? '').trim()
+
+    const reportYearsSet = new Set(
+      allRowsForSelected.map((r) => String(r.reportYear ?? '').trim()).filter(Boolean)
+    )
+    const reportYears = Array.from(reportYearsSet).sort((a, b) => collatorRu.compare(a, b))
+
+    let totalWeightYear = 0
+    let minWeightYear: number | null = null
+    let maxWeightYear: number | null = null
+    allRowsForSelected.forEach((r) => {
+      const v = parseWeightYear(r.weightYear ?? '')
+      if (v == null) return
+      totalWeightYear += v
+      if (minWeightYear == null || v < minWeightYear) minWeightYear = v
+      if (maxWeightYear == null || v > maxWeightYear) maxWeightYear = v
+    })
+
+    const employeesSet = new Set(
+      allRowsForSelected.map((r) => (r.lastName ?? '').trim()).filter(Boolean)
+    )
+
+    return {
+      goalText,
+      metricGoalsText,
+      reportYears,
+      totalWeightYear,
+      minWeightYear,
+      maxWeightYear,
+      employeesCount: employeesSet.size,
+      kpiCount: kpiRowsForSelected.length,
+      pprCount: pprRowsForSelected.length,
+    }
+  }, [allRowsForSelected, kpiRowsForSelected.length, pprRowsForSelected.length, selectedGoal])
+
+  /** Данные для круговой диаграммы распределения суммарного веса по целям */
+  // Зарезервировано под будущие агрегированные дашборды
 
   return (
     <div className={styles.page}>
@@ -270,7 +332,7 @@ export function DashboardsPage() {
           <section className={styles.eulerSection} aria-labelledby="goal-managers-title">
             <h2 id="goal-managers-title" className={styles.eulerSectionTitle}>Цель: руководители и данные</h2>
             <p className={styles.eulerSectionDesc}>
-              Выберите цель из списка — отобразятся все руководители, у которых есть эта цель, с весами и показателями.
+              Выберите цель из списка — отобразятся сводная карточка цели и все руководители, у которых есть эта цель, с весами и показателями.
             </p>
             {uniqueGoalsList.length === 0 ? (
               <div className={styles.eulerEmpty}>Нет целей в таблице</div>
@@ -287,7 +349,9 @@ export function DashboardsPage() {
                     >
                       <option value="">— выберите цель —</option>
                       {uniqueGoalsList.map((goal) => (
-                        <option key={goal} value={goal}>{goal.length > 80 ? goal.slice(0, 80) + '…' : goal}</option>
+                        <option key={goal} value={goal}>
+                          {goal.length > 80 ? goal.slice(0, 80) + '…' : goal}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -297,41 +361,98 @@ export function DashboardsPage() {
                 ) : goalRowsForSelected.length === 0 ? (
                   <div className={styles.eulerEmpty}>Нет данных по выбранной цели</div>
                 ) : (
-                  <div className={styles.goalManagersWrap}>
-                    <p className={styles.goalManagersSummary}>
-                      Цель «{selectedGoal.length > 60 ? selectedGoal.slice(0, 60) + '…' : selectedGoal}»: {goalRowsForSelected.length} записей
-                    </p>
-                    <div className={styles.tableWrap}>
-                      <table className={styles.summaryTable}>
-                        <thead>
-                          <tr>
-                            <th>Руководитель</th>
-                            <th>Вес год</th>
-                            <th>Вес кв.</th>
-                            <th>Q1</th>
-                            <th>Q2</th>
-                            <th>Q3</th>
-                            <th>Q4</th>
-                            <th>Год</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {goalRowsForSelected.map((row, idx) => (
-                            <tr key={idx}>
-                              <td className={styles.goalManagerName}>{row.lastName}</td>
-                              <td>{row.weightYear}</td>
-                              <td>{row.weightQ}</td>
-                              <td>{row.q1}</td>
-                              <td>{row.q2}</td>
-                              <td>{row.q3}</td>
-                              <td>{row.q4}</td>
-                              <td>{row.year}</td>
+                  <>
+                    {goalCard && (
+                      <div className={styles.goalCard}>
+                        <div className={styles.goalCardMain}>
+                          <h3 className={styles.goalCardTitle}>
+                            {goalCard.goalText || 'Описание цели'}
+                          </h3>
+                          {goalCard.metricGoalsText && (
+                            <p className={styles.goalCardMetric}>
+                              {goalCard.metricGoalsText}
+                            </p>
+                          )}
+                        </div>
+                        <div className={styles.goalCardMeta}>
+                          <div className={styles.goalCardMetaItem}>
+                            <span className={styles.goalCardMetaLabel}>Сотрудников</span>
+                            <span className={styles.goalCardMetaValue}>
+                              {goalCard.employeesCount}
+                            </span>
+                          </div>
+                          <div className={styles.goalCardMetaItem}>
+                            <span className={styles.goalCardMetaLabel}>Суммарный вес года</span>
+                            <span className={styles.goalCardMetaValue}>
+                              {goalCard.totalWeightYear.toFixed(1)}%
+                            </span>
+                          </div>
+                          {goalCard.minWeightYear != null && goalCard.maxWeightYear != null && (
+                            <div className={styles.goalCardMetaItem}>
+                              <span className={styles.goalCardMetaLabel}>Диапазон весов года</span>
+                              <span className={styles.goalCardMetaValue}>
+                                {goalCard.minWeightYear.toFixed(1)}–{goalCard.maxWeightYear.toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                          {goalCard.reportYears.length > 0 && (
+                            <div className={styles.goalCardMetaItem}>
+                              <span className={styles.goalCardMetaLabel}>Отчётные годы</span>
+                              <span className={styles.goalCardMetaValue}>
+                                {goalCard.reportYears.join(', ')}
+                              </span>
+                            </div>
+                          )}
+                          <div className={styles.goalCardMetaItem}>
+                            <span className={styles.goalCardMetaLabel}>Связь с КПЭ / ППР</span>
+                            <span className={styles.goalCardMetaValue}>
+                              КПЭ: {goalCard.kpiCount} · ППР: {goalCard.pprCount}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={styles.goalManagersWrap}>
+                      <p className={styles.goalManagersSummary}>
+                        Цель «
+                        {selectedGoal.length > 60
+                          ? selectedGoal.slice(0, 60) + '…'
+                          : selectedGoal}
+                        »: {goalRowsForSelected.length} записей на вкладке «{tabLabel}»
+                      </p>
+                      <div className={styles.tableWrap}>
+                        <table className={styles.summaryTable}>
+                          <thead>
+                            <tr>
+                              <th>Руководитель</th>
+                              <th>Вес год</th>
+                              <th>Вес кв.</th>
+                              <th>Q1</th>
+                              <th>Q2</th>
+                              <th>Q3</th>
+                              <th>Q4</th>
+                              <th>Год</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {goalRowsForSelected.map((row, idx) => (
+                              <tr key={idx}>
+                                <td className={styles.goalManagerName}>{row.lastName}</td>
+                                <td>{row.weightYear}</td>
+                                <td>{row.weightQ}</td>
+                                <td>{row.q1}</td>
+                                <td>{row.q2}</td>
+                                <td>{row.q3}</td>
+                                <td>{row.q4}</td>
+                                <td>{row.year}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </>
             )}
