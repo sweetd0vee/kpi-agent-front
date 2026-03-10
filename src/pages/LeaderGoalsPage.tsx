@@ -103,6 +103,8 @@ export function LeaderGoalsPage() {
   const [editingDraft, setEditingDraft] = useState<LeaderGoalRow | null>(null)
   const [page, setPage] = useState(1)
   const [filterText, setFilterText] = useState('')
+  const [lastNameFilter, setLastNameFilter] = useState<string[]>([])
+  const [reportYearFilter, setReportYearFilter] = useState<string[]>([])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
@@ -118,6 +120,8 @@ export function LeaderGoalsPage() {
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const lastNameRef = useRef<HTMLDivElement>(null)
+  const reportYearRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let active = true
@@ -172,13 +176,49 @@ export function LeaderGoalsPage() {
   const collator = useMemo(() => new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }), [])
 
   const normalizedFilter = filterText.trim().toLowerCase()
-  const filteredRows = useMemo(() => {
-    if (!normalizedFilter) return goalsState.rows
-    return goalsState.rows.filter((row) => {
-      const searchable = COLUMNS.map((col) => String(row[col.key] ?? '')).join(' ').toLowerCase()
-      return searchable.includes(normalizedFilter)
+  const lastNameOptions = useMemo(() => {
+    const set = new Set<string>()
+    goalsState.rows.forEach((row) => {
+      const value = String(row.lastName ?? '').trim()
+      if (value) set.add(value)
     })
-  }, [goalsState.rows, normalizedFilter])
+    return Array.from(set).sort((a, b) => collator.compare(a, b))
+  }, [goalsState.rows, collator])
+
+  const reportYearOptions = useMemo(() => {
+    const set = new Set<string>()
+    goalsState.rows.forEach((row) => {
+      const value = String(row.reportYear ?? '').trim()
+      if (value) set.add(value)
+    })
+    return Array.from(set).sort((a, b) => collator.compare(a, b))
+  }, [goalsState.rows, collator])
+
+  useEffect(() => {
+    setLastNameFilter((prev) => prev.filter((value) => lastNameOptions.includes(value)))
+  }, [lastNameOptions])
+
+  useEffect(() => {
+    setReportYearFilter((prev) => prev.filter((value) => reportYearOptions.includes(value)))
+  }, [reportYearOptions])
+
+  const filteredRows = useMemo(() => {
+    return goalsState.rows.filter((row) => {
+      if (normalizedFilter) {
+        const searchable = COLUMNS.map((col) => String(row[col.key] ?? '')).join(' ').toLowerCase()
+        if (!searchable.includes(normalizedFilter)) return false
+      }
+      if (lastNameFilter.length > 0) {
+        const name = String(row.lastName ?? '').trim()
+        if (!lastNameFilter.includes(name)) return false
+      }
+      if (reportYearFilter.length > 0) {
+        const year = String(row.reportYear ?? '').trim()
+        if (!reportYearFilter.includes(year)) return false
+      }
+      return true
+    })
+  }, [goalsState.rows, normalizedFilter, lastNameFilter, reportYearFilter])
 
   const sortedRows = useMemo(() => {
     if (!sortKey) return filteredRows
@@ -215,7 +255,7 @@ export function LeaderGoalsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [normalizedFilter, sortKey, sortDirection, pageSize])
+  }, [normalizedFilter, sortKey, sortDirection, pageSize, lastNameFilter, reportYearFilter])
 
   const addRow = useCallback(() => {
     const newRow = createRow()
@@ -281,13 +321,20 @@ export function LeaderGoalsPage() {
     const content = serializeLeaderGoalsRowsToText(sortedRows)
     if (!content.trim()) return
     const label = getDefaultAttachableLabel('leader_goals')
-    const filterDescription = filterText.trim() ? `Поиск: ${filterText.trim()}` : undefined
+    const parts: string[] = []
+    if (filterText.trim()) parts.push(`Поиск: ${filterText.trim()}`)
+    if (lastNameFilter.length > 0) parts.push(`ФИО: ${lastNameFilter.join(', ')}`)
+    if (reportYearFilter.length > 0) parts.push(`Отчётный год: ${reportYearFilter.join(', ')}`)
+    const filterDescription = parts.length > 0 ? parts.join('; ') : undefined
     addAttachable({ type: 'leader_goals', label, content, filterDescription })
     setSavedToChatToast(true)
     setTimeout(() => setSavedToChatToast(false), 2500)
-  }, [sortedRows, filterText])
+  }, [sortedRows, filterText, lastNameFilter, reportYearFilter])
 
-  const hasFilter = normalizedFilter.length > 0
+  const hasFilter =
+    normalizedFilter.length > 0 ||
+    lastNameFilter.length > 0 ||
+    reportYearFilter.length > 0
 
   const handleSort = useCallback((key: LeaderGoalField) => {
     setSortKey((prevKey) => {
@@ -333,7 +380,7 @@ export function LeaderGoalsPage() {
   const handleExport = useCallback(
     (format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
       setExportDropdownOpen(false)
-      const rows = goalsState.rows
+      const rows = sortedRows
       const prefix = 'руководители'
       if (format === 'csv') exportLeaderGoalsCSV(rows, prefix)
       else if (format === 'xlsx') exportLeaderGoalsExcel(rows, prefix)
@@ -352,6 +399,70 @@ export function LeaderGoalsPage() {
     },
     [goalsState.rows]
   )
+
+  const allLastNamesSelected =
+    lastNameOptions.length > 0 && lastNameFilter.length === lastNameOptions.length
+  const allReportYearSelected =
+    reportYearOptions.length > 0 && reportYearFilter.length === reportYearOptions.length
+
+  const toggleLastName = useCallback(
+    (value: string) => {
+      setLastNameFilter((prev) => {
+        if (prev.includes(value)) return prev.filter((item) => item !== value)
+        return [...prev, value].sort((a, b) => collator.compare(a, b))
+      })
+    },
+    [collator]
+  )
+
+  const toggleAllLastNames = useCallback(() => {
+    setLastNameFilter((prev) =>
+      prev.length === lastNameOptions.length ? [] : [...lastNameOptions]
+    )
+  }, [lastNameOptions])
+
+  const toggleReportYear = useCallback(
+    (value: string) => {
+      setReportYearFilter((prev) => {
+        if (prev.includes(value)) return prev.filter((item) => item !== value)
+        return [...prev, value].sort((a, b) => collator.compare(a, b))
+      })
+    },
+    [collator]
+  )
+
+  const toggleAllReportYear = useCallback(() => {
+    setReportYearFilter((prev) =>
+      prev.length === reportYearOptions.length ? [] : [...reportYearOptions]
+    )
+  }, [reportYearOptions])
+
+  const [lastNameOpen, setLastNameOpen] = useState(false)
+  const [reportYearOpen, setReportYearOpen] = useState(false)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      const insideLastName = lastNameRef.current?.contains(target)
+      const insideReportYear = reportYearRef.current?.contains(target)
+      if (!insideLastName && !insideReportYear) {
+        setLastNameOpen(false)
+        setReportYearOpen(false)
+      }
+    }
+    if (lastNameOpen || reportYearOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [lastNameOpen, reportYearOpen])
+
+  const resetAllFilters = useCallback(() => {
+    setFilterText('')
+    setLastNameFilter([])
+    setReportYearFilter([])
+    setLastNameOpen(false)
+    setReportYearOpen(false)
+  }, [])
 
   return (
     <div className={styles.page}>
@@ -404,28 +515,154 @@ export function LeaderGoalsPage() {
         </header>
 
         <div className={styles.filtersPanel}>
-          <label className={styles.filterField}>
-            <span className={styles.filterLabel}>Поиск</span>
-            <input
-              type="text"
-              className={styles.filterInput}
-              placeholder="По всем полям..."
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              disabled={!!editingRowId}
-              aria-label="Поиск по таблице"
-            />
-          </label>
-          {hasFilter && (
+          <div className={styles.filtersGrid}>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Поиск</span>
+              <input
+                type="text"
+                className={styles.filterInput}
+                placeholder="По всем полям..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                disabled={!!editingRowId}
+                aria-label="Поиск по таблице"
+              />
+            </label>
+
+            <div
+              className={`${styles.filterField} ${styles.filterSelect}`}
+              ref={lastNameRef}
+            >
+              <span className={styles.filterLabel}>ФИО</span>
+              <button
+                type="button"
+                className={styles.filterSelectButton}
+                onClick={() => {
+                  setLastNameOpen((prev) => !prev)
+                  setReportYearOpen(false)
+                }}
+                disabled={!!editingRowId}
+                aria-expanded={lastNameOpen}
+                aria-haspopup="listbox"
+              >
+                <span className={styles.filterSelectText}>
+                  {lastNameFilter.length === 0
+                    ? 'Все ФИО'
+                    : lastNameFilter.length <= 2
+                      ? lastNameFilter.join(', ')
+                      : `${lastNameFilter.slice(0, 2).join(', ')} +${
+                          lastNameFilter.length - 2
+                        }`}
+                </span>
+                <span className={styles.filterSelectCaret} aria-hidden />
+              </button>
+              {lastNameOpen && (
+                <div
+                  className={styles.filterSelectMenu}
+                  role="listbox"
+                  aria-label="ФИО"
+                >
+                  {lastNameOptions.length === 0 ? (
+                    <div className={styles.filterSelectEmpty}>Нет данных</div>
+                  ) : (
+                    <>
+                      <label className={styles.filterSelectOption}>
+                        <input
+                          type="checkbox"
+                          checked={allLastNamesSelected}
+                          onChange={toggleAllLastNames}
+                        />
+                        <span>Выбрать все</span>
+                      </label>
+                      {lastNameOptions.map((value) => (
+                        <label key={value} className={styles.filterSelectOption}>
+                          <input
+                            type="checkbox"
+                            checked={lastNameFilter.includes(value)}
+                            onChange={() => toggleLastName(value)}
+                          />
+                          <span>{value}</span>
+                        </label>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div
+              className={`${styles.filterField} ${styles.filterSelect}`}
+              ref={reportYearRef}
+            >
+              <span className={styles.filterLabel}>Отчётный год</span>
+              <button
+                type="button"
+                className={styles.filterSelectButton}
+                onClick={() => {
+                  setReportYearOpen((prev) => !prev)
+                  setLastNameOpen(false)
+                }}
+                disabled={!!editingRowId}
+                aria-expanded={reportYearOpen}
+                aria-haspopup="listbox"
+              >
+                <span className={styles.filterSelectText}>
+                  {reportYearFilter.length === 0
+                    ? 'Все годы'
+                    : reportYearFilter.length <= 2
+                      ? reportYearFilter.join(', ')
+                      : `${reportYearFilter.slice(0, 2).join(', ')} +${
+                          reportYearFilter.length - 2
+                        }`}
+                </span>
+                <span className={styles.filterSelectCaret} aria-hidden />
+              </button>
+              {reportYearOpen && (
+                <div
+                  className={styles.filterSelectMenu}
+                  role="listbox"
+                  aria-label="Отчётный год"
+                >
+                  {reportYearOptions.length === 0 ? (
+                    <div className={styles.filterSelectEmpty}>Нет данных</div>
+                  ) : (
+                    <>
+                      <label className={styles.filterSelectOption}>
+                        <input
+                          type="checkbox"
+                          checked={allReportYearSelected}
+                          onChange={toggleAllReportYear}
+                        />
+                        <span>Выбрать все</span>
+                      </label>
+                      {reportYearOptions.map((value) => (
+                        <label key={value} className={styles.filterSelectOption}>
+                          <input
+                            type="checkbox"
+                            checked={reportYearFilter.includes(value)}
+                            onChange={() => toggleReportYear(value)}
+                          />
+                          <span>{value || 'Пусто'}</span>
+                        </label>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.filtersActions}>
             <button
               type="button"
               className={styles.resetFiltersBtn}
-              onClick={() => setFilterText('')}
-              disabled={!!editingRowId}
+              onClick={resetAllFilters}
+              disabled={!!editingRowId || !hasFilter}
+              title="Сбросить поиск и фильтры"
             >
-              Сбросить фильтр
+              Сбросить фильтры
             </button>
-          )}
+          </div>
         </div>
 
         {dataError && (
