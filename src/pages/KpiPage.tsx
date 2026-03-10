@@ -10,7 +10,7 @@ import styles from './GoalsPage.module.css'
 
 type GoalField = keyof Omit<GoalRow, 'id'>
 
-const PAGE_SIZE = 15
+const DEFAULT_PAGE_SIZE = 15
 
 type Column = {
   key: GoalField
@@ -103,6 +103,7 @@ export function KpiPage() {
   const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
+  const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -323,9 +324,10 @@ export function KpiPage() {
       .map((item) => item.row)
   }, [collator, filteredRows, sortDirection, sortKey])
 
-  const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE))
-  const pageStart = (page - 1) * PAGE_SIZE
-  const pageRows = sortedRows.slice(pageStart, pageStart + PAGE_SIZE)
+  const pageSizeNumber = pageSize === 'all' ? (sortedRows.length || 1) : pageSize
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(sortedRows.length / pageSizeNumber))
+  const pageStart = (page - 1) * pageSizeNumber
+  const pageRows = pageSize === 'all' ? sortedRows : sortedRows.slice(pageStart, pageStart + pageSizeNumber)
 
   useEffect(() => {
     setPage((prev) => Math.min(prev, totalPages))
@@ -333,7 +335,7 @@ export function KpiPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [filters, lastNameFilter, weightQFilter, weightYearFilter, reportYearFilter, sortKey, sortDirection])
+  }, [filters, lastNameFilter, weightQFilter, weightYearFilter, reportYearFilter, sortKey, sortDirection, pageSize])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -471,8 +473,12 @@ export function KpiPage() {
     setEditingRowId(newRow.id)
     setEditingDraft(newRow)
     setIsAddingNewRow(true)
-    setPage(Math.ceil((goalsState.rows.length + 1) / PAGE_SIZE))
-  }, [goalsState.rows.length])
+    setPage((prevPage) => {
+      if (pageSize === 'all') return 1
+      const size = pageSize === 'all' ? DEFAULT_PAGE_SIZE : pageSize
+      return Math.max(prevPage, Math.ceil((goalsState.rows.length + 1) / size))
+    })
+  }, [goalsState.rows.length, pageSize])
 
   const handleSort = useCallback((key: GoalField) => {
     setSortKey((prevKey) => {
@@ -921,6 +927,18 @@ export function KpiPage() {
             </button>
             {savedToChatToast && <span className={styles.saveToChatToast}>Таблица сохранена в Базу знаний</span>}
           </div>
+
+          <div className={styles.paginationSummary}>
+            {sortedRows.length === 0
+              ? '0 записей'
+              : (() => {
+                  const from = pageSize === 'all' ? 1 : pageStart + 1
+                  const to = pageSize === 'all' ? sortedRows.length : Math.min(sortedRows.length, pageStart + pageSizeNumber)
+                  const pageInfo = totalPages > 1 && pageSize !== 'all' ? `, стр. ${page} из ${totalPages}` : ''
+                  return `Записи ${from}–${to} из ${sortedRows.length}${pageInfo}`
+                })()}
+          </div>
+
           <div className={styles.exportWrap} ref={exportDropdownRef}>
             <button type="button" className={styles.exportBtn} onClick={() => setExportDropdownOpen((v) => !v)} disabled={!!editingRowId} aria-expanded={exportDropdownOpen} aria-haspopup="true">
               Экспорт
@@ -935,15 +953,84 @@ export function KpiPage() {
               </div>
             )}
           </div>
+
+          <div className={styles.pageSizeWrap}>
+            <label className={styles.pageSizeLabel}>
+              Показывать по
+              <select
+                className={styles.pageSizeSelect}
+                value={pageSize === 'all' ? 'all' : String(pageSize)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setPage(1)
+                  setPageSize(value === 'all' ? 'all' : Number(value))
+                }}
+                disabled={!!editingRowId}
+              >
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="all">Все</option>
+              </select>
+            </label>
+          </div>
+
           {totalPages > 1 && (
             <div className={styles.pagination} aria-label="Пагинация таблицы">
-              <button type="button" className={styles.paginationBtn} onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page === 1 || !!editingRowId} aria-label="Предыдущая страница">‹</button>
-              {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNumber) => (
-                <button key={pageNumber} type="button" className={pageNumber === page ? `${styles.paginationBtn} ${styles.paginationBtnActive}` : styles.paginationBtn} onClick={() => setPage(pageNumber)} disabled={!!editingRowId}>
-                  {pageNumber}
-                </button>
-              ))}
-              <button type="button" className={styles.paginationBtn} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} disabled={page === totalPages || !!editingRowId} aria-label="Следующая страница">›</button>
+              <button
+                type="button"
+                className={styles.paginationBtn}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page === 1 || !!editingRowId}
+                aria-label="Предыдущая страница"
+              >
+                ‹
+              </button>
+              {(() => {
+                const pages: (number | 'ellipsis')[] = []
+                if (totalPages <= 7) {
+                  for (let p = 1; p <= totalPages; p += 1) pages.push(p)
+                } else {
+                  pages.push(1)
+                  const left = Math.max(2, page - 1)
+                  const right = Math.min(totalPages - 1, page + 1)
+                  if (left > 2) pages.push('ellipsis')
+                  for (let p = left; p <= right; p += 1) pages.push(p)
+                  if (right < totalPages - 1) pages.push('ellipsis')
+                  pages.push(totalPages)
+                }
+                return pages.map((p, index) =>
+                  p === 'ellipsis' ? (
+                    <span key={`e-${index}`} className={styles.paginationEllipsis}>
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      type="button"
+                      className={
+                        p === page
+                          ? `${styles.paginationBtn} ${styles.paginationBtnActive}`
+                          : styles.paginationBtn
+                      }
+                      onClick={() => setPage(p)}
+                      disabled={!!editingRowId}
+                    >
+                      {p}
+                    </button>
+                  )
+                )
+              })()}
+              <button
+                type="button"
+                className={styles.paginationBtn}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page === totalPages || !!editingRowId}
+                aria-label="Следующая страница"
+              >
+                ›
+              </button>
             </div>
           )}
         </div>
