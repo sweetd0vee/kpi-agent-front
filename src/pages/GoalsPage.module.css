@@ -350,10 +350,11 @@
   table-layout: fixed;
   border-collapse: collapse;
   border: 1px solid #cbd5e1;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .table th {
+  position: relative;
   text-align: center;
   padding: 0.6rem 0.5rem;
   font-size: 0.875rem;
@@ -365,6 +366,23 @@
   border: 1px solid #cbd5e1;
   min-width: 0;
   overflow: hidden;
+}
+
+.colResizeHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 6px;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  background: transparent;
+}
+
+.colResizeHandle:hover,
+.colResizeHandle:active {
+  background: rgba(30, 58, 138, 0.12);
 }
 
 .table td {
@@ -520,28 +538,20 @@
 .colSurname {
   width: 8%;
   min-width: 6rem;
-  max-width: 10rem;
 }
 
 /* Колонка ФИО в таблице «Руководители» — чуть уже */
 .colLeaderSurname {
   width: 6%;
   min-width: 4rem;
-  max-width: 7rem;
-}
-
-.leaderGoalsTable th.colLeaderSurname {
-  max-width: 7rem;
 }
 
 .colGoal {
   width: 11%;
-  max-width: 14rem;
 }
 
 .colMetricGoals {
   width: 22%;
-  max-width: 20rem;
 }
 
 /* Таблица «Руководители»: заголовки с переносами строк */
@@ -551,7 +561,6 @@
   line-height: 1.25;
   font-size: 0.75rem;
   padding: 0.4rem 0.35rem;
-  max-width: 5.5rem;
 }
 
 .leaderGoalsTable th .leaderGoalThLabel {
@@ -573,7 +582,6 @@
 .leaderGoalsTable th.colGoal,
 .leaderGoalsTable td.colGoal {
   width: 5%;
-  max-width: 5.5rem;
   min-width: 0;
 }
 
@@ -585,61 +593,36 @@
 /* Колонка «Наименование КПЭ» — чуть уже */
 .colLeaderName {
   width: 8%;
-  max-width: 6rem;
   min-width: 0;
 }
 
-.leaderGoalsTable th.colLeaderName {
-  max-width: 6rem;
-}
-
-.leaderGoalsTable th.colQuarter {
-  max-width: 3.5rem;
-}
 
 /* Колонка «№ цели» */
 .colLeaderGoalNum {
   width: 2.5%;
-  max-width: 2.75rem;
   min-width: 0;
-}
-
-.leaderGoalsTable th.colLeaderGoalNum {
-  max-width: 2.75rem;
 }
 
 /* Узкие колонки «Вид цели» и «Ед. изм.» — таблица помещается на одну страницу */
 .colLeaderNarrow {
   width: 3%;
-  max-width: 4rem;
   min-width: 0;
 }
 
 .leaderGoalsTable th.colLeaderNarrow {
-  max-width: 4rem;
   font-size: 0.7rem;
 }
 
 /* Колонки Комментарии, Методика расчёта, Источник информации — чуть уже для компактности */
 .colLeaderMedium {
   width: 5%;
-  max-width: 5.5rem;
   min-width: 0;
-}
-
-.leaderGoalsTable th.colLeaderMedium {
-  max-width: 5.5rem;
 }
 
 /* Колонки «I кв. План. / веха», «II кв.» … «Год План. / веха» — уже */
 .colLeaderPlan {
   width: 3.5%;
-  max-width: 4rem;
   min-width: 0;
-}
-
-.leaderGoalsTable th.colLeaderPlan {
-  max-width: 4rem;
 }
 
 .colQuarter {
@@ -697,9 +680,10 @@
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
 }
+
 
 .valueMuted {
   color: #94a3b8;

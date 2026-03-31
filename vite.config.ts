@@ -13,12 +13,20 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Бэкенд каскадирования (документы, коллекции, чат, дашборд)
       '/api/documents': { target: 'http://localhost:8000', changeOrigin: true },
       '/api/collections': { target: 'http://localhost:8000', changeOrigin: true },
       '/api/chat': { target: 'http://localhost:8000', changeOrigin: true },
       '/api/dashboard': { target: 'http://localhost:8000', changeOrigin: true },
-      // Open Web UI (модели, файлы, знания)
+      '/api/board-goals': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api/kpi': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api/ppr': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api/leader-goals': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api/strategy-goals': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api/settings': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api/db': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api/reference': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api/departments': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api/leaders': { target: 'http://localhost:8000', changeOrigin: true },
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,

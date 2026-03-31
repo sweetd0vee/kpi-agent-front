@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getKpiRows, saveKpiRows } from '@/api/goals'
+import { getBoardGoalRows, saveBoardGoalRows } from '@/api/goals'
 import { addAttachable, generateId, getDefaultAttachableLabel, type GoalRow } from '@/lib/storage'
 import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exportGoalsPDF, serializeKpiRowsToText } from '@/lib/exportGoals'
 import { parseKpiXlsxToRows } from '@/lib/importGoals'
+
+export { KpiPage as BoardGoalsPage }
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditRowModal, type EditRowField } from '@/components/EditRowModal/EditRowModal'
 import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
@@ -104,6 +106,8 @@ export function KpiPage() {
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
+  const [colWidths, setColWidths] = useState<Record<string, number>>({})
+  const resizeStateRef = useRef<{ key: GoalField; startX: number; startWidth: number } | null>(null)
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -112,10 +116,41 @@ export function KpiPage() {
   const weightYearRef = useRef<HTMLDivElement>(null)
   const reportYearRef = useRef<HTMLDivElement>(null)
 
+  const startColumnResize = useCallback(
+    (key: GoalField, e: React.MouseEvent<HTMLDivElement>) => {
+      if (!!editingRowId) return
+      e.preventDefault()
+      e.stopPropagation()
+
+      const thEl = e.currentTarget.parentElement as HTMLElement | null
+      const startWidth = thEl?.getBoundingClientRect().width ?? 120
+
+      resizeStateRef.current = { key, startX: e.clientX, startWidth }
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const state = resizeStateRef.current
+        if (!state) return
+        const dx = ev.clientX - state.startX
+        const next = Math.max(60, Math.min(1200, state.startWidth + dx))
+        setColWidths((prev) => ({ ...prev, [state.key]: next }))
+      }
+
+      const onMouseUp = () => {
+        resizeStateRef.current = null
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+      }
+
+      document.addEventListener('mousemove', onMouseMove)
+      document.addEventListener('mouseup', onMouseUp)
+    },
+    [editingRowId]
+  )
+
   useEffect(() => {
     let active = true
     setIsLoading(true)
-    getKpiRows()
+    getBoardGoalRows()
       .then((rows) => {
         if (!active) return
         setGoalsState({ rows })
@@ -143,7 +178,7 @@ export function KpiPage() {
       skipSyncRef.current = false
       return
     }
-    void saveKpiRows(goalsState.rows)
+    void saveBoardGoalRows(goalsState.rows)
       .then(() => setDataError(null))
       .catch((err) => {
         setDataError(err instanceof Error ? err.message : 'Не удалось сохранить данные.')
@@ -373,16 +408,16 @@ export function KpiPage() {
     (format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
       setExportDropdownOpen(false)
       const rows = sortedRows
-      if (format === 'csv') exportGoalsCSV(rows, 'кпэ')
-      else if (format === 'xlsx') exportGoalsExcel(rows, 'кпэ')
-      else if (format === 'html') exportGoalsHTML(rows, 'кпэ')
+      if (format === 'csv') exportGoalsCSV(rows, 'цели-правления')
+      else if (format === 'xlsx') exportGoalsExcel(rows, 'цели-правления')
+      else if (format === 'html') exportGoalsHTML(rows, 'цели-правления')
       else if (format === 'pdf') {
-        exportGoalsPDF(rows, 'кпэ').catch((err) => {
+        exportGoalsPDF(rows, 'цели-правления').catch((err) => {
           console.error('Ошибка экспорта PDF:', err)
           alert('Не удалось создать PDF. Проверьте консоль браузера (F12).')
         })
       } else if (format === 'docx') {
-        exportGoalsDOCX(rows, 'кпэ').catch((err) => {
+        exportGoalsDOCX(rows, 'цели-правления').catch((err) => {
           console.error('Ошибка экспорта DOCX:', err)
           alert('Не удалось создать DOCX. Проверьте консоль браузера (F12).')
         })
@@ -475,7 +510,7 @@ export function KpiPage() {
     setIsAddingNewRow(true)
     setPage((prevPage) => {
       if (pageSize === 'all') return 1
-      const size = pageSize === 'all' ? DEFAULT_PAGE_SIZE : pageSize
+      const size = pageSize
       return Math.max(prevPage, Math.ceil((goalsState.rows.length + 1) / size))
     })
   }, [goalsState.rows.length, pageSize])
@@ -556,9 +591,9 @@ export function KpiPage() {
   const saveToChatContext = useCallback(() => {
     const content = serializeKpiRowsToText(sortedRows)
     if (!content.trim()) return
-    const label = getDefaultAttachableLabel('kpi')
+    const label = getDefaultAttachableLabel('board_goals')
     const filterDescription = buildFilterDescription()
-    addAttachable({ type: 'kpi', label, content, filterDescription })
+    addAttachable({ type: 'board_goals', label, content, filterDescription })
     setSavedToChatToast(true)
     setTimeout(() => setSavedToChatToast(false), 2500)
   }, [sortedRows, buildFilterDescription])
@@ -567,7 +602,7 @@ export function KpiPage() {
     <div className={styles.page}>
       <header className={styles.hero}>
         <div>
-          <h1 className={styles.title}>КПЭ</h1>
+          <h1 className={styles.title}>Цели правления</h1>
         </div>
       </header>
 
@@ -844,7 +879,7 @@ export function KpiPage() {
             <thead>
               <tr>
                 {columns.map((col) => (
-                  <th key={col.key} className={col.cellClassName}>
+                  <th key={col.key} className={col.cellClassName} style={colWidths[col.key] ? { width: colWidths[col.key] } : undefined}>
                     <button
                       type="button"
                       className={styles.sortBtn}
@@ -867,6 +902,12 @@ export function KpiPage() {
                         aria-hidden
                       />
                     </button>
+                    <div
+                      className={styles.colResizeHandle}
+                      role="separator"
+                      aria-label={`Изменить ширину колонки: ${col.label}`}
+                      onMouseDown={(e) => startColumnResize(col.key, e)}
+                    />
                   </th>
                 ))}
                 <th className={styles.actionsCol}>Действия</th>
@@ -892,7 +933,11 @@ export function KpiPage() {
                       const value = row[col.key] ?? ''
                       const isEmpty = !value.trim()
                       return (
-                        <td key={col.key} className={col.cellClassName}>
+                        <td
+                          key={col.key}
+                          className={col.cellClassName}
+                          style={colWidths[col.key] ? { width: colWidths[col.key] } : undefined}
+                        >
                           <span className={[styles.valueText, col.valueClassName ?? '', isEmpty ? styles.valueMuted : ''].filter(Boolean).join(' ')}>{isEmpty ? '' : value}</span>
                         </td>
                       )
@@ -1050,7 +1095,7 @@ export function KpiPage() {
       <ConfirmModal
         open={pendingClearTable}
         title="Очистить таблицу"
-        message="Удалить все записи в таблице КПЭ? Это действие нельзя отменить."
+        message="Удалить все записи в таблице «Цели правления»? Это действие нельзя отменить."
         confirmLabel="Очистить"
         cancelLabel="Отмена"
         onConfirm={confirmClearTable}

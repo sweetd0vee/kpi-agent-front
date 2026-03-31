@@ -54,9 +54,9 @@ const icons = {
 }
 
 const goalsItems = [
-  { to: '/kpi', label: 'КПЭ' },
-  { to: '/ppr', label: 'ППР' },
-  { to: '/leader-goals', label: 'Линейный менеджмент' },
+  { to: '/strategy-goals', label: 'Цели стратегии' },
+  { to: '/board-goals', label: 'Цели правления' },
+  { to: '/leader-goals', label: 'Цели руководителей' },
 ] as const
 
 const navItems = [

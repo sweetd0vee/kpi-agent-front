@@ -1,4 +1,4 @@
-import { generateId, type GoalRow, type LeaderGoalRow } from '@/lib/storage'
+import { generateId, type GoalRow, type LeaderGoalRow, type StrategyGoalRow } from '@/lib/storage'
 
 const getBaseUrl = (): string => {
   const env = (import.meta.env?.VITE_API_URL as string)?.trim() || ''
@@ -55,6 +55,20 @@ async function parseRowsResponse(res: Response, errorPrefix: string): Promise<Go
   } catch {
     throw new Error('Ответ не JSON. Убедитесь, что backend запущен.')
   }
+}
+
+export async function getBoardGoalRows(): Promise<GoalRow[]> {
+  const res = await apiFetch('/api/board-goals')
+  return parseRowsResponse(res, 'Цели правления')
+}
+
+export async function saveBoardGoalRows(rows: GoalRow[]): Promise<GoalRow[]> {
+  const res = await apiFetch('/api/board-goals', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows }),
+  })
+  return parseRowsResponse(res, 'Цели правления')
 }
 
 export async function getKpiRows(): Promise<GoalRow[]> {
@@ -134,7 +148,7 @@ async function parseLeaderGoalRowsResponse(res: Response, errorPrefix: string): 
 
 export async function getLeaderGoalRows(): Promise<LeaderGoalRow[]> {
   const res = await apiFetch('/api/leader-goals')
-  return parseLeaderGoalRowsResponse(res, 'Линейный менеджмент')
+  return parseLeaderGoalRowsResponse(res, 'Цели руководителей')
 }
 
 export async function saveLeaderGoalRows(rows: LeaderGoalRow[]): Promise<LeaderGoalRow[]> {
@@ -143,5 +157,63 @@ export async function saveLeaderGoalRows(rows: LeaderGoalRow[]): Promise<LeaderG
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rows }),
   })
-  return parseLeaderGoalRowsResponse(res, 'Линейный менеджмент')
+  return parseLeaderGoalRowsResponse(res, 'Цели руководителей')
+}
+
+function normalizeStrategyGoalRows(value: unknown): StrategyGoalRow[] {
+  if (!Array.isArray(value)) return []
+  return value.map((row) => {
+    const item = row as Partial<StrategyGoalRow>
+    return {
+      id: typeof item.id === 'string' && item.id ? item.id : generateId(),
+      businessUnit: typeof item.businessUnit === 'string' ? item.businessUnit : '',
+      segment: typeof item.segment === 'string' ? item.segment : '',
+      strategicPriority: typeof item.strategicPriority === 'string' ? item.strategicPriority : '',
+      goalObjective: typeof item.goalObjective === 'string' ? item.goalObjective : '',
+      initiative: typeof item.initiative === 'string' ? item.initiative : '',
+      initiativeType: typeof item.initiativeType === 'string' ? item.initiativeType : '',
+      responsiblePersonOwner: typeof item.responsiblePersonOwner === 'string' ? item.responsiblePersonOwner : '',
+      otherUnitsInvolved: typeof item.otherUnitsInvolved === 'string' ? item.otherUnitsInvolved : '',
+      budget: typeof item.budget === 'string' ? item.budget : '',
+      startDate: typeof item.startDate === 'string' ? item.startDate : '',
+      endDate: typeof item.endDate === 'string' ? item.endDate : '',
+      kpi: typeof item.kpi === 'string' ? item.kpi : '',
+      unitOfMeasure: typeof item.unitOfMeasure === 'string' ? item.unitOfMeasure : '',
+      targetValue2025: typeof item.targetValue2025 === 'string' ? item.targetValue2025 : '',
+      targetValue2026: typeof item.targetValue2026 === 'string' ? item.targetValue2026 : '',
+      targetValue2027: typeof item.targetValue2027 === 'string' ? item.targetValue2027 : '',
+      category: typeof item.category === 'string' ? item.category : '',
+    }
+  })
+}
+
+async function parseStrategyGoalRowsResponse(res: Response, errorPrefix: string): Promise<StrategyGoalRow[]> {
+  const text = await res.text()
+  if (!res.ok) {
+    throw new Error(text?.slice(0, 200) || `${errorPrefix}: ${res.status}`)
+  }
+  if (text.trimStart().toLowerCase().startsWith('<!')) {
+    throw new Error('Backend не доступен. Запустите backend на порту 8000.')
+  }
+  try {
+    const data = JSON.parse(text) as { rows?: StrategyGoalRow[] } | StrategyGoalRow[]
+    if (Array.isArray(data)) return normalizeStrategyGoalRows(data)
+    return normalizeStrategyGoalRows(data?.rows)
+  } catch {
+    throw new Error('Ответ не JSON. Убедитесь, что backend запущен.')
+  }
+}
+
+export async function getStrategyGoalRows(): Promise<StrategyGoalRow[]> {
+  const res = await apiFetch('/api/strategy-goals')
+  return parseStrategyGoalRowsResponse(res, 'Цели стратегии')
+}
+
+export async function saveStrategyGoalRows(rows: StrategyGoalRow[]): Promise<StrategyGoalRow[]> {
+  const res = await apiFetch('/api/strategy-goals', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows }),
+  })
+  return parseStrategyGoalRowsResponse(res, 'Цели стратегии')
 }

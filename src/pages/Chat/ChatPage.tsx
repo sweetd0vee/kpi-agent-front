@@ -1018,7 +1018,7 @@ export function ChatPage() {
                   <div className={styles.collectionPickerTitle}>Прикрепить таблицу или фрагмент</div>
                   {getAttachables().length === 0 ? (
                     <div className={styles.collectionPickerEmpty}>
-                      Нет сохранённых приложений. Сохраните таблицу на вкладках КПЭ / ППР / Линейный менеджмент или фрагмент в База знаний → Таблицы.
+                      Нет сохранённых приложений. Сохраните таблицу на вкладках Цели правления / Цели руководителей / Цели стратегии или фрагмент в База знаний → Таблицы.
                     </div>
                   ) : (
                     <ul className={styles.collectionPickerList}>
@@ -1035,7 +1035,7 @@ export function ChatPage() {
                             <TableIcon className={styles.fileChipIcon} />
                             <span className={styles.promptPickerItemText}>{a.label}</span>
                             <span className={styles.collectionPickerMeta}>
-                              {a.type === 'kpi' ? 'КПЭ' : a.type === 'ppr' ? 'ППР' : a.type === 'leader_goals' ? 'Линейный менеджмент' : 'Фрагмент'}
+                              {a.type === 'board_goals' ? 'Цели правления' : a.type === 'leader_goals' ? 'Цели руководителей' : a.type === 'strategy_goals' ? 'Цели стратегии' : 'Фрагмент'}
                             </span>
                           </button>
                         </li>

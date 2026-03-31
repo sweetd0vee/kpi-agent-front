@@ -52,10 +52,10 @@ export type ChatSettings = {
   apiKey: string
 }
 
-/** Сохранённое приложение к чату: таблица (КПЭ/ППР/Линейный менеджмент) или фрагмент базы знаний */
+/** Сохранённое приложение к чату: таблица (Цели правления/Цели руководителей/Цели стратегии) или фрагмент базы знаний */
 export type StoredAttachable = {
   id: string
-  type: 'kpi' | 'ppr' | 'leader_goals' | 'knowledge_chunk'
+  type: 'board_goals' | 'leader_goals' | 'strategy_goals' | 'knowledge_chunk'
   label: string
   content: string
   /** Описание фильтров на момент сохранения (для воспроизведения логики отбора) */
@@ -113,6 +113,27 @@ export type LeaderGoalRow = {
 
 export type LeaderGoalsState = {
   rows: LeaderGoalRow[]
+}
+
+export type StrategyGoalRow = {
+  id: string
+  businessUnit: string
+  segment: string
+  strategicPriority: string
+  goalObjective: string
+  initiative: string
+  initiativeType: string
+  responsiblePersonOwner: string
+  otherUnitsInvolved: string
+  budget: string
+  startDate: string
+  endDate: string
+  kpi: string
+  unitOfMeasure: string
+  targetValue2025: string
+  targetValue2026: string
+  targetValue2027: string
+  category: string
 }
 
 export function getChats(): StoredChat[] {
@@ -208,9 +229,9 @@ export function removeAttachable(id: string): void {
 }
 
 const ATTACHABLE_TYPE_BASE: Record<StoredAttachable['type'], string> = {
-  kpi: 'КПЭ',
-  ppr: 'ППР',
-  leader_goals: 'Линейный менеджмент',
+  board_goals: 'Цели правления',
+  leader_goals: 'Цели руководителей',
+  strategy_goals: 'Цели стратегии',
   knowledge_chunk: 'Фрагмент',
 }
 

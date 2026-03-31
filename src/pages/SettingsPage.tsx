@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
+import * as XLSX from 'xlsx'
 import {
   getTemplateDocuments,
   getDocument,
@@ -94,7 +96,248 @@ function DocIcon({ type }: { type: 'plan' | 'strategy' | 'reglament' }) {
   )
 }
 
+type KpiRefRow = { id: string; name: string; unit: string }
+
+const KPI_REF_KEY = 'kpi-ref-registry'
+
+function loadKpiRef(): KpiRefRow[] {
+  try {
+    const raw = localStorage.getItem(KPI_REF_KEY)
+    if (!raw) return []
+    const list = JSON.parse(raw) as KpiRefRow[]
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
+function saveKpiRef(rows: KpiRefRow[]): void {
+  localStorage.setItem(KPI_REF_KEY, JSON.stringify(rows))
+}
+
+const KPI_REF_HEADER_MAP: Record<string, 'name' | 'unit'> = {
+  'Наименование количественного КПЭ': 'name',
+  'Наименование КПЭ': 'name',
+  'КПЭ': 'name',
+  'Ед. измерения': 'unit',
+  'ед. изм.': 'unit',
+  'Единица измерения': 'unit',
+}
+
+function parseKpiRefXlsx(file: File): Promise<KpiRefRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result
+        if (!data || !(data instanceof ArrayBuffer)) {
+          reject(new Error('Не удалось прочитать файл'))
+          return
+        }
+        const wb = XLSX.read(data, { type: 'array' })
+        const sheetName = wb.SheetNames[0]
+        if (!sheetName) { reject(new Error('В файле нет листов')); return }
+        const rawRows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets[sheetName], { header: 1, defval: '', raw: false }) as unknown[][]
+        if (!Array.isArray(rawRows) || rawRows.length < 2) { resolve([]); return }
+
+        const headers = rawRows[0].map((h) => String(h ?? '').trim())
+        const colMap = new Map<number, 'name' | 'unit'>()
+        headers.forEach((h, i) => { const field = KPI_REF_HEADER_MAP[h]; if (field) colMap.set(i, field) })
+
+        const result: KpiRefRow[] = []
+        for (let i = 1; i < rawRows.length; i++) {
+          const cells = rawRows[i] as unknown[]
+          const row: Record<string, string> = { name: '', unit: '' }
+          colMap.forEach((field, idx) => { row[field] = String(cells[idx] ?? '').trim() })
+          if (row.name || row.unit) {
+            result.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, name: row.name, unit: row.unit })
+          }
+        }
+        resolve(result)
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error('Ошибка разбора xlsx'))
+      }
+    }
+    reader.onerror = () => reject(new Error('Не удалось прочитать файл'))
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+function KpiReferenceSection() {
+  const [rows, setRows] = useState<KpiRefRow[]>(loadKpiRef)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editUnit, setEditUnit] = useState('')
+  const [importError, setImportError] = useState<string | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
+
+  const persist = (next: KpiRefRow[]) => {
+    setRows(next)
+    saveKpiRef(next)
+  }
+
+  const handleImportClick = () => {
+    setImportError(null)
+    importInputRef.current?.click()
+  }
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!/\.xlsx$/i.test(file.name)) {
+      setImportError('Выберите файл .xlsx')
+      return
+    }
+    parseKpiRefXlsx(file)
+      .then((imported) => {
+        if (imported.length === 0) {
+          setImportError('В файле нет данных. Ожидаемые заголовки: «Наименование количественного КПЭ», «Ед. измерения».')
+          return
+        }
+        persist([...rows, ...imported])
+        setImportError(null)
+      })
+      .catch((err) => setImportError(err instanceof Error ? err.message : 'Ошибка загрузки файла'))
+  }
+
+  const startEdit = (row: KpiRefRow) => {
+    setEditId(row.id)
+    setEditName(row.name)
+    setEditUnit(row.unit)
+  }
+
+  const saveEdit = () => {
+    if (!editId) return
+    persist(rows.map((r) => (r.id === editId ? { ...r, name: editName, unit: editUnit } : r)))
+    setEditId(null)
+  }
+
+  const cancelEdit = () => setEditId(null)
+
+  const removeRow = (id: string) => {
+    persist(rows.filter((r) => r.id !== id))
+    if (editId === id) setEditId(null)
+  }
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+        <h2 className={styles.sectionTitle} style={{ margin: 0 }}>Реестр количественных КПЭ</h2>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".xlsx"
+            style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
+            onChange={handleImportFile}
+          />
+          <button
+            type="button"
+            onClick={handleImportClick}
+            style={{ padding: '0.45rem 0.875rem', fontSize: '0.8125rem', fontWeight: 500, background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+          >
+            Импортировать
+          </button>
+          {rows.length > 0 && (
+            <button
+              type="button"
+              onClick={() => persist([])}
+              style={{ padding: '0.45rem 0.875rem', fontSize: '0.8125rem', fontWeight: 500, color: '#1e3a8a', background: 'transparent', border: '1px solid #1e3a8a', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              Очистить
+            </button>
+          )}
+        </div>
+      </div>
+
+      {importError && (
+        <div style={{ padding: '0.5rem 0.75rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', color: '#dc2626', fontSize: '0.8125rem' }}>
+          {importError}
+        </div>
+      )}
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+          <thead>
+            <tr>
+              <th style={{ background: '#1e3a8a', color: '#fff', padding: '0.5rem 0.75rem', textAlign: 'left', border: '1px solid #cbd5e1', fontWeight: 600 }}>
+                Наименование количественного КПЭ
+              </th>
+              <th style={{ background: '#1e3a8a', color: '#fff', padding: '0.5rem 0.75rem', textAlign: 'left', border: '1px solid #cbd5e1', fontWeight: 600, width: '180px' }}>
+                Ед. измерения
+              </th>
+              <th style={{ background: '#1e3a8a', color: '#fff', padding: '0.5rem 0.75rem', textAlign: 'center', border: '1px solid #cbd5e1', fontWeight: 600, width: '100px' }}>
+                Действия
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={3} style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', border: '1px solid #e2e8f0' }}>
+                  Пока нет записей. Импортируйте данные из xlsx.
+                </td>
+              </tr>
+            )}
+            {rows.map((row) => (
+              <tr key={row.id}>
+                {editId === row.id ? (
+                  <>
+                    <td style={{ padding: '0.35rem 0.5rem', border: '1px solid #e2e8f0' }}>
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        style={{ width: '100%', padding: '0.35rem 0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.8125rem' }}
+                        autoFocus
+                      />
+                    </td>
+                    <td style={{ padding: '0.35rem 0.5rem', border: '1px solid #e2e8f0' }}>
+                      <input
+                        value={editUnit}
+                        onChange={(e) => setEditUnit(e.target.value)}
+                        style={{ width: '100%', padding: '0.35rem 0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.8125rem' }}
+                      />
+                    </td>
+                    <td style={{ padding: '0.35rem 0.5rem', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <button type="button" onClick={saveEdit} style={{ marginRight: '0.25rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                        ✓
+                      </button>
+                      <button type="button" onClick={cancelEdit} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}>
+                        ✗
+                      </button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td style={{ padding: '0.45rem 0.75rem', border: '1px solid #e2e8f0', wordBreak: 'break-word' }}>
+                      {row.name || <span style={{ color: '#94a3b8' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '0.45rem 0.75rem', border: '1px solid #e2e8f0' }}>
+                      {row.unit || <span style={{ color: '#94a3b8' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '0.35rem 0.5rem', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <button type="button" onClick={() => startEdit(row)} style={{ marginRight: '0.25rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}>
+                        ✎
+                      </button>
+                      <button type="button" onClick={() => removeRow(row.id)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: '#fff', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} title="Удалить">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+                      </button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
+
 export function SettingsPage() {
+  const location = useLocation()
+  const isStrategyGoals = location.pathname === '/strategy-goals'
   const [templateDocs, setTemplateDocs] = useState<Record<string, DocumentMeta | null>>({})
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
@@ -333,11 +576,20 @@ export function SettingsPage() {
   return (
     <div className={styles.page}>
       <header className={styles.hero}>
-        <h1 className={styles.title}>Настройки</h1>
+        <h1 className={styles.title}>{isStrategyGoals ? 'Цели стратегии' : 'Настройки'}</h1>
         <p className={styles.subtitle}>
-          Здесь загружаются основные документы, которые не меняются в течение года:
-          <strong> Бизнес-план</strong>, <strong>Стратегия</strong> и <strong>Регламент</strong>.
-          Они автоматически подставляются в каждую новую коллекцию на вкладке «База знаний».
+          {isStrategyGoals ? (
+            <>
+              Загрузите документ <strong>«Стратегия»</strong>, чтобы он автоматически подставлялся в новые коллекции на вкладке
+              «База знаний».
+            </>
+          ) : (
+            <>
+              Здесь загружаются основные документы, которые не меняются в течение года:
+              <strong> Бизнес-план</strong>, <strong>Стратегия</strong> и <strong>Регламент</strong>.
+              Они автоматически подставляются в каждую новую коллекцию на вкладке «База знаний».
+            </>
+          )}
         </p>
       </header>
 
@@ -461,6 +713,12 @@ export function SettingsPage() {
           </ul>
         )}
       </section>
+
+      {!isStrategyGoals && (
+        <section className={styles.section}>
+          <KpiReferenceSection />
+        </section>
+      )}
 
       {templateChecklist && (
         <TemplateChecklistModal

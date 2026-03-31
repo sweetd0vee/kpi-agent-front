@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getKpiRows, getPprRows } from '@/api/goals'
+import { getBoardGoalRows } from '@/api/goals'
 import type { GoalRow } from '@/lib/storage'
 import styles from './DashboardsPage.module.css'
-
-type DashboardSubTab = 'kpi' | 'ppr'
 
 /** Парсит число из строки (24,1 / 54,4% / 20%) */
 function parseNum(s: string): number | null {
@@ -22,73 +20,41 @@ function parseWeightYear(s: string): number | null {
 const collatorRu = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
 
 export function DashboardsPage() {
-  const [activeTab, setActiveTab] = useState<DashboardSubTab>('kpi')
-  const [kpiRows, setKpiRows] = useState<GoalRow[]>([])
-  const [pprRows, setPprRows] = useState<GoalRow[]>([])
-  const [kpiReportYear, setKpiReportYear] = useState<string>('')
-  const [kpiLoading, setKpiLoading] = useState(true)
-  const [pprLoading, setPprLoading] = useState(true)
-  const [kpiError, setKpiError] = useState<string | null>(null)
-  const [pprError, setPprError] = useState<string | null>(null)
+  const [allRows, setAllRows] = useState<GoalRow[]>([])
+  const [reportYearFilter, setReportYearFilter] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  /** Уникальные отчётные годы по данным КПЭ (для фильтра на вкладке КПЭ) */
-  const kpiReportYearOptions = useMemo(() => {
+  const reportYearOptions = useMemo(() => {
     const set = new Set<string>()
-    kpiRows.forEach((r) => {
+    allRows.forEach((r) => {
       const y = String(r.reportYear ?? '').trim()
       if (y) set.add(y)
     })
     return Array.from(set).sort((a, b) => collatorRu.compare(a, b))
-  }, [kpiRows])
+  }, [allRows])
 
-  /** Строки для отображения: на вкладке КПЭ — с фильтром по году, на ППР — все */
   const rows = useMemo(() => {
-    if (activeTab === 'ppr') return pprRows
-    if (!kpiReportYear) return kpiRows
-    return kpiRows.filter((r) => String(r.reportYear ?? '').trim() === kpiReportYear)
-  }, [activeTab, kpiRows, pprRows, kpiReportYear])
-  const activeLoading = activeTab === 'kpi' ? kpiLoading : pprLoading
-  const activeError = activeTab === 'kpi' ? kpiError : pprError
-  const tabLabel = activeTab === 'kpi' ? 'КПЭ' : 'ППР'
+    if (!reportYearFilter) return allRows
+    return allRows.filter((r) => String(r.reportYear ?? '').trim() === reportYearFilter)
+  }, [allRows, reportYearFilter])
 
   useEffect(() => {
     let active = true
-    setKpiLoading(true)
-    getKpiRows()
+    setLoading(true)
+    getBoardGoalRows()
       .then((rows) => {
         if (!active) return
-        setKpiRows(rows)
-        setKpiError(null)
+        setAllRows(rows)
+        setError(null)
       })
       .catch((err) => {
         if (!active) return
-        setKpiError(err instanceof Error ? err.message : 'Не удалось загрузить KPI данные.')
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить данные.')
       })
       .finally(() => {
         if (!active) return
-        setKpiLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
-    let active = true
-    setPprLoading(true)
-    getPprRows()
-      .then((rows) => {
-        if (!active) return
-        setPprRows(rows)
-        setPprError(null)
-      })
-      .catch((err) => {
-        if (!active) return
-        setPprError(err instanceof Error ? err.message : 'Не удалось загрузить PPR данные.')
-      })
-      .finally(() => {
-        if (!active) return
-        setPprLoading(false)
+        setLoading(false)
       })
     return () => {
       active = false
@@ -174,11 +140,7 @@ export function DashboardsPage() {
 
   useEffect(() => {
     setSelectedGoal('')
-  }, [kpiReportYear])
-
-  useEffect(() => {
-    setSelectedGoal('')
-  }, [activeTab])
+  }, [reportYearFilter])
 
   /** Строки данных по выбранной цели: все руководители с этой целью, веса и показатели */
   const goalRowsForSelected = useMemo(() => {
@@ -197,21 +159,10 @@ export function DashboardsPage() {
       }))
   }, [rows, selectedGoal, key])
 
-  /** Все строки по выбранной цели в КПЭ и ППР (для карточки цели) */
-  const kpiRowsForSelected = useMemo(() => {
+  const allRowsForSelected = useMemo(() => {
     if (!selectedGoal) return [] as GoalRow[]
-    return kpiRows.filter((r) => key(r) === selectedGoal)
-  }, [kpiRows, selectedGoal, key])
-
-  const pprRowsForSelected = useMemo(() => {
-    if (!selectedGoal) return [] as GoalRow[]
-    return pprRows.filter((r) => key(r) === selectedGoal)
-  }, [pprRows, selectedGoal, key])
-
-  const allRowsForSelected = useMemo(
-    () => [...kpiRowsForSelected, ...pprRowsForSelected],
-    [kpiRowsForSelected, pprRowsForSelected]
-  )
+    return allRows.filter((r) => key(r) === selectedGoal)
+  }, [allRows, selectedGoal, key])
 
   const goalCard = useMemo(() => {
     if (!selectedGoal || allRowsForSelected.length === 0) return null
@@ -247,10 +198,9 @@ export function DashboardsPage() {
       minWeightYear,
       maxWeightYear,
       employeesCount: employeesSet.size,
-      kpiCount: kpiRowsForSelected.length,
-      pprCount: pprRowsForSelected.length,
+      totalCount: allRowsForSelected.length,
     }
-  }, [allRowsForSelected, kpiRowsForSelected.length, pprRowsForSelected.length, selectedGoal])
+  }, [allRowsForSelected, selectedGoal])
 
   /** Данные для круговой диаграммы распределения суммарного веса по целям */
   // Зарезервировано под будущие агрегированные дашборды
@@ -259,75 +209,43 @@ export function DashboardsPage() {
     <div className={styles.page}>
       <h1 className={styles.heading}>Дашборды</h1>
 
-      <div className={styles.tabs} role="tablist" aria-label="Выбор раздела дашбордов">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'kpi'}
-          aria-controls="dashboard-kpi-panel"
-          id="dashboard-tab-kpi"
-          className={activeTab === 'kpi' ? `${styles.tab} ${styles.tabActive}` : styles.tab}
-          onClick={() => setActiveTab('kpi')}
-        >
-          КПЭ
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'ppr'}
-          aria-controls="dashboard-ppr-panel"
-          id="dashboard-tab-ppr"
-          className={activeTab === 'ppr' ? `${styles.tab} ${styles.tabActive}` : styles.tab}
-          onClick={() => setActiveTab('ppr')}
-        >
-          ППР
-        </button>
-      </div>
-
-      <div
-        id={activeTab === 'kpi' ? 'dashboard-kpi-panel' : 'dashboard-ppr-panel'}
-        role="tabpanel"
-        aria-labelledby={activeTab === 'kpi' ? 'dashboard-tab-kpi' : 'dashboard-tab-ppr'}
-        className={styles.tabPanel}
-      >
-        {activeError ? (
+      <div className={styles.tabPanel}>
+        {error ? (
           <div className={styles.emptyState} role="alert">
-            {activeError}
+            {error}
           </div>
-        ) : activeLoading ? (
+        ) : loading ? (
           <div className={styles.emptyState} role="status">
             Загрузка данных...
           </div>
         ) : rows.length === 0 ? (
           <div className={styles.emptyState}>
-            Нет данных для дашбордов. Заполните таблицу «{tabLabel}» на соответствующей вкладке или загрузите данные.
+            Нет данных для дашбордов. Заполните таблицу «Цели правления» или загрузите данные.
           </div>
         ) : (
         <>
-          {activeTab === 'kpi' && (
-            <section className={styles.yearFilterSection} aria-labelledby="dashboard-report-year-label">
-              <h2 id="dashboard-report-year-label" className={styles.sectionTitle}>Отчётный год</h2>
-              <p className={styles.yearFilterDesc}>
-                Сначала выберите год — ниже отобразятся цели и метрики только за выбранный отчётный год.
-              </p>
-              <div className={styles.eulerSelects}>
-                <label className={styles.eulerSelectLabel}>
-                  Год
-                  <select
-                    className={styles.eulerSelect}
-                    value={kpiReportYear}
-                    onChange={(e) => setKpiReportYear(e.target.value)}
-                    aria-label="Выберите отчётный год"
-                  >
-                    <option value="">Все годы</option>
-                    {kpiReportYearOptions.map((year) => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </section>
-          )}
+          <section className={styles.yearFilterSection} aria-labelledby="dashboard-report-year-label">
+            <h2 id="dashboard-report-year-label" className={styles.sectionTitle}>Отчётный год</h2>
+            <p className={styles.yearFilterDesc}>
+              Выберите год — ниже отобразятся цели и метрики только за выбранный отчётный год.
+            </p>
+            <div className={styles.eulerSelects}>
+              <label className={styles.eulerSelectLabel}>
+                Год
+                <select
+                  className={styles.eulerSelect}
+                  value={reportYearFilter}
+                  onChange={(e) => setReportYearFilter(e.target.value)}
+                  aria-label="Выберите отчётный год"
+                >
+                  <option value="">Все годы</option>
+                  {reportYearOptions.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </section>
 
           <section className={styles.eulerSection} aria-labelledby="goal-managers-title">
             <h2 id="goal-managers-title" className={styles.eulerSectionTitle}>Цель: руководители и данные</h2>
@@ -404,9 +322,9 @@ export function DashboardsPage() {
                             </div>
                           )}
                           <div className={styles.goalCardMetaItem}>
-                            <span className={styles.goalCardMetaLabel}>Связь с КПЭ / ППР</span>
+                            <span className={styles.goalCardMetaLabel}>Записей</span>
                             <span className={styles.goalCardMetaValue}>
-                              КПЭ: {goalCard.kpiCount} · ППР: {goalCard.pprCount}
+                              {goalCard.totalCount}
                             </span>
                           </div>
                         </div>
@@ -419,7 +337,7 @@ export function DashboardsPage() {
                         {selectedGoal.length > 60
                           ? selectedGoal.slice(0, 60) + '…'
                           : selectedGoal}
-                        »: {goalRowsForSelected.length} записей на вкладке «{tabLabel}»
+                        »: {goalRowsForSelected.length} записей
                       </p>
                       <div className={styles.tableWrap}>
                         <table className={styles.summaryTable}>

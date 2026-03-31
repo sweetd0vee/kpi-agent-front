@@ -1,4 +1,4 @@
-import type { GoalRow, LeaderGoalRow } from '@/lib/storage'
+import type { GoalRow, LeaderGoalRow, StrategyGoalRow } from '@/lib/storage'
 import { generateId } from '@/lib/storage'
 import * as XLSX from 'xlsx'
 
@@ -217,6 +217,100 @@ export function parseLeaderGoalsXlsxToRows(file: File): Promise<LeaderGoalRow[]>
               id: generateId(),
               ...row,
             })
+          }
+        }
+        resolve(rows)
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error('Ошибка разбора xlsx'))
+      }
+    }
+    reader.onerror = () => reject(new Error('Не удалось прочитать файл'))
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+const STRATEGY_HEADER_TO_FIELD: Record<string, keyof Omit<StrategyGoalRow, 'id'>> = {
+  'Бизнес/блок': 'businessUnit',
+  'Сегмент': 'segment',
+  'Стратегический приоритет': 'strategicPriority',
+  'Цель': 'goalObjective',
+  'Инициатива': 'initiative',
+  'Тип инициативы': 'initiativeType',
+  'Ответственный исполнитель': 'responsiblePersonOwner',
+  'Участие других блоков': 'otherUnitsInvolved',
+  'Бюджет': 'budget',
+  'Начало': 'startDate',
+  'Конец': 'endDate',
+  'КПЭ': 'kpi',
+  'ед. изм.': 'unitOfMeasure',
+  '2025: Целевое значение': 'targetValue2025',
+  '2026: Целевое значение': 'targetValue2026',
+  '2027: Целевое значение': 'targetValue2027',
+  'Категория': 'category',
+}
+
+export function parseStrategyGoalsXlsxToRows(file: File): Promise<StrategyGoalRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result
+        if (!data || !(data instanceof ArrayBuffer)) {
+          reject(new Error('Не удалось прочитать файл'))
+          return
+        }
+        const workbook = XLSX.read(data, { type: 'array' })
+        const firstSheetName = workbook.SheetNames[0]
+        if (!firstSheetName) {
+          reject(new Error('В файле нет листов'))
+          return
+        }
+        const sheet = workbook.Sheets[firstSheetName]
+        const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, {
+          header: 1,
+          defval: '',
+          raw: false,
+        }) as unknown[][]
+        if (!Array.isArray(rawRows) || rawRows.length < 2) {
+          resolve([])
+          return
+        }
+        const headerRow = rawRows[0].map(normalizeHeader)
+        const colIndexToField = new Map<number, keyof Omit<StrategyGoalRow, 'id'>>()
+        headerRow.forEach((header, index) => {
+          const field = STRATEGY_HEADER_TO_FIELD[header]
+          if (field) colIndexToField.set(index, field)
+        })
+
+        const emptyRow: Record<string, string> = {
+          businessUnit: '',
+          segment: '',
+          strategicPriority: '',
+          goalObjective: '',
+          initiative: '',
+          initiativeType: '',
+          responsiblePersonOwner: '',
+          otherUnitsInvolved: '',
+          budget: '',
+          startDate: '',
+          endDate: '',
+          kpi: '',
+          unitOfMeasure: '',
+          targetValue2025: '',
+          targetValue2026: '',
+          targetValue2027: '',
+          category: '',
+        }
+        const rows: StrategyGoalRow[] = []
+        for (let i = 1; i < rawRows.length; i++) {
+          const cells = rawRows[i] as unknown[]
+          const row = { ...emptyRow }
+          colIndexToField.forEach((field, colIndex) => {
+            row[field] = normalizeCell(cells[colIndex])
+          })
+          const hasAny = Object.values(row).some((value) => value !== '')
+          if (hasAny) {
+            rows.push({ id: generateId(), ...row })
           }
         }
         resolve(rows)

@@ -104,6 +104,8 @@ export function GoalsPage() {
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
+  const [colWidths, setColWidths] = useState<Record<string, number>>({})
+  const resizeStateRef = useRef<{ key: GoalField; startX: number; startWidth: number } | null>(null)
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -111,6 +113,37 @@ export function GoalsPage() {
   const weightQRef = useRef<HTMLDivElement>(null)
   const weightYearRef = useRef<HTMLDivElement>(null)
   const reportYearRef = useRef<HTMLDivElement>(null)
+
+  const startColumnResize = useCallback(
+    (key: GoalField, e: React.MouseEvent<HTMLDivElement>) => {
+      if (!!editingRowId) return
+      e.preventDefault()
+      e.stopPropagation()
+
+      const thEl = e.currentTarget.parentElement as HTMLElement | null
+      const startWidth = thEl?.getBoundingClientRect().width ?? 120
+
+      resizeStateRef.current = { key, startX: e.clientX, startWidth }
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const state = resizeStateRef.current
+        if (!state) return
+        const dx = ev.clientX - state.startX
+        const next = Math.max(60, Math.min(1200, state.startWidth + dx))
+        setColWidths((prev) => ({ ...prev, [state.key]: next }))
+      }
+
+      const onMouseUp = () => {
+        resizeStateRef.current = null
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+      }
+
+      document.addEventListener('mousemove', onMouseMove)
+      document.addEventListener('mouseup', onMouseUp)
+    },
+    [editingRowId]
+  )
 
   useEffect(() => {
     let active = true
@@ -507,7 +540,7 @@ export function GoalsPage() {
     setIsAddingNewRow(true)
     setPage((prevPage) => {
       if (pageSize === 'all') return 1
-      const size = pageSize === 'all' ? DEFAULT_PAGE_SIZE : pageSize
+      const size = pageSize
       return Math.max(prevPage, Math.ceil((goalsState.rows.length + 1) / size))
     })
   }, [goalsState.rows.length, pageSize])
@@ -916,7 +949,7 @@ export function GoalsPage() {
             <thead>
               <tr>
                 {columns.map((col) => (
-                  <th key={col.key} className={col.cellClassName}>
+                  <th key={col.key} className={col.cellClassName} style={colWidths[col.key] ? { width: colWidths[col.key] } : undefined}>
                     <button
                       type="button"
                       className={styles.sortBtn}
@@ -939,6 +972,12 @@ export function GoalsPage() {
                         aria-hidden
                       />
                     </button>
+                    <div
+                      className={styles.colResizeHandle}
+                      role="separator"
+                      aria-label={`Изменить ширину колонки: ${col.label}`}
+                      onMouseDown={(e) => startColumnResize(col.key, e)}
+                    />
                   </th>
                 ))}
                 <th className={styles.actionsCol}>Действия</th>
@@ -963,8 +1002,12 @@ export function GoalsPage() {
                       {columns.map((col) => {
                         const value = row[col.key] ?? ''
                         const isEmpty = !value.trim()
-                        return (
-                          <td key={col.key} className={col.cellClassName}>
+                      return (
+                        <td
+                          key={col.key}
+                          className={col.cellClassName}
+                          style={colWidths[col.key] ? { width: colWidths[col.key] } : undefined}
+                        >
                             <span
                               className={[
                                 styles.valueText,

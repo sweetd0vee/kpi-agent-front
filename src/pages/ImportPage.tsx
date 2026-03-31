@@ -1293,7 +1293,7 @@ export function ImportPage() {
           <section className={styles.promptsSection}>
             <div className={styles.promptsIntro}>
               <h2 className={styles.promptsTitle}>Таблицы</h2>
-              <p className={styles.promptsSubtitle}>Сохранённые фрагменты из базы данных (КПЭ, ППР, Линейный менеджмент). В Чате используйте кнопку «Прикрепить таблицу», чтобы подставить выбранное в промпт.</p>
+              <p className={styles.promptsSubtitle}>Сохранённые фрагменты из базы данных (Цели правления, Цели руководителей, Цели стратегии). В Чате используйте кнопку «Прикрепить таблицу», чтобы подставить выбранное в промпт.</p>
             </div>
             <div className={styles.promptsGroup}>
               <h3 className={styles.promptsGroupTitle}>Сохранённые таблицы</h3>
@@ -1310,7 +1310,7 @@ export function ImportPage() {
                 </div>
               )}
               {attachablesList.length === 0 ? (
-                <p className={styles.promptsSubtitle}>Пока нет. Сохраните таблицу на вкладках КПЭ / ППР / Линейный менеджмент.</p>
+                <p className={styles.promptsSubtitle}>Пока нет. Сохраните таблицу на вкладках Цели правления / Цели руководителей / Цели стратегии.</p>
               ) : (() => {
                 const q = attachablesSearchQuery.trim().toLowerCase()
                 const filtered = q ? attachablesList.filter((a) => a.label.toLowerCase().includes(q)) : attachablesList
@@ -1328,7 +1328,7 @@ export function ImportPage() {
                               {isEditing ? 'Редактирование' : a.label}
                             </h4>
                             <span className={styles.promptBadge}>
-                              {a.type === 'kpi' ? 'КПЭ' : a.type === 'ppr' ? 'ППР' : a.type === 'leader_goals' ? 'Линейный менеджмент' : 'Фрагмент'}
+                              {a.type === 'board_goals' ? 'Цели правления' : a.type === 'leader_goals' ? 'Цели руководителей' : a.type === 'strategy_goals' ? 'Цели стратегии' : 'Фрагмент'}
                             </span>
                           </div>
                           <div className={styles.promptCardActions}>

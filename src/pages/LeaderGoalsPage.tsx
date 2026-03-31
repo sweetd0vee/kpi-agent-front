@@ -117,11 +117,44 @@ export function LeaderGoalsPage() {
   const [sortKey, setSortKey] = useState<LeaderGoalField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [pageSize, setPageSize] = useState<number | 'all'>(PAGE_SIZE)
+  const [colWidths, setColWidths] = useState<Record<string, number>>({})
+  const resizeStateRef = useRef<{ key: LeaderGoalField; startX: number; startWidth: number } | null>(null)
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const lastNameRef = useRef<HTMLDivElement>(null)
   const reportYearRef = useRef<HTMLDivElement>(null)
+
+  const startColumnResize = useCallback(
+    (key: LeaderGoalField, e: React.MouseEvent<HTMLDivElement>) => {
+      if (!!editingRowId) return
+      e.preventDefault()
+      e.stopPropagation()
+
+      const thEl = e.currentTarget.parentElement as HTMLElement | null
+      const startWidth = thEl?.getBoundingClientRect().width ?? 120
+
+      resizeStateRef.current = { key, startX: e.clientX, startWidth }
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const state = resizeStateRef.current
+        if (!state) return
+        const dx = ev.clientX - state.startX
+        const next = Math.max(60, Math.min(1200, state.startWidth + dx))
+        setColWidths((prev) => ({ ...prev, [state.key]: next }))
+      }
+
+      const onMouseUp = () => {
+        resizeStateRef.current = null
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+      }
+
+      document.addEventListener('mousemove', onMouseMove)
+      document.addEventListener('mouseup', onMouseUp)
+    },
+    [editingRowId]
+  )
 
   useEffect(() => {
     let active = true
@@ -265,7 +298,7 @@ export function LeaderGoalsPage() {
     setIsAddingNewRow(true)
     setPage((prevPage) => {
       if (pageSize === 'all') return 1
-      const size = pageSize === 'all' ? PAGE_SIZE : pageSize
+      const size = pageSize
       return Math.max(prevPage, Math.ceil((goalsState.rows.length + 1) / size))
     })
   }, [goalsState.rows.length, pageSize])
@@ -468,7 +501,7 @@ export function LeaderGoalsPage() {
     <div className={styles.page}>
       <header className={styles.hero}>
         <div>
-          <h1 className={styles.title}>Линейный менеджмент</h1>
+          <h1 className={styles.title}>Цели руководителей</h1>
         </div>
       </header>
 
@@ -686,7 +719,12 @@ export function LeaderGoalsPage() {
             <thead>
               <tr>
                 {COLUMNS.map((col) => (
-                  <th key={col.key} className={col.cellClassName} scope="col">
+                  <th
+                    key={col.key}
+                    className={col.cellClassName}
+                    scope="col"
+                    style={colWidths[col.key] ? { width: colWidths[col.key] } : undefined}
+                  >
                     <button
                       type="button"
                       className={styles.sortBtn}
@@ -709,6 +747,12 @@ export function LeaderGoalsPage() {
                         aria-hidden
                       />
                     </button>
+                    <div
+                      className={styles.colResizeHandle}
+                      role="separator"
+                      aria-label={`Изменить ширину колонки: ${col.label.replace(/\n/g, ' ')}`}
+                      onMouseDown={(e) => startColumnResize(col.key, e)}
+                    />
                   </th>
                 ))}
                 <th className={styles.actionsCol} scope="col">
@@ -736,7 +780,11 @@ export function LeaderGoalsPage() {
                       const value = row[col.key] ?? ''
                       const isEmpty = !String(value).trim()
                       return (
-                        <td key={col.key} className={col.cellClassName}>
+                        <td
+                          key={col.key}
+                          className={col.cellClassName}
+                          style={colWidths[col.key] ? { width: colWidths[col.key] } : undefined}
+                        >
                           <span
                             className={[
                               styles.valueText,
@@ -936,7 +984,7 @@ export function LeaderGoalsPage() {
       <ConfirmModal
         open={pendingClearTable}
         title="Очистить таблицу"
-        message="Удалить все записи в таблице «Линейный менеджмент»? Это действие нельзя отменить."
+        message="Удалить все записи в таблице «Цели руководителей»? Это действие нельзя отменить."
         confirmLabel="Очистить"
         onConfirm={confirmClearTable}
         onCancel={() => setPendingClearTable(false)}
