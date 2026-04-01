@@ -13,20 +13,19 @@ import {
   uploadDocument,
   deleteDocument,
   getTemplateDocuments,
-  getDepartments,
   getResponsibles,
   processDepartmentRegulation,
   submitDepartmentChecklist,
   type DocumentMeta,
   type CollectionMeta,
-  type DepartmentItem,
   type DepartmentChecklistItem,
 } from '@/api/documents'
 import { PaperclipIcon, PencilIcon, PersonIcon, TrashIcon } from '@/components/Icons'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { downloadGoalsTemplate } from '@/lib/exportGoals'
-import { addAttachable, getAttachables, removeAttachable, updateAttachable, type StoredAttachable } from '@/lib/storage'
+import { getAttachables, removeAttachable, updateAttachable, type StoredAttachable } from '@/lib/storage'
 import { downloadJsonFile } from '@/lib/downloadJson'
+import { normalizeChecklistItems } from '@/lib/normalizeChecklistItems'
 import { DepartmentChecklistModal } from './Import/DepartmentChecklistModal'
 import { PromptsTab } from './Import/PromptsTab'
 import { TemplateChecklistModal, type TemplateChecklistState } from './TemplateChecklistModal'
@@ -49,19 +48,6 @@ type CollectionCardDraft = {
 function getChecklistTitle(typeId: string): string {
   const label = CHECKLIST_LABELS[typeId] ?? 'Чеклист'
   return `Чеклист: ${label}`
-}
-
-function normalizeChecklistItems(raw: unknown): DepartmentChecklistItem[] {
-  if (!Array.isArray(raw)) return []
-  return raw.map((item) => {
-    const obj = (item ?? {}) as Record<string, unknown>
-    return {
-      id: String(obj.id ?? '').trim(),
-      text: String(obj.text ?? '').trim(),
-      section: String(obj.section ?? '').trim(),
-      checked: Boolean(obj.checked),
-    }
-  })
 }
 
 function buildChecklistParsedJson(state: TemplateChecklistState): Record<string, unknown> {
@@ -111,7 +97,6 @@ export function ImportPage() {
   const [filterMode, setFilterMode] = useState<'mine' | 'processed'>('mine')
   const [templateDocs, setTemplateDocs] = useState<Record<string, DocumentMeta | null>>({})
   const [responsiblesOptions, setResponsiblesOptions] = useState<string[]>([])
-  const [departmentOptions, setDepartmentOptions] = useState<DepartmentItem[]>([])
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const departmentAbortRef = useRef<AbortController | null>(null)
   const checklistAbortRef = useRef<AbortController | null>(null)
@@ -173,15 +158,6 @@ export function ImportPage() {
       .catch(() => {
         if (!active) return
         setResponsiblesOptions([])
-      })
-    getDepartments()
-      .then((items) => {
-        if (!active) return
-        setDepartmentOptions(items)
-      })
-      .catch(() => {
-        if (!active) return
-        setDepartmentOptions([])
       })
     return () => {
       active = false
@@ -820,12 +796,6 @@ export function ImportPage() {
           <option key={name} value={name} />
         ))}
       </datalist>
-      <datalist id="departments-options">
-        {departmentOptions.map((dep) => (
-          <option key={dep.id} value={dep.name} />
-        ))}
-      </datalist>
-
       <div className={styles.tabs} role="tablist" aria-label="Разделы базы знаний">
         <button
           id="knowledge-tab-collections-btn"
@@ -927,8 +897,7 @@ export function ImportPage() {
                 <input
                   type="text"
                   className={styles.nameInput}
-                  placeholder="Выберите подразделение"
-                  list="departments-options"
+                  placeholder="Введите подразделение"
                   value={collectionDepartment}
                   onChange={(e) => setCollectionDepartment(e.target.value)}
                 />
@@ -1149,10 +1118,9 @@ export function ImportPage() {
                                 <input
                                   type="text"
                                   className={styles.cardMetaTextarea}
-                                  list="departments-options"
                                   value={editingDraft?.department ?? ''}
                                   onChange={(e) => updateEditingDraft({ department: e.target.value })}
-                                  placeholder="Выберите подразделение"
+                                  placeholder="Введите подразделение"
                                 />
                               </label>
                             </div>

@@ -25,7 +25,6 @@ export default defineConfig({
       '/api/settings': { target: 'http://localhost:8000', changeOrigin: true },
       '/api/db': { target: 'http://localhost:8000', changeOrigin: true },
       '/api/reference': { target: 'http://localhost:8000', changeOrigin: true },
-      '/api/departments': { target: 'http://localhost:8000', changeOrigin: true },
       '/api/leaders': { target: 'http://localhost:8000', changeOrigin: true },
       '/api': {
         target: 'http://localhost:3000',

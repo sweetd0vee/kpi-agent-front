@@ -12,6 +12,7 @@ import {
   type DocumentMeta,
 } from '@/api/documents'
 import { downloadJsonFile } from '@/lib/downloadJson'
+import { normalizeChecklistItems } from '@/lib/normalizeChecklistItems'
 import { TemplateChecklistModal, type TemplateChecklistState } from './TemplateChecklistModal'
 import styles from './SettingsPage.module.css'
 
@@ -26,19 +27,6 @@ const TEMPLATE_SLOTS: {
 ]
 
 const TEMPLATE_EXTENSIONS = ['.docx', '.txt']
-
-function normalizeChecklistItems(raw: unknown): DepartmentChecklistItem[] {
-  if (!Array.isArray(raw)) return []
-  return raw.map((item) => {
-    const obj = (item ?? {}) as Record<string, unknown>
-    return {
-      id: String(obj.id ?? '').trim(),
-      text: String(obj.text ?? '').trim(),
-      section: String(obj.section ?? '').trim(),
-      checked: Boolean(obj.checked),
-    }
-  })
-}
 
 function getTemplateTitle(typeId: TemplateDocumentTypeId): string {
   const label = TEMPLATE_SLOTS.find((slot) => slot.id === typeId)?.label ?? 'Чеклист'

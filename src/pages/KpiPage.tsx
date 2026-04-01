@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getBoardGoalRows, saveBoardGoalRows } from '@/api/goals'
-import { addAttachable, generateId, getDefaultAttachableLabel, type GoalRow } from '@/lib/storage'
-import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exportGoalsPDF, serializeKpiRowsToText } from '@/lib/exportGoals'
-import { parseKpiXlsxToRows } from '@/lib/importGoals'
-
-export { KpiPage as BoardGoalsPage }
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditRowModal, type EditRowField } from '@/components/EditRowModal/EditRowModal'
 import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
+import { useColumnResize } from '@/hooks/useColumnResize'
+import { exportGoalsCSV, exportGoalsDOCX, exportGoalsExcel, exportGoalsHTML, exportGoalsPDF, serializeKpiRowsToText } from '@/lib/exportGoals'
+import {
+  buildDistinctColumnOptions,
+  buildSelectedLabel,
+  createRuNumericCollator,
+  formatFilterValue,
+} from '@/lib/goalsTableUtils'
+import { parseKpiXlsxToRows } from '@/lib/importGoals'
+import { addAttachable, generateId, getDefaultAttachableLabel, type GoalRow } from '@/lib/storage'
 import styles from './GoalsPage.module.css'
 
 type GoalField = keyof Omit<GoalRow, 'id'>
@@ -56,30 +61,6 @@ const createFiltersState = (): Record<GoalField, string> => ({
 const FILTER_DISABLED_FIELDS: GoalField[] = ['goal', 'q1', 'q2', 'q3', 'q4', 'year']
 const FILTER_SELECT_FIELDS: GoalField[] = ['lastName', 'weightQ', 'weightYear', 'reportYear']
 
-const buildSelectedLabel = (
-  values: string[],
-  emptyLabel: string,
-  formatValue: (value: string) => string = (value) => value
-): string => {
-  if (values.length === 0) return emptyLabel
-  if (values.length <= 2) return values.map(formatValue).join(', ')
-  return `${values.slice(0, 2).map(formatValue).join(', ')} +${values.length - 2}`
-}
-
-const formatFilterValue = (value: string): string => (value ? value : 'Пусто')
-
-const buildOptions = (rows: GoalRow[], key: GoalField, collator: Intl.Collator): string[] => {
-  const unique = new Set<string>()
-  let hasEmpty = false
-  rows.forEach((row) => {
-    const value = String(row[key] ?? '').trim()
-    if (value) unique.add(value)
-    else hasEmpty = true
-  })
-  const sorted = Array.from(unique).sort((a, b) => collator.compare(a, b))
-  return hasEmpty ? [''].concat(sorted) : sorted
-}
-
 export function KpiPage() {
   const [goalsState, setGoalsState] = useState<{ rows: GoalRow[] }>({ rows: [] })
   const [isLoaded, setIsLoaded] = useState(false)
@@ -106,8 +87,7 @@ export function KpiPage() {
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
-  const [colWidths, setColWidths] = useState<Record<string, number>>({})
-  const resizeStateRef = useRef<{ key: GoalField; startX: number; startWidth: number } | null>(null)
+  const { colWidths, startColumnResize } = useColumnResize(editingRowId)
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -115,37 +95,6 @@ export function KpiPage() {
   const weightQRef = useRef<HTMLDivElement>(null)
   const weightYearRef = useRef<HTMLDivElement>(null)
   const reportYearRef = useRef<HTMLDivElement>(null)
-
-  const startColumnResize = useCallback(
-    (key: GoalField, e: React.MouseEvent<HTMLDivElement>) => {
-      if (!!editingRowId) return
-      e.preventDefault()
-      e.stopPropagation()
-
-      const thEl = e.currentTarget.parentElement as HTMLElement | null
-      const startWidth = thEl?.getBoundingClientRect().width ?? 120
-
-      resizeStateRef.current = { key, startX: e.clientX, startWidth }
-
-      const onMouseMove = (ev: MouseEvent) => {
-        const state = resizeStateRef.current
-        if (!state) return
-        const dx = ev.clientX - state.startX
-        const next = Math.max(60, Math.min(1200, state.startWidth + dx))
-        setColWidths((prev) => ({ ...prev, [state.key]: next }))
-      }
-
-      const onMouseUp = () => {
-        resizeStateRef.current = null
-        document.removeEventListener('mousemove', onMouseMove)
-        document.removeEventListener('mouseup', onMouseUp)
-      }
-
-      document.addEventListener('mousemove', onMouseMove)
-      document.addEventListener('mouseup', onMouseUp)
-    },
-    [editingRowId]
-  )
 
   useEffect(() => {
     let active = true
@@ -240,11 +189,23 @@ export function KpiPage() {
     setFilters((prev) => ({ ...prev, [key]: value }))
   }, [])
 
-  const collator = useMemo(() => new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }), [])
-  const lastNameOptions = useMemo(() => buildOptions(goalsState.rows, 'lastName', collator), [collator, goalsState.rows])
-  const weightQOptions = useMemo(() => buildOptions(goalsState.rows, 'weightQ', collator), [collator, goalsState.rows])
-  const weightYearOptions = useMemo(() => buildOptions(goalsState.rows, 'weightYear', collator), [collator, goalsState.rows])
-  const reportYearOptions = useMemo(() => buildOptions(goalsState.rows, 'reportYear', collator), [collator, goalsState.rows])
+  const collator = useMemo(() => createRuNumericCollator(), [])
+  const lastNameOptions = useMemo(
+    () => buildDistinctColumnOptions(goalsState.rows, 'lastName', collator),
+    [collator, goalsState.rows]
+  )
+  const weightQOptions = useMemo(
+    () => buildDistinctColumnOptions(goalsState.rows, 'weightQ', collator),
+    [collator, goalsState.rows]
+  )
+  const weightYearOptions = useMemo(
+    () => buildDistinctColumnOptions(goalsState.rows, 'weightYear', collator),
+    [collator, goalsState.rows]
+  )
+  const reportYearOptions = useMemo(
+    () => buildDistinctColumnOptions(goalsState.rows, 'reportYear', collator),
+    [collator, goalsState.rows]
+  )
 
   useEffect(() => {
     setLastNameFilter((prev) => prev.filter((value) => lastNameOptions.includes(value)))
@@ -1114,3 +1075,5 @@ export function KpiPage() {
     </div>
   )
 }
+
+export { KpiPage as BoardGoalsPage }

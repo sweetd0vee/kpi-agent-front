@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getStrategyGoalRows, saveStrategyGoalRows } from '@/api/goals'
-import { addAttachable, generateId, getDefaultAttachableLabel, type StrategyGoalRow } from '@/lib/storage'
+import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
+import { EditStrategyGoalModal, type EditStrategyGoalField } from '@/components/EditStrategyGoalModal/EditStrategyGoalModal'
+import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
+import { useColumnResize } from '@/hooks/useColumnResize'
 import {
   exportStrategyGoalsCSV,
   exportStrategyGoalsDOCX,
@@ -9,10 +12,14 @@ import {
   exportStrategyGoalsPDF,
   serializeStrategyGoalsRowsToText,
 } from '@/lib/exportGoals'
+import {
+  buildDistinctColumnOptions,
+  buildSelectedLabel,
+  createRuNumericCollator,
+  formatFilterValue,
+} from '@/lib/goalsTableUtils'
 import { parseStrategyGoalsXlsxToRows } from '@/lib/importGoals'
-import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
-import { EditStrategyGoalModal, type EditStrategyGoalField } from '@/components/EditStrategyGoalModal/EditStrategyGoalModal'
-import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
+import { addAttachable, generateId, getDefaultAttachableLabel, type StrategyGoalRow } from '@/lib/storage'
 import styles from './GoalsPage.module.css'
 
 type StrategyGoalField = keyof Omit<StrategyGoalRow, 'id'>
@@ -92,30 +99,6 @@ const createFiltersState = (): Record<StrategyGoalField, string> => ({
   category: '',
 })
 
-const formatFilterValue = (value: string): string => (value ? value : 'Пусто')
-
-const buildSelectedLabel = (
-  values: string[],
-  emptyLabel: string,
-  formatValue: (value: string) => string = (value) => value
-): string => {
-  if (values.length === 0) return emptyLabel
-  if (values.length <= 2) return values.map(formatValue).join(', ')
-  return `${values.slice(0, 2).map(formatValue).join(', ')} +${values.length - 2}`
-}
-
-const buildOptions = (rows: StrategyGoalRow[], key: StrategyGoalField, collator: Intl.Collator): string[] => {
-  const unique = new Set<string>()
-  let hasEmpty = false
-  rows.forEach((row) => {
-    const value = String(row[key] ?? '').trim()
-    if (value) unique.add(value)
-    else hasEmpty = true
-  })
-  const sorted = Array.from(unique).sort((a, b) => collator.compare(a, b))
-  return hasEmpty ? [''].concat(sorted) : sorted
-}
-
 export function StrategyGoalsPage() {
   const [state, setState] = useState<{ rows: StrategyGoalRow[] }>({ rows: [] })
   const [isLoaded, setIsLoaded] = useState(false)
@@ -142,8 +125,7 @@ export function StrategyGoalsPage() {
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
-  const [colWidths, setColWidths] = useState<Record<string, number>>({})
-  const resizeStateRef = useRef<{ key: StrategyGoalField; startX: number; startWidth: number } | null>(null)
+  const { colWidths, startColumnResize } = useColumnResize(editingRowId)
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -151,33 +133,6 @@ export function StrategyGoalsPage() {
   const segmentRef = useRef<HTMLDivElement>(null)
   const initiativeTypeRef = useRef<HTMLDivElement>(null)
   const categoryRef = useRef<HTMLDivElement>(null)
-
-  const startColumnResize = useCallback(
-    (key: StrategyGoalField, e: React.MouseEvent<HTMLDivElement>) => {
-      if (!!editingRowId) return
-      e.preventDefault()
-      e.stopPropagation()
-      const thEl = e.currentTarget.parentElement as HTMLElement | null
-      const startWidth = thEl?.getBoundingClientRect().width ?? 120
-      resizeStateRef.current = { key, startX: e.clientX, startWidth }
-
-      const onMouseMove = (ev: MouseEvent) => {
-        const resize = resizeStateRef.current
-        if (!resize) return
-        const dx = ev.clientX - resize.startX
-        const next = Math.max(60, Math.min(1200, resize.startWidth + dx))
-        setColWidths((prev) => ({ ...prev, [resize.key]: next }))
-      }
-      const onMouseUp = () => {
-        resizeStateRef.current = null
-        document.removeEventListener('mousemove', onMouseMove)
-        document.removeEventListener('mouseup', onMouseUp)
-      }
-      document.addEventListener('mousemove', onMouseMove)
-      document.addEventListener('mouseup', onMouseUp)
-    },
-    [editingRowId]
-  )
 
   useEffect(() => {
     let active = true
@@ -258,11 +213,23 @@ export function StrategyGoalsPage() {
     setFilters((prev) => ({ ...prev, [key]: value }))
   }, [])
 
-  const collator = useMemo(() => new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }), [])
-  const businessUnitOptions = useMemo(() => buildOptions(state.rows, 'businessUnit', collator), [state.rows, collator])
-  const segmentOptions = useMemo(() => buildOptions(state.rows, 'segment', collator), [state.rows, collator])
-  const initiativeTypeOptions = useMemo(() => buildOptions(state.rows, 'initiativeType', collator), [state.rows, collator])
-  const categoryOptions = useMemo(() => buildOptions(state.rows, 'category', collator), [state.rows, collator])
+  const collator = useMemo(() => createRuNumericCollator(), [])
+  const businessUnitOptions = useMemo(
+    () => buildDistinctColumnOptions(state.rows, 'businessUnit', collator),
+    [state.rows, collator]
+  )
+  const segmentOptions = useMemo(
+    () => buildDistinctColumnOptions(state.rows, 'segment', collator),
+    [state.rows, collator]
+  )
+  const initiativeTypeOptions = useMemo(
+    () => buildDistinctColumnOptions(state.rows, 'initiativeType', collator),
+    [state.rows, collator]
+  )
+  const categoryOptions = useMemo(
+    () => buildDistinctColumnOptions(state.rows, 'category', collator),
+    [state.rows, collator]
+  )
 
   useEffect(() => setBusinessUnitFilter((prev) => prev.filter((value) => businessUnitOptions.includes(value))), [businessUnitOptions])
   useEffect(() => setSegmentFilter((prev) => prev.filter((value) => segmentOptions.includes(value))), [segmentOptions])

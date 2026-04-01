@@ -13,6 +13,7 @@ import { parseLeaderGoalsXlsxToRows } from '@/lib/importGoals'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditLeaderGoalModal, type EditLeaderGoalField } from '@/components/EditLeaderGoalModal'
 import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
+import { useColumnResize } from '@/hooks/useColumnResize'
 import styles from './GoalsPage.module.css'
 
 type LeaderGoalField = keyof Omit<LeaderGoalRow, 'id'>
@@ -117,44 +118,12 @@ export function LeaderGoalsPage() {
   const [sortKey, setSortKey] = useState<LeaderGoalField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [pageSize, setPageSize] = useState<number | 'all'>(PAGE_SIZE)
-  const [colWidths, setColWidths] = useState<Record<string, number>>({})
-  const resizeStateRef = useRef<{ key: LeaderGoalField; startX: number; startWidth: number } | null>(null)
+  const { colWidths, startColumnResize } = useColumnResize(editingRowId)
   const skipSyncRef = useRef(true)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const lastNameRef = useRef<HTMLDivElement>(null)
   const reportYearRef = useRef<HTMLDivElement>(null)
-
-  const startColumnResize = useCallback(
-    (key: LeaderGoalField, e: React.MouseEvent<HTMLDivElement>) => {
-      if (!!editingRowId) return
-      e.preventDefault()
-      e.stopPropagation()
-
-      const thEl = e.currentTarget.parentElement as HTMLElement | null
-      const startWidth = thEl?.getBoundingClientRect().width ?? 120
-
-      resizeStateRef.current = { key, startX: e.clientX, startWidth }
-
-      const onMouseMove = (ev: MouseEvent) => {
-        const state = resizeStateRef.current
-        if (!state) return
-        const dx = ev.clientX - state.startX
-        const next = Math.max(60, Math.min(1200, state.startWidth + dx))
-        setColWidths((prev) => ({ ...prev, [state.key]: next }))
-      }
-
-      const onMouseUp = () => {
-        resizeStateRef.current = null
-        document.removeEventListener('mousemove', onMouseMove)
-        document.removeEventListener('mouseup', onMouseUp)
-      }
-
-      document.addEventListener('mousemove', onMouseMove)
-      document.addEventListener('mouseup', onMouseUp)
-    },
-    [editingRowId]
-  )
 
   useEffect(() => {
     let active = true

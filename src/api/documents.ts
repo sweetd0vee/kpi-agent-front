@@ -392,32 +392,8 @@ export async function syncCollectionToOpenWebUI(collectionId: string): Promise<S
   return res.json()
 }
 
-export type DepartmentItem = {
-  id: string
-  name: string
-}
-
-type DepartmentListResponse = {
-  items: DepartmentItem[]
-}
-
 type ResponsiblesListResponse = {
   items: string[]
-}
-
-export async function getDepartments(): Promise<DepartmentItem[]> {
-  const res = await apiFetch('/api/departments')
-  const text = await res.text()
-  if (!res.ok) throw new Error(text?.slice(0, 200) || `Подразделения: ${res.status}`)
-  if (text.trimStart().toLowerCase().startsWith('<!')) {
-    throw new Error('Backend не доступен. Запустите backend на порту 8000.')
-  }
-  try {
-    const data = JSON.parse(text) as DepartmentListResponse
-    return Array.isArray(data?.items) ? data.items : []
-  } catch {
-    throw new Error('Ответ не JSON.')
-  }
 }
 
 export async function getResponsibles(): Promise<string[]> {
