@@ -22,7 +22,6 @@ const TEMPLATE_SLOTS: {
   icon: 'plan' | 'strategy' | 'reglament'
 }[] = [
   { id: 'business_plan_checklist', label: 'Бизнес-план', description: 'Стандартный документ бизнес-планирования', icon: 'plan' },
-  { id: 'strategy_checklist', label: 'Стратегия', description: 'Чеклист по стратегии банка', icon: 'strategy' },
   { id: 'reglament_checklist', label: 'Регламент', description: 'Чеклист по регламенту банка', icon: 'reglament' },
 ]
 
@@ -586,7 +585,7 @@ export function SettingsPage() {
           ) : (
             <>
               Здесь загружаются основные документы, которые не меняются в течение года:
-              <strong> Бизнес-план</strong>, <strong>Стратегия</strong> и <strong>Регламент</strong>.
+              <strong> Бизнес-план</strong> и <strong>Регламент</strong>.
               Они автоматически подставляются в каждую новую коллекцию на вкладке «База знаний».
             </>
           )}
