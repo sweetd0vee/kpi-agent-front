@@ -26,6 +26,9 @@ function normalizeGoalRows(value: unknown): GoalRow[] {
     return {
       id: typeof item.id === 'string' && item.id ? item.id : generateId(),
       lastName: typeof item.lastName === 'string' ? item.lastName : '',
+      leaderId: typeof item.leaderId === 'string' && item.leaderId ? item.leaderId : undefined,
+      businessUnit: typeof item.businessUnit === 'string' ? item.businessUnit : '',
+      department: typeof item.department === 'string' ? item.department : '',
       goal: typeof item.goal === 'string' ? item.goal : '',
       metricGoals: typeof item.metricGoals === 'string' ? item.metricGoals : '',
       weightQ: typeof item.weightQ === 'string' ? item.weightQ : '',
@@ -182,7 +185,6 @@ function normalizeStrategyGoalRows(value: unknown): StrategyGoalRow[] {
       targetValue2025: typeof item.targetValue2025 === 'string' ? item.targetValue2025 : '',
       targetValue2026: typeof item.targetValue2026 === 'string' ? item.targetValue2026 : '',
       targetValue2027: typeof item.targetValue2027 === 'string' ? item.targetValue2027 : '',
-      category: typeof item.category === 'string' ? item.category : '',
     }
   })
 }

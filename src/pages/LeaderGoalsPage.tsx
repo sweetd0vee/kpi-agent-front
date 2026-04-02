@@ -107,7 +107,6 @@ export function LeaderGoalsPage() {
   const [lastNameFilter, setLastNameFilter] = useState<string[]>([])
   const [reportYearFilter, setReportYearFilter] = useState<string[]>([])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [savedToChatToast, setSavedToChatToast] = useState(false)
@@ -313,12 +312,6 @@ export function LeaderGoalsPage() {
     setPendingDeleteId(null)
   }, [pendingDeleteId, deleteRow])
 
-  const confirmClearTable = useCallback(() => {
-    setGoalsState({ rows: [] })
-    setPage(1)
-    setPendingClearTable(false)
-  }, [])
-
   const saveToChatContext = useCallback(() => {
     const content = serializeLeaderGoalsRowsToText(sortedRows)
     if (!content.trim()) return
@@ -494,15 +487,6 @@ export function LeaderGoalsPage() {
               title="Импорт из xlsx"
             >
               Импортировать
-            </button>
-            <button
-              type="button"
-              className={styles.clearTableBtn}
-              onClick={() => setPendingClearTable(true)}
-              disabled={goalsState.rows.length === 0 || !!editingRowId}
-              title="Удалить все записи"
-            >
-              Очистить таблицу
             </button>
             <button
               type="button"
@@ -947,16 +931,6 @@ export function LeaderGoalsPage() {
         confirmLabel="Удалить"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
-        danger
-      />
-
-      <ConfirmModal
-        open={pendingClearTable}
-        title="Очистить таблицу"
-        message="Удалить все записи в таблице «Цели руководителей»? Это действие нельзя отменить."
-        confirmLabel="Очистить"
-        onConfirm={confirmClearTable}
-        onCancel={() => setPendingClearTable(false)}
         danger
       />
 

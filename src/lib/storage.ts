@@ -66,6 +66,10 @@ export type StoredAttachable = {
 export type GoalRow = {
   id: string
   lastName: string
+  /** UUID из справочника `leaders` (подставляется бэкендом по ФИО). */
+  leaderId?: string
+  businessUnit: string
+  department: string
   goal: string
   metricGoals: string
   weightQ: string
@@ -133,7 +137,6 @@ export type StrategyGoalRow = {
   targetValue2025: string
   targetValue2026: string
   targetValue2027: string
-  category: string
 }
 
 export function getChats(): StoredChat[] {
@@ -293,6 +296,9 @@ function normalizeGoalRows(value: unknown): GoalRow[] {
     return {
       id: typeof item.id === 'string' ? item.id : generateId(),
       lastName: typeof item.lastName === 'string' ? item.lastName : '',
+      leaderId: typeof item.leaderId === 'string' && item.leaderId ? item.leaderId : undefined,
+      businessUnit: typeof item.businessUnit === 'string' ? item.businessUnit : '',
+      department: typeof item.department === 'string' ? item.department : '',
       goal: typeof item.goal === 'string' ? item.goal : '',
       metricGoals: typeof item.metricGoals === 'string' ? item.metricGoals : '',
       weightQ: typeof item.weightQ === 'string' ? item.weightQ : '',

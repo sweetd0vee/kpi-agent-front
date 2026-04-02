@@ -51,7 +51,6 @@ const COLUMNS: Column[] = [
   { key: 'targetValue2025', label: '2025: Целевое значение', placeholder: '', cellClassName: styles.colQuarter, valueClassName: styles.valueCenter },
   { key: 'targetValue2026', label: '2026: Целевое значение', placeholder: '', cellClassName: styles.colQuarter, valueClassName: styles.valueCenter },
   { key: 'targetValue2027', label: '2027: Целевое значение', placeholder: '', cellClassName: styles.colQuarter, valueClassName: styles.valueCenter },
-  { key: 'category', label: 'Категория', placeholder: '', cellClassName: styles.colWeight },
 ]
 
 const createRow = (): StrategyGoalRow => ({
@@ -72,12 +71,19 @@ const createRow = (): StrategyGoalRow => ({
   targetValue2025: '',
   targetValue2026: '',
   targetValue2027: '',
-  category: '',
 })
 
 const DEFAULT_PAGE_SIZE = 15
-const FILTER_SELECT_FIELDS: StrategyGoalField[] = ['businessUnit', 'segment', 'initiativeType', 'category']
+const FILTER_SELECT_FIELDS: StrategyGoalField[] = ['businessUnit', 'segment', 'initiativeType']
 const FILTER_DISABLED_FIELDS: StrategyGoalField[] = ['goalObjective', 'initiative', 'strategicPriority', 'kpi']
+/** Колонки без строки фильтра (данные в таблице и в модалке сохраняются). */
+const FILTER_HIDDEN_FIELDS: StrategyGoalField[] = [
+  'otherUnitsInvolved',
+  'budget',
+  'startDate',
+  'endDate',
+  'unitOfMeasure',
+]
 
 const createFiltersState = (): Record<StrategyGoalField, string> => ({
   businessUnit: '',
@@ -96,7 +102,6 @@ const createFiltersState = (): Record<StrategyGoalField, string> => ({
   targetValue2025: '',
   targetValue2026: '',
   targetValue2027: '',
-  category: '',
 })
 
 export function StrategyGoalsPage() {
@@ -111,17 +116,14 @@ export function StrategyGoalsPage() {
   const [businessUnitFilter, setBusinessUnitFilter] = useState<string[]>([])
   const [segmentFilter, setSegmentFilter] = useState<string[]>([])
   const [initiativeTypeFilter, setInitiativeTypeFilter] = useState<string[]>([])
-  const [categoryFilter, setCategoryFilter] = useState<string[]>([])
   const [businessUnitOpen, setBusinessUnitOpen] = useState(false)
   const [segmentOpen, setSegmentOpen] = useState(false)
   const [initiativeTypeOpen, setInitiativeTypeOpen] = useState(false)
-  const [categoryOpen, setCategoryOpen] = useState(false)
   const [sortKey, setSortKey] = useState<StrategyGoalField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [savedToChatToast, setSavedToChatToast] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
@@ -132,7 +134,6 @@ export function StrategyGoalsPage() {
   const businessUnitRef = useRef<HTMLDivElement>(null)
   const segmentRef = useRef<HTMLDivElement>(null)
   const initiativeTypeRef = useRef<HTMLDivElement>(null)
-  const categoryRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let active = true
@@ -176,7 +177,13 @@ export function StrategyGoalsPage() {
     () =>
       (Object.entries(filters) as Array<[StrategyGoalField, string]>)
         .map(([key, value]) => [key, value.trim().toLowerCase()] as const)
-        .filter(([key, value]) => value.length > 0 && !FILTER_DISABLED_FIELDS.includes(key) && !FILTER_SELECT_FIELDS.includes(key)),
+        .filter(
+          ([key, value]) =>
+            value.length > 0 &&
+            !FILTER_DISABLED_FIELDS.includes(key) &&
+            !FILTER_SELECT_FIELDS.includes(key) &&
+            !FILTER_HIDDEN_FIELDS.includes(key)
+        ),
     [filters]
   )
 
@@ -186,7 +193,6 @@ export function StrategyGoalsPage() {
     if (businessUnitFilter.length > 0 && !businessUnitFilter.includes(String(row.businessUnit ?? '').trim())) return false
     if (segmentFilter.length > 0 && !segmentFilter.includes(String(row.segment ?? '').trim())) return false
     if (initiativeTypeFilter.length > 0 && !initiativeTypeFilter.includes(String(row.initiativeType ?? '').trim())) return false
-    if (categoryFilter.length > 0 && !categoryFilter.includes(String(row.category ?? '').trim())) return false
     return true
   })
 
@@ -194,19 +200,16 @@ export function StrategyGoalsPage() {
     normalizedFilters.length > 0 ||
     businessUnitFilter.length > 0 ||
     segmentFilter.length > 0 ||
-    initiativeTypeFilter.length > 0 ||
-    categoryFilter.length > 0
+    initiativeTypeFilter.length > 0
 
   const resetFilters = useCallback(() => {
     setFilters(createFiltersState())
     setBusinessUnitFilter([])
     setSegmentFilter([])
     setInitiativeTypeFilter([])
-    setCategoryFilter([])
     setBusinessUnitOpen(false)
     setSegmentOpen(false)
     setInitiativeTypeOpen(false)
-    setCategoryOpen(false)
   }, [])
 
   const updateFilter = useCallback((key: StrategyGoalField, value: string) => {
@@ -226,15 +229,9 @@ export function StrategyGoalsPage() {
     () => buildDistinctColumnOptions(state.rows, 'initiativeType', collator),
     [state.rows, collator]
   )
-  const categoryOptions = useMemo(
-    () => buildDistinctColumnOptions(state.rows, 'category', collator),
-    [state.rows, collator]
-  )
-
   useEffect(() => setBusinessUnitFilter((prev) => prev.filter((value) => businessUnitOptions.includes(value))), [businessUnitOptions])
   useEffect(() => setSegmentFilter((prev) => prev.filter((value) => segmentOptions.includes(value))), [segmentOptions])
   useEffect(() => setInitiativeTypeFilter((prev) => prev.filter((value) => initiativeTypeOptions.includes(value))), [initiativeTypeOptions])
-  useEffect(() => setCategoryFilter((prev) => prev.filter((value) => categoryOptions.includes(value))), [categoryOptions])
 
   const toggleBusinessUnit = useCallback((value: string) => {
     setBusinessUnitFilter((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value].sort((a, b) => collator.compare(a, b))))
@@ -245,18 +242,13 @@ export function StrategyGoalsPage() {
   const toggleInitiativeType = useCallback((value: string) => {
     setInitiativeTypeFilter((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value].sort((a, b) => collator.compare(a, b))))
   }, [collator])
-  const toggleCategory = useCallback((value: string) => {
-    setCategoryFilter((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value].sort((a, b) => collator.compare(a, b))))
-  }, [collator])
 
   const businessUnitLabel = useMemo(() => buildSelectedLabel(businessUnitFilter, 'Все блоки'), [businessUnitFilter])
   const segmentLabel = useMemo(() => buildSelectedLabel(segmentFilter, 'Все сегменты', formatFilterValue), [segmentFilter])
   const initiativeTypeLabel = useMemo(() => buildSelectedLabel(initiativeTypeFilter, 'Все типы', formatFilterValue), [initiativeTypeFilter])
-  const categoryLabel = useMemo(() => buildSelectedLabel(categoryFilter, 'Все категории', formatFilterValue), [categoryFilter])
   const allBusinessUnitsSelected = businessUnitOptions.length > 0 && businessUnitFilter.length === businessUnitOptions.length
   const allSegmentsSelected = segmentOptions.length > 0 && segmentFilter.length === segmentOptions.length
   const allInitiativeTypesSelected = initiativeTypeOptions.length > 0 && initiativeTypeFilter.length === initiativeTypeOptions.length
-  const allCategoriesSelected = categoryOptions.length > 0 && categoryFilter.length === categoryOptions.length
 
   const sortedRows = useMemo(() => {
     if (!sortKey) return filteredRows
@@ -287,7 +279,7 @@ export function StrategyGoalsPage() {
   }, [totalPages])
   useEffect(() => {
     setPage(1)
-  }, [filters, businessUnitFilter, segmentFilter, initiativeTypeFilter, categoryFilter, sortDirection, sortKey, pageSize])
+  }, [filters, businessUnitFilter, segmentFilter, initiativeTypeFilter, sortDirection, sortKey, pageSize])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -305,19 +297,17 @@ export function StrategyGoalsPage() {
       const insideBusiness = businessUnitRef.current?.contains(target)
       const insideSegment = segmentRef.current?.contains(target)
       const insideInitiativeType = initiativeTypeRef.current?.contains(target)
-      const insideCategory = categoryRef.current?.contains(target)
-      if (!insideBusiness && !insideSegment && !insideInitiativeType && !insideCategory) {
+      if (!insideBusiness && !insideSegment && !insideInitiativeType) {
         setBusinessUnitOpen(false)
         setSegmentOpen(false)
         setInitiativeTypeOpen(false)
-        setCategoryOpen(false)
       }
     }
-    if (businessUnitOpen || segmentOpen || initiativeTypeOpen || categoryOpen) {
+    if (businessUnitOpen || segmentOpen || initiativeTypeOpen) {
       document.addEventListener('click', handleClickOutside)
       return () => document.removeEventListener('click', handleClickOutside)
     }
-  }, [businessUnitOpen, segmentOpen, initiativeTypeOpen, categoryOpen])
+  }, [businessUnitOpen, segmentOpen, initiativeTypeOpen])
 
   const handleExport = useCallback((format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
     setExportDropdownOpen(false)
@@ -370,7 +360,9 @@ export function StrategyGoalsPage() {
     multiline: Boolean(column.multiline),
   }))
 
-  const filterableColumns = COLUMNS.filter((col) => !FILTER_DISABLED_FIELDS.includes(col.key))
+  const filterableColumns = COLUMNS.filter(
+    (col) => !FILTER_DISABLED_FIELDS.includes(col.key) && !FILTER_HIDDEN_FIELDS.includes(col.key)
+  )
 
   const addRow = useCallback(() => {
     const newRow = createRow()
@@ -426,26 +418,21 @@ export function StrategyGoalsPage() {
     setPendingDeleteId(null)
   }, [deleteRow, pendingDeleteId])
 
-  const confirmClearTable = useCallback(() => {
-    setState({ rows: [] })
-    setPage(1)
-    setPendingClearTable(false)
-  }, [])
-
   const buildFilterDescription = useCallback((): string | undefined => {
     const parts: string[] = []
     if (businessUnitFilter.length > 0) parts.push(`Бизнес/блок: ${businessUnitFilter.join(', ')}`)
     if (segmentFilter.length > 0) parts.push(`Сегмент: ${segmentFilter.map(formatFilterValue).join(', ')}`)
     if (initiativeTypeFilter.length > 0) parts.push(`Тип инициативы: ${initiativeTypeFilter.map(formatFilterValue).join(', ')}`)
-    if (categoryFilter.length > 0) parts.push(`Категория: ${categoryFilter.map(formatFilterValue).join(', ')}`)
-    const textFilterKeys = COLUMNS.map((c) => c.key).filter((key) => !FILTER_SELECT_FIELDS.includes(key))
+    const textFilterKeys = COLUMNS.map((c) => c.key).filter(
+      (key) => !FILTER_SELECT_FIELDS.includes(key) && !FILTER_HIDDEN_FIELDS.includes(key)
+    )
     const columnByKey = Object.fromEntries(COLUMNS.map((c) => [c.key, c]))
     for (const key of textFilterKeys) {
       const v = (filters[key] ?? '').trim()
       if (v) parts.push(`${columnByKey[key]?.label ?? key}: ${v}`)
     }
     return parts.length > 0 ? parts.join('; ') : undefined
-  }, [businessUnitFilter, categoryFilter, filters, initiativeTypeFilter, segmentFilter])
+  }, [businessUnitFilter, filters, initiativeTypeFilter, segmentFilter])
 
   const saveToChatContext = useCallback(() => {
     const content = serializeStrategyGoalsRowsToText(sortedRows)
@@ -480,15 +467,6 @@ export function StrategyGoalsPage() {
             <button type="button" className={styles.importBtn} onClick={handleImportClick} disabled={!!editingRowId} title="Импорт из xlsx">
               Импортировать
             </button>
-            <button
-              type="button"
-              className={styles.clearTableBtn}
-              onClick={() => setPendingClearTable(true)}
-              disabled={state.rows.length === 0 || !!editingRowId}
-              title="Удалить все записи в таблице"
-            >
-              Очистить таблицу
-            </button>
             <button type="button" className={styles.addBtn} onClick={addRow} aria-label="Добавить строку" title="Добавить строку">
               <PlusIcon className={styles.addBtnIcon} />
             </button>
@@ -517,7 +495,7 @@ export function StrategyGoalsPage() {
               col.key === 'businessUnit' ? (
                 <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={businessUnitRef}>
                   <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={() => { setBusinessUnitOpen((v) => !v); setSegmentOpen(false); setInitiativeTypeOpen(false); setCategoryOpen(false) }} disabled={!!editingRowId} aria-expanded={businessUnitOpen} aria-haspopup="listbox">
+                  <button type="button" className={styles.filterSelectButton} onClick={() => { setBusinessUnitOpen((v) => !v); setSegmentOpen(false); setInitiativeTypeOpen(false) }} disabled={!!editingRowId} aria-expanded={businessUnitOpen} aria-haspopup="listbox">
                     <span className={styles.filterSelectText}>{businessUnitLabel}</span>
                     <span className={styles.filterSelectCaret} aria-hidden />
                   </button>
@@ -543,7 +521,7 @@ export function StrategyGoalsPage() {
               ) : col.key === 'segment' ? (
                 <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={segmentRef}>
                   <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={() => { setSegmentOpen((v) => !v); setBusinessUnitOpen(false); setInitiativeTypeOpen(false); setCategoryOpen(false) }} disabled={!!editingRowId} aria-expanded={segmentOpen} aria-haspopup="listbox">
+                  <button type="button" className={styles.filterSelectButton} onClick={() => { setSegmentOpen((v) => !v); setBusinessUnitOpen(false); setInitiativeTypeOpen(false) }} disabled={!!editingRowId} aria-expanded={segmentOpen} aria-haspopup="listbox">
                     <span className={styles.filterSelectText}>{segmentLabel}</span>
                     <span className={styles.filterSelectCaret} aria-hidden />
                   </button>
@@ -569,7 +547,7 @@ export function StrategyGoalsPage() {
               ) : col.key === 'initiativeType' ? (
                 <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={initiativeTypeRef}>
                   <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={() => { setInitiativeTypeOpen((v) => !v); setBusinessUnitOpen(false); setSegmentOpen(false); setCategoryOpen(false) }} disabled={!!editingRowId} aria-expanded={initiativeTypeOpen} aria-haspopup="listbox">
+                  <button type="button" className={styles.filterSelectButton} onClick={() => { setInitiativeTypeOpen((v) => !v); setBusinessUnitOpen(false); setSegmentOpen(false) }} disabled={!!editingRowId} aria-expanded={initiativeTypeOpen} aria-haspopup="listbox">
                     <span className={styles.filterSelectText}>{initiativeTypeLabel}</span>
                     <span className={styles.filterSelectCaret} aria-hidden />
                   </button>
@@ -584,32 +562,6 @@ export function StrategyGoalsPage() {
                           {initiativeTypeOptions.map((value) => (
                             <label key={value} className={styles.filterSelectOption}>
                               <input type="checkbox" checked={initiativeTypeFilter.includes(value)} onChange={() => toggleInitiativeType(value)} />
-                              <span>{formatFilterValue(value)}</span>
-                            </label>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : col.key === 'category' ? (
-                <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={categoryRef}>
-                  <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={() => { setCategoryOpen((v) => !v); setBusinessUnitOpen(false); setSegmentOpen(false); setInitiativeTypeOpen(false) }} disabled={!!editingRowId} aria-expanded={categoryOpen} aria-haspopup="listbox">
-                    <span className={styles.filterSelectText}>{categoryLabel}</span>
-                    <span className={styles.filterSelectCaret} aria-hidden />
-                  </button>
-                  {categoryOpen && (
-                    <div className={styles.filterSelectMenu} role="listbox" aria-label="Категория">
-                      {categoryOptions.length === 0 ? <div className={styles.filterSelectEmpty}>Нет данных</div> : (
-                        <>
-                          <label className={styles.filterSelectOption}>
-                            <input type="checkbox" checked={allCategoriesSelected} onChange={() => setCategoryFilter((prev) => prev.length === categoryOptions.length ? [] : [...categoryOptions])} />
-                            <span>Выбрать все</span>
-                          </label>
-                          {categoryOptions.map((value) => (
-                            <label key={value} className={styles.filterSelectOption}>
-                              <input type="checkbox" checked={categoryFilter.includes(value)} onChange={() => toggleCategory(value)} />
                               <span>{formatFilterValue(value)}</span>
                             </label>
                           ))}
@@ -835,17 +787,6 @@ export function StrategyGoalsPage() {
         cancelLabel="Отмена"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
-        danger
-      />
-
-      <ConfirmModal
-        open={pendingClearTable}
-        title="Очистить таблицу"
-        message="Удалить все записи в таблице Цели стратегии? Это действие нельзя отменить."
-        confirmLabel="Очистить"
-        cancelLabel="Отмена"
-        onConfirm={confirmClearTable}
-        onCancel={() => setPendingClearTable(false)}
         danger
       />
 

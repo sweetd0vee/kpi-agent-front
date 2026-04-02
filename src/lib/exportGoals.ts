@@ -13,16 +13,33 @@ import {
 } from 'docx'
 import * as XLSX from 'xlsx'
 
-export const EXPORT_HEADERS = ['ФИО', 'SCAI Цель', 'Метрические цели', 'Вес квартал', 'Вес год', '1 квартал', '2 квартал', '3 квартал', '4 квартал', 'Год', 'Отчётный год']
+export const EXPORT_HEADERS = [
+  'ФИО',
+  'Бизнес/блок',
+  'Подразделение',
+  'UUID руководителя',
+  'SCAI Цель',
+  'Метрические цели',
+  'Вес квартал',
+  'Вес год',
+  '1 квартал',
+  '2 квартал',
+  '3 квартал',
+  '4 квартал',
+  'Год',
+  'Отчётный год',
+]
+
+const EMPTY_GOALS_TEMPLATE_ROW = () => Array(EXPORT_HEADERS.length).fill('')
 
 /** Шаблон заполняемой таблицы целей (ППР): заголовки + пустые строки для заполнения */
 const GOALS_TEMPLATE_ROWS: string[][] = [
   EXPORT_HEADERS,
-  ['', '', '', '', '', '', '', '', '', '', ''],
-  ['', '', '', '', '', '', '', '', '', '', ''],
-  ['', '', '', '', '', '', '', '', '', '', ''],
-  ['', '', '', '', '', '', '', '', '', '', ''],
-  ['', '', '', '', '', '', '', '', '', '', ''],
+  EMPTY_GOALS_TEMPLATE_ROW(),
+  EMPTY_GOALS_TEMPLATE_ROW(),
+  EMPTY_GOALS_TEMPLATE_ROW(),
+  EMPTY_GOALS_TEMPLATE_ROW(),
+  EMPTY_GOALS_TEMPLATE_ROW(),
 ]
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -45,6 +62,9 @@ export function downloadGoalsTemplate(): void {
 function rowToCells(row: GoalRow): string[] {
   return [
     row.lastName ?? '',
+    row.businessUnit ?? '',
+    row.department ?? '',
+    row.leaderId ?? '',
     row.goal ?? '',
     row.metricGoals ?? '',
     row.weightQ ?? '',
@@ -411,7 +431,6 @@ export const STRATEGY_EXPORT_HEADERS = [
   '2025: Целевое значение',
   '2026: Целевое значение',
   '2027: Целевое значение',
-  'Категория',
 ]
 
 function strategyRowToCells(row: StrategyGoalRow): string[] {
@@ -432,7 +451,6 @@ function strategyRowToCells(row: StrategyGoalRow): string[] {
     row.targetValue2025 ?? '',
     row.targetValue2026 ?? '',
     row.targetValue2027 ?? '',
-    row.category ?? '',
   ]
 }
 

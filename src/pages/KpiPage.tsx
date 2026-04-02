@@ -32,6 +32,9 @@ type Column = {
 const createRow = (): GoalRow => ({
   id: generateId(),
   lastName: '',
+  leaderId: undefined,
+  businessUnit: '',
+  department: '',
   goal: '',
   metricGoals: '',
   weightQ: '',
@@ -46,6 +49,9 @@ const createRow = (): GoalRow => ({
 
 const createFiltersState = (): Record<GoalField, string> => ({
   lastName: '',
+  leaderId: '',
+  businessUnit: '',
+  department: '',
   goal: '',
   metricGoals: '',
   weightQ: '',
@@ -58,7 +64,7 @@ const createFiltersState = (): Record<GoalField, string> => ({
   reportYear: '',
 })
 
-const FILTER_DISABLED_FIELDS: GoalField[] = ['goal', 'q1', 'q2', 'q3', 'q4', 'year']
+const FILTER_DISABLED_FIELDS: GoalField[] = ['goal', 'q1', 'q2', 'q3', 'q4', 'year', 'leaderId']
 const FILTER_SELECT_FIELDS: GoalField[] = ['lastName', 'weightQ', 'weightYear', 'reportYear']
 
 export function KpiPage() {
@@ -83,7 +89,6 @@ export function KpiPage() {
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [savedToChatToast, setSavedToChatToast] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
@@ -128,7 +133,11 @@ export function KpiPage() {
       return
     }
     void saveBoardGoalRows(goalsState.rows)
-      .then(() => setDataError(null))
+      .then((rows) => {
+        setDataError(null)
+        skipSyncRef.current = true
+        setGoalsState({ rows })
+      })
       .catch((err) => {
         setDataError(err instanceof Error ? err.message : 'Не удалось сохранить данные.')
       })
@@ -405,7 +414,9 @@ export function KpiPage() {
       parseKpiXlsxToRows(file)
         .then((rows) => {
           if (rows.length === 0) {
-            setImportError('В файле нет данных или заголовки не совпадают. Ожидаются: ФИО, SCAI Цель, Метрические цели, Вес квартал, Вес год, 1–4 квартал, Год.')
+            setImportError(
+              'В файле нет данных или заголовки не совпадают. Нужны колонки: ФИО, SCAI Цель, Метрические цели, … (опционально: Бизнес/блок, Подразделение, UUID руководителя).'
+            )
             return
           }
           setGoalsState((prev) => ({ ...prev, rows: [...prev.rows, ...rows] }))
@@ -420,6 +431,8 @@ export function KpiPage() {
 
   const editFields: EditRowField[] = [
     { key: 'lastName', label: 'ФИО', placeholder: 'Иванов Иван Иванович' },
+    { key: 'businessUnit', label: 'Бизнес/блок', placeholder: 'Как в оргструктуре' },
+    { key: 'department', label: 'Подразделение', placeholder: '' },
     { key: 'goal', label: 'SCAI Цель', placeholder: 'Например: рост эффективности операционных затрат', multiline: true },
     { key: 'metricGoals', label: 'Метрические цели', placeholder: 'Например: снижение CIR на 2 п.п.', multiline: true },
     { key: 'weightQ', label: 'Вес квартал', placeholder: '' },
@@ -434,6 +447,29 @@ export function KpiPage() {
 
   const columns: Column[] = [
     { key: 'lastName', label: 'ФИО', placeholder: 'Иванов Иван Иванович', cellClassName: styles.colSurname, inputClassName: styles.input },
+    {
+      key: 'businessUnit',
+      label: 'Бизнес/блок',
+      placeholder: '',
+      cellClassName: styles.colWeight,
+      inputClassName: styles.input,
+      valueClassName: styles.valueCenter,
+    },
+    {
+      key: 'department',
+      label: 'Подразделение',
+      placeholder: '',
+      cellClassName: styles.colGoal,
+      inputClassName: styles.input,
+    },
+    {
+      key: 'leaderId',
+      label: 'UUID руководителя',
+      placeholder: 'из справочника leaders',
+      cellClassName: styles.colQuarter,
+      inputClassName: styles.input,
+      valueClassName: styles.valueCenter,
+    },
     {
       key: 'goal',
       label: 'SCAI Цель',
@@ -528,19 +564,13 @@ export function KpiPage() {
     setPendingDeleteId(null)
   }, [pendingDeleteId, deleteRow])
 
-  const confirmClearTable = useCallback(() => {
-    setGoalsState({ rows: [] })
-    setPage(1)
-    setPendingClearTable(false)
-  }, [])
-
   const buildFilterDescription = useCallback((): string | undefined => {
     const parts: string[] = []
     if (lastNameFilter.length > 0) parts.push(`ФИО: ${lastNameFilter.join(', ')}`)
     if (weightQFilter.length > 0) parts.push(`Вес квартал: ${weightQFilter.map(formatFilterValue).join(', ')}`)
     if (weightYearFilter.length > 0) parts.push(`Вес год: ${weightYearFilter.map(formatFilterValue).join(', ')}`)
     if (reportYearFilter.length > 0) parts.push(`Отчётный год: ${reportYearFilter.map(formatFilterValue).join(', ')}`)
-    const textFilterKeys: GoalField[] = ['metricGoals', 'q1', 'q2', 'q3', 'q4', 'year']
+    const textFilterKeys: GoalField[] = ['businessUnit', 'department', 'metricGoals', 'q1', 'q2', 'q3', 'q4', 'year']
     const columnByKey = Object.fromEntries(columns.map((c) => [c.key, c]))
     for (const key of textFilterKeys) {
       const v = (filters[key] ?? '').trim()
@@ -581,15 +611,6 @@ export function KpiPage() {
             />
             <button type="button" className={styles.importBtn} onClick={handleImportClick} disabled={!!editingRowId} title="Импорт из xlsx">
               Импортировать
-            </button>
-            <button
-              type="button"
-              className={styles.clearTableBtn}
-              onClick={() => setPendingClearTable(true)}
-              disabled={goalsState.rows.length === 0 || !!editingRowId}
-              title="Удалить все записи в таблице"
-            >
-              Очистить таблицу
             </button>
             <button type="button" className={styles.addBtn} onClick={addRow} aria-label="Добавить строку" title="Добавить строку">
               <PlusIcon className={styles.addBtnIcon} />
@@ -1050,17 +1071,6 @@ export function KpiPage() {
         cancelLabel="Отмена"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
-        danger
-      />
-
-      <ConfirmModal
-        open={pendingClearTable}
-        title="Очистить таблицу"
-        message="Удалить все записи в таблице «Цели правления»? Это действие нельзя отменить."
-        confirmLabel="Очистить"
-        cancelLabel="Отмена"
-        onConfirm={confirmClearTable}
-        onCancel={() => setPendingClearTable(false)}
         danger
       />
 

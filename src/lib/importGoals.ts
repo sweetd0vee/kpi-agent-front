@@ -5,6 +5,9 @@ import * as XLSX from 'xlsx'
 /** Ожидаемые заголовки в xlsx (порядок не важен, сопоставление по названию) */
 const HEADER_TO_FIELD: Record<string, keyof Omit<GoalRow, 'id'>> = {
   'ФИО': 'lastName',
+  'Бизнес/блок': 'businessUnit',
+  'Подразделение': 'department',
+  'UUID руководителя': 'leaderId',
   'SCAI Цель': 'goal',
   'Метрические цели': 'metricGoals',
   'вес квартал': 'weightQ',
@@ -73,6 +76,9 @@ export function parseKpiXlsxToRows(file: File): Promise<GoalRow[]> {
           const cells = rawRows[i] as unknown[]
           const row: Record<string, string> = {
             lastName: '',
+            leaderId: '',
+            businessUnit: '',
+            department: '',
             goal: '',
             metricGoals: '',
             weightQ: '',
@@ -92,6 +98,9 @@ export function parseKpiXlsxToRows(file: File): Promise<GoalRow[]> {
             rows.push({
               id: generateId(),
               lastName: row.lastName ?? '',
+              leaderId: row.leaderId?.trim() ? row.leaderId : undefined,
+              businessUnit: row.businessUnit ?? '',
+              department: row.department ?? '',
               goal: row.goal ?? '',
               metricGoals: row.metricGoals ?? '',
               weightQ: row.weightQ ?? '',
@@ -183,7 +192,7 @@ export function parseLeaderGoalsXlsxToRows(file: File): Promise<LeaderGoalRow[]>
         })
 
         const rows: LeaderGoalRow[] = []
-        const emptyRow: Record<string, string> = {
+        const emptyRow: Omit<LeaderGoalRow, 'id'> = {
           lastName: '',
           goalNum: '',
           name: '',
@@ -207,7 +216,7 @@ export function parseLeaderGoalsXlsxToRows(file: File): Promise<LeaderGoalRow[]>
         }
         for (let i = 1; i < rawRows.length; i++) {
           const cells = rawRows[i] as unknown[]
-          const row = { ...emptyRow }
+          const row: Omit<LeaderGoalRow, 'id'> = { ...emptyRow }
           colIndexToField.forEach((field, colIndex) => {
             row[field] = normalizeCell(cells[colIndex])
           })
@@ -246,7 +255,6 @@ const STRATEGY_HEADER_TO_FIELD: Record<string, keyof Omit<StrategyGoalRow, 'id'>
   '2025: Целевое значение': 'targetValue2025',
   '2026: Целевое значение': 'targetValue2026',
   '2027: Целевое значение': 'targetValue2027',
-  'Категория': 'category',
 }
 
 export function parseStrategyGoalsXlsxToRows(file: File): Promise<StrategyGoalRow[]> {
@@ -282,7 +290,7 @@ export function parseStrategyGoalsXlsxToRows(file: File): Promise<StrategyGoalRo
           if (field) colIndexToField.set(index, field)
         })
 
-        const emptyRow: Record<string, string> = {
+        const emptyRow: Omit<StrategyGoalRow, 'id'> = {
           businessUnit: '',
           segment: '',
           strategicPriority: '',
@@ -299,12 +307,11 @@ export function parseStrategyGoalsXlsxToRows(file: File): Promise<StrategyGoalRo
           targetValue2025: '',
           targetValue2026: '',
           targetValue2027: '',
-          category: '',
         }
         const rows: StrategyGoalRow[] = []
         for (let i = 1; i < rawRows.length; i++) {
           const cells = rawRows[i] as unknown[]
-          const row = { ...emptyRow }
+          const row: Omit<StrategyGoalRow, 'id'> = { ...emptyRow }
           colIndexToField.forEach((field, colIndex) => {
             row[field] = normalizeCell(cells[colIndex])
           })
