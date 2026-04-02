@@ -124,6 +124,7 @@ export function StrategyGoalsPage() {
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [savedToChatToast, setSavedToChatToast] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
@@ -329,29 +330,53 @@ export function StrategyGoalsPage() {
   }, [sortedRows])
 
   const handleImportClick = useCallback(() => {
+    if (!isLoaded || isLoading) return
     setImportError(null)
     importInputRef.current?.click()
-  }, [])
+  }, [isLoaded, isLoading])
 
-  const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    if (!/\.xlsx$/i.test(file.name)) {
-      setImportError('Выберите файл .xlsx')
-      return
-    }
-    parseStrategyGoalsXlsxToRows(file)
-      .then((rows) => {
-        if (rows.length === 0) {
-          setImportError('В файле нет данных или заголовки не совпадают.')
-          return
-        }
-        setState((prev) => ({ ...prev, rows: [...prev.rows, ...rows] }))
-        setImportError(null)
-      })
-      .catch((err) => setImportError(err instanceof Error ? err.message : 'Ошибка загрузки файла'))
-  }, [])
+  const handleImportFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = ''
+      if (!file) return
+      if (!isLoaded || isLoading) {
+        setImportError('Дождитесь окончания загрузки таблицы с сервера.')
+        return
+      }
+      if (!/\.xlsx$/i.test(file.name)) {
+        setImportError('Выберите файл .xlsx')
+        return
+      }
+      parseStrategyGoalsXlsxToRows(file)
+        .then((rows) => {
+          if (rows.length === 0) {
+            setImportError('В файле нет данных или заголовки не совпадают.')
+            return
+          }
+          setState((prev) => {
+            const merged = [...prev.rows, ...rows]
+            queueMicrotask(() => {
+              skipSyncRef.current = true
+              void saveStrategyGoalRows(merged)
+                .then(() => setDataError(null))
+                .catch((err) => {
+                  setDataError(
+                    err instanceof Error
+                      ? err.message
+                      : 'Не удалось сохранить данные в базу. Запущен ли backend и доступна ли PostgreSQL?'
+                  )
+                  skipSyncRef.current = false
+                })
+            })
+            return { rows: merged }
+          })
+          setImportError(null)
+        })
+        .catch((err) => setImportError(err instanceof Error ? err.message : 'Ошибка загрузки файла'))
+    },
+    [isLoaded, isLoading]
+  )
 
   const editFields: EditStrategyGoalField[] = COLUMNS.map((column) => ({
     key: column.key,
@@ -418,6 +443,12 @@ export function StrategyGoalsPage() {
     setPendingDeleteId(null)
   }, [deleteRow, pendingDeleteId])
 
+  const confirmClearTable = useCallback(() => {
+    setState({ rows: [] })
+    setPage(1)
+    setPendingClearTable(false)
+  }, [])
+
   const buildFilterDescription = useCallback((): string | undefined => {
     const parts: string[] = []
     if (businessUnitFilter.length > 0) parts.push(`Бизнес/блок: ${businessUnitFilter.join(', ')}`)
@@ -464,8 +495,23 @@ export function StrategyGoalsPage() {
               aria-hidden
               onChange={handleImportFile}
             />
-            <button type="button" className={styles.importBtn} onClick={handleImportClick} disabled={!!editingRowId} title="Импорт из xlsx">
+            <button
+              type="button"
+              className={styles.importBtn}
+              onClick={handleImportClick}
+              disabled={!!editingRowId || !isLoaded || isLoading}
+              title={!isLoaded || isLoading ? 'Дождитесь загрузки таблицы' : 'Импорт из xlsx'}
+            >
               Импортировать
+            </button>
+            <button
+              type="button"
+              className={styles.clearTableBtn}
+              onClick={() => setPendingClearTable(true)}
+              disabled={state.rows.length === 0 || !!editingRowId}
+              title="Удалить все записи в таблице"
+            >
+              Очистить таблицу
             </button>
             <button type="button" className={styles.addBtn} onClick={addRow} aria-label="Добавить строку" title="Добавить строку">
               <PlusIcon className={styles.addBtnIcon} />
@@ -787,6 +833,17 @@ export function StrategyGoalsPage() {
         cancelLabel="Отмена"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
+        danger
+      />
+
+      <ConfirmModal
+        open={pendingClearTable}
+        title="Очистить таблицу"
+        message="Удалить все записи в таблице «Цели стратегии»? Это действие нельзя отменить."
+        confirmLabel="Очистить"
+        cancelLabel="Отмена"
+        onConfirm={confirmClearTable}
+        onCancel={() => setPendingClearTable(false)}
         danger
       />
 

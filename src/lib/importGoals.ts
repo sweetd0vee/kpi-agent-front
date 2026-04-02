@@ -1,12 +1,14 @@
 import type { GoalRow, LeaderGoalRow, StrategyGoalRow } from '@/lib/storage'
 import { generateId } from '@/lib/storage'
+import { buildHeaderFieldLookup } from '@/lib/xlsxImportHeaders'
 import * as XLSX from 'xlsx'
 
-/** Ожидаемые заголовки в xlsx (порядок не важен, сопоставление по названию) */
+/** Ожидаемые заголовки в xlsx (порядок не важен; сопоставление после нормализации пробелов/регистра/ё) */
 const HEADER_TO_FIELD: Record<string, keyof Omit<GoalRow, 'id'>> = {
-  'ФИО': 'lastName',
+  ФИО: 'lastName',
   'Бизнес/блок': 'businessUnit',
-  'Подразделение': 'department',
+  Департамент: 'department',
+  Подразделение: 'department',
   'UUID руководителя': 'leaderId',
   'SCAI Цель': 'goal',
   'Метрические цели': 'metricGoals',
@@ -19,15 +21,22 @@ const HEADER_TO_FIELD: Record<string, keyof Omit<GoalRow, 'id'>> = {
   '3 квартал': 'q3',
   '4 квартал': 'q4',
   'Отчётный год': 'reportYear',
-  'Год': 'year',
+  'Отчетный год': 'reportYear',
+  Год: 'year',
 }
 
-function normalizeHeader(value: unknown): string {
-  return String(value ?? '').trim()
-}
+const resolveBoardField = buildHeaderFieldLookup(HEADER_TO_FIELD)
 
 function normalizeCell(value: unknown): string {
   if (value == null) return ''
+  if (value instanceof Date) {
+    if (!Number.isNaN(value.getTime())) {
+      const d = value.getDate()
+      const m = value.getMonth() + 1
+      const y = value.getFullYear()
+      return `${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}`
+    }
+  }
   if (typeof value === 'number' && !Number.isNaN(value)) return String(value)
   return String(value).trim()
 }
@@ -64,10 +73,10 @@ export function parseKpiXlsxToRows(file: File): Promise<GoalRow[]> {
           return
         }
 
-        const headerRow = rawRows[0].map(normalizeHeader)
+        const headerCells = rawRows[0] as unknown[]
         const colIndexToField = new Map<number, keyof Omit<GoalRow, 'id'>>()
-        headerRow.forEach((header, index) => {
-          const field = HEADER_TO_FIELD[header]
+        headerCells.forEach((cell, index) => {
+          const field = resolveBoardField(cell)
           if (field) colIndexToField.set(index, field)
         })
 
@@ -126,12 +135,13 @@ export function parseKpiXlsxToRows(file: File): Promise<GoalRow[]> {
 
 /** Заголовки xlsx для таблицы «Руководители» (сопоставление по названию колонки) */
 const LEADER_HEADER_TO_FIELD: Record<string, keyof Omit<LeaderGoalRow, 'id'>> = {
-  'ФИО': 'lastName',
+  ФИО: 'lastName',
   '№ цели': 'goalNum',
   'Наименование КПЭ': 'name',
   'Тип цели': 'goalType',
   'Вид цели': 'goalKind',
   'Ед. изм.': 'unit',
+  'ед.изм.': 'unit',
   'Единица измерения': 'unit',
   'I кв. Вес %': 'q1Weight',
   'I квартал Вес %': 'q1Weight',
@@ -146,11 +156,15 @@ const LEADER_HEADER_TO_FIELD: Record<string, keyof Omit<LeaderGoalRow, 'id'>> = 
   'IV кв. План. / веха': 'q4Value',
   'Год Вес %': 'yearWeight',
   'Год План. / веха': 'yearValue',
-  'Комментарии': 'comments',
+  Комментарии: 'comments',
   'Методика расчёта': 'methodDesc',
+  'Методика расчета': 'methodDesc',
   'Источник информации': 'sourceInfo',
   'Отчётный год': 'reportYear',
+  'Отчетный год': 'reportYear',
 }
+
+const resolveLeaderField = buildHeaderFieldLookup(LEADER_HEADER_TO_FIELD)
 
 /**
  * Парсит xlsx и возвращает строки для таблицы «Руководители».
@@ -184,10 +198,10 @@ export function parseLeaderGoalsXlsxToRows(file: File): Promise<LeaderGoalRow[]>
           return
         }
 
-        const headerRow = rawRows[0].map(normalizeHeader)
+        const headerCells = rawRows[0] as unknown[]
         const colIndexToField = new Map<number, keyof Omit<LeaderGoalRow, 'id'>>()
-        headerRow.forEach((header, index) => {
-          const field = LEADER_HEADER_TO_FIELD[header]
+        headerCells.forEach((cell, index) => {
+          const field = resolveLeaderField(cell)
           if (field) colIndexToField.set(index, field)
         })
 
@@ -240,22 +254,29 @@ export function parseLeaderGoalsXlsxToRows(file: File): Promise<LeaderGoalRow[]>
 
 const STRATEGY_HEADER_TO_FIELD: Record<string, keyof Omit<StrategyGoalRow, 'id'>> = {
   'Бизнес/блок': 'businessUnit',
-  'Сегмент': 'segment',
+  Сегмент: 'segment',
   'Стратегический приоритет': 'strategicPriority',
-  'Цель': 'goalObjective',
-  'Инициатива': 'initiative',
+  Цель: 'goalObjective',
+  Инициатива: 'initiative',
   'Тип инициативы': 'initiativeType',
   'Ответственный исполнитель': 'responsiblePersonOwner',
   'Участие других блоков': 'otherUnitsInvolved',
-  'Бюджет': 'budget',
-  'Начало': 'startDate',
-  'Конец': 'endDate',
-  'КПЭ': 'kpi',
+  Бюджет: 'budget',
+  Начало: 'startDate',
+  Конец: 'endDate',
+  КПЭ: 'kpi',
   'ед. изм.': 'unitOfMeasure',
+  'ед.изм.': 'unitOfMeasure',
+  'Ед. изм.': 'unitOfMeasure',
   '2025: Целевое значение': 'targetValue2025',
   '2026: Целевое значение': 'targetValue2026',
   '2027: Целевое значение': 'targetValue2027',
+  'Целевое значение 2025': 'targetValue2025',
+  'Целевое значение 2026': 'targetValue2026',
+  'Целевое значение 2027': 'targetValue2027',
 }
+
+const resolveStrategyField = buildHeaderFieldLookup(STRATEGY_HEADER_TO_FIELD)
 
 export function parseStrategyGoalsXlsxToRows(file: File): Promise<StrategyGoalRow[]> {
   return new Promise((resolve, reject) => {
@@ -283,10 +304,10 @@ export function parseStrategyGoalsXlsxToRows(file: File): Promise<StrategyGoalRo
           resolve([])
           return
         }
-        const headerRow = rawRows[0].map(normalizeHeader)
+        const headerCells = rawRows[0] as unknown[]
         const colIndexToField = new Map<number, keyof Omit<StrategyGoalRow, 'id'>>()
-        headerRow.forEach((header, index) => {
-          const field = STRATEGY_HEADER_TO_FIELD[header]
+        headerCells.forEach((cell, index) => {
+          const field = resolveStrategyField(cell)
           if (field) colIndexToField.set(index, field)
         })
 

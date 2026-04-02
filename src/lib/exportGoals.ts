@@ -16,8 +16,7 @@ import * as XLSX from 'xlsx'
 export const EXPORT_HEADERS = [
   'ФИО',
   'Бизнес/блок',
-  'Подразделение',
-  'UUID руководителя',
+  'Департамент',
   'SCAI Цель',
   'Метрические цели',
   'Вес квартал',
@@ -64,7 +63,6 @@ function rowToCells(row: GoalRow): string[] {
     row.lastName ?? '',
     row.businessUnit ?? '',
     row.department ?? '',
-    row.leaderId ?? '',
     row.goal ?? '',
     row.metricGoals ?? '',
     row.weightQ ?? '',

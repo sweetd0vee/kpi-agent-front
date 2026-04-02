@@ -28,8 +28,9 @@ export default defineConfig({
       '/api/process-registry': { target: 'http://localhost:8000', changeOrigin: true },
       '/api/staff': { target: 'http://localhost:8000', changeOrigin: true },
       '/api/leaders': { target: 'http://localhost:8000', changeOrigin: true },
+      // Остальные /api/* → бэкенд KPI (не Open Web UI :3000), иначе относительные запросы без VITE_API_URL уходят не туда
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },

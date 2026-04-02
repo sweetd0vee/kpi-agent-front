@@ -107,6 +107,7 @@ export function LeaderGoalsPage() {
   const [lastNameFilter, setLastNameFilter] = useState<string[]>([])
   const [reportYearFilter, setReportYearFilter] = useState<string[]>([])
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [savedToChatToast, setSavedToChatToast] = useState(false)
@@ -312,6 +313,12 @@ export function LeaderGoalsPage() {
     setPendingDeleteId(null)
   }, [pendingDeleteId, deleteRow])
 
+  const confirmClearTable = useCallback(() => {
+    setGoalsState({ rows: [] })
+    setPage(1)
+    setPendingClearTable(false)
+  }, [])
+
   const saveToChatContext = useCallback(() => {
     const content = serializeLeaderGoalsRowsToText(sortedRows)
     if (!content.trim()) return
@@ -343,34 +350,58 @@ export function LeaderGoalsPage() {
   }, [])
 
   const handleImportClick = useCallback(() => {
+    if (!isLoaded || isLoading) return
     setImportError(null)
     importInputRef.current?.click()
-  }, [])
+  }, [isLoaded, isLoading])
 
-  const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    const isXlsx = /\.xlsx$/i.test(file.name)
-    if (!isXlsx) {
-      setImportError('Выберите файл .xlsx')
-      return
-    }
-    parseLeaderGoalsXlsxToRows(file)
-      .then((rows) => {
-        if (rows.length === 0) {
-          setImportError(
-            'В файле нет данных или заголовки не совпадают. Ожидаются: ФИО, № цели, Наименование КПЭ, Тип цели, Вид цели, Ед. изм., кварталы и год, Комментарии, Методика расчёта, Источник информации, Отчётный год.'
-          )
-          return
-        }
-        setGoalsState((prev) => ({ ...prev, rows: [...prev.rows, ...rows] }))
-        setImportError(null)
-      })
-      .catch((err) => {
-        setImportError(err instanceof Error ? err.message : 'Ошибка загрузки файла')
-      })
-  }, [])
+  const handleImportFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = ''
+      if (!file) return
+      if (!isLoaded || isLoading) {
+        setImportError('Дождитесь окончания загрузки таблицы с сервера.')
+        return
+      }
+      const isXlsx = /\.xlsx$/i.test(file.name)
+      if (!isXlsx) {
+        setImportError('Выберите файл .xlsx')
+        return
+      }
+      parseLeaderGoalsXlsxToRows(file)
+        .then((rows) => {
+          if (rows.length === 0) {
+            setImportError(
+              'В файле нет данных или заголовки не совпадают. Ожидаются: ФИО, № цели, Наименование КПЭ, Тип цели, Вид цели, Ед. изм., кварталы и год, Комментарии, Методика расчёта, Источник информации, Отчётный год.'
+            )
+            return
+          }
+          setGoalsState((prev) => {
+            const merged = [...prev.rows, ...rows]
+            queueMicrotask(() => {
+              skipSyncRef.current = true
+              void saveLeaderGoalRows(merged)
+                .then(() => setDataError(null))
+                .catch((err) => {
+                  setDataError(
+                    err instanceof Error
+                      ? err.message
+                      : 'Не удалось сохранить данные в базу. Запущен ли backend и доступна ли PostgreSQL?'
+                  )
+                  skipSyncRef.current = false
+                })
+            })
+            return { rows: merged }
+          })
+          setImportError(null)
+        })
+        .catch((err) => {
+          setImportError(err instanceof Error ? err.message : 'Ошибка загрузки файла')
+        })
+    },
+    [isLoaded, isLoading]
+  )
 
   const handleExport = useCallback(
     (format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
@@ -483,10 +514,19 @@ export function LeaderGoalsPage() {
               type="button"
               className={styles.importBtn}
               onClick={handleImportClick}
-              disabled={!!editingRowId}
-              title="Импорт из xlsx"
+              disabled={!!editingRowId || !isLoaded || isLoading}
+              title={!isLoaded || isLoading ? 'Дождитесь загрузки таблицы' : 'Импорт из xlsx'}
             >
               Импортировать
+            </button>
+            <button
+              type="button"
+              className={styles.clearTableBtn}
+              onClick={() => setPendingClearTable(true)}
+              disabled={goalsState.rows.length === 0 || !!editingRowId}
+              title="Удалить все записи в таблице"
+            >
+              Очистить таблицу
             </button>
             <button
               type="button"
@@ -931,6 +971,17 @@ export function LeaderGoalsPage() {
         confirmLabel="Удалить"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
+        danger
+      />
+
+      <ConfirmModal
+        open={pendingClearTable}
+        title="Очистить таблицу"
+        message="Удалить все записи в таблице «Цели руководителей»? Это действие нельзя отменить."
+        confirmLabel="Очистить"
+        cancelLabel="Отмена"
+        onConfirm={confirmClearTable}
+        onCancel={() => setPendingClearTable(false)}
         danger
       />
 

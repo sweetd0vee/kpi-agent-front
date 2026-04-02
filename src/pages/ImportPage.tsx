@@ -893,11 +893,11 @@ export function ImportPage() {
                 />
               </label>
               <label className={`${styles.descriptionLabel} ${styles.inlineField}`}>
-                Подразделение
+                Департамент
                 <input
                   type="text"
                   className={styles.nameInput}
-                  placeholder="Введите подразделение"
+                  placeholder="Введите департамент"
                   value={collectionDepartment}
                   onChange={(e) => setCollectionDepartment(e.target.value)}
                 />
@@ -1114,13 +1114,13 @@ export function ImportPage() {
                                 />
                               </label>
                               <label className={styles.cardMetaField}>
-                                Подразделение
+                                Департамент
                                 <input
                                   type="text"
                                   className={styles.cardMetaTextarea}
                                   value={editingDraft?.department ?? ''}
                                   onChange={(e) => updateEditingDraft({ department: e.target.value })}
-                                  placeholder="Введите подразделение"
+                                  placeholder="Введите департамент"
                                 />
                               </label>
                             </div>
@@ -1152,7 +1152,7 @@ export function ImportPage() {
                               </span>
                             </div>
                             <div className={styles.cardMetaRow}>
-                              <span className={styles.cardMetaLabel}>Подразделение</span>
+                              <span className={styles.cardMetaLabel}>Департамент</span>
                               <span className={styles.cardMetaValue} title={departmentValue}>
                                 {departmentValue}
                               </span>
