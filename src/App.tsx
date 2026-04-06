@@ -36,8 +36,8 @@ function App() {
   return (
     <Layout onLogout={handleLogout}>
       <Routes>
-        <Route path="/" element={<Navigate to="/board-goals" replace />} />
-        <Route path="/login" element={<Navigate to="/board-goals" replace />} />
+        <Route path="/" element={<Navigate to="/strategy-goals" replace />} />
+        <Route path="/login" element={<Navigate to="/strategy-goals" replace />} />
         <Route path="/board-goals" element={<BoardGoalsPage />} />
         <Route path="/kpi" element={<Navigate to="/board-goals" replace />} />
         <Route path="/ppr" element={<Navigate to="/board-goals" replace />} />

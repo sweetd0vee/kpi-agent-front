@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx'
 const HEADER_TO_FIELD: Record<string, keyof Omit<GoalRow, 'id'>> = {
   ФИО: 'lastName',
   'Бизнес/блок': 'businessUnit',
+  'Бизнес юнит': 'businessUnit',
   Департамент: 'department',
   Подразделение: 'department',
   'UUID руководителя': 'leaderId',

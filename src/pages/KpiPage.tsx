@@ -457,9 +457,9 @@ export function KpiPage() {
 
   const editFields: EditRowField[] = [
     { key: 'lastName', label: 'ФИО', placeholder: 'Иванов Иван Иванович' },
-    { key: 'businessUnit', label: 'Бизнес/блок', placeholder: 'Как в оргструктуре' },
-    { key: 'department', label: 'Департамент', placeholder: '' },
     { key: 'goal', label: 'SCAI Цель', placeholder: 'Например: рост эффективности операционных затрат', multiline: true },
+    { key: 'businessUnit', label: 'Бизнес юнит', placeholder: 'Как в оргструктуре' },
+    { key: 'department', label: 'Департамент', placeholder: '' },
     { key: 'metricGoals', label: 'Метрические цели', placeholder: 'Например: снижение CIR на 2 п.п.', multiline: true },
     { key: 'weightQ', label: 'Вес квартал', placeholder: '' },
     { key: 'weightYear', label: 'Вес год', placeholder: '' },
@@ -474,8 +474,17 @@ export function KpiPage() {
   const columns: Column[] = [
     { key: 'lastName', label: 'ФИО', placeholder: 'Иванов Иван Иванович', cellClassName: styles.colSurname, inputClassName: styles.input },
     {
+      key: 'goal',
+      label: 'SCAI Цель',
+      placeholder: 'Например: рост эффективности операционных затрат',
+      cellClassName: styles.colGoal,
+      inputClassName: `${styles.input} ${styles.goalInput}`,
+      valueClassName: styles.valueMultiline,
+      multiline: true,
+    },
+    {
       key: 'businessUnit',
-      label: 'Бизнес/блок',
+      label: 'Бизнес юнит',
       placeholder: '',
       cellClassName: styles.colWeight,
       inputClassName: styles.input,
@@ -487,15 +496,6 @@ export function KpiPage() {
       placeholder: '',
       cellClassName: styles.colGoal,
       inputClassName: styles.input,
-    },
-    {
-      key: 'goal',
-      label: 'SCAI Цель',
-      placeholder: 'Например: рост эффективности операционных затрат',
-      cellClassName: styles.colGoal,
-      inputClassName: `${styles.input} ${styles.goalInput}`,
-      valueClassName: styles.valueMultiline,
-      multiline: true,
     },
     {
       key: 'metricGoals',

@@ -15,9 +15,9 @@ import * as XLSX from 'xlsx'
 
 export const EXPORT_HEADERS = [
   'ФИО',
-  'Бизнес/блок',
-  'Департамент',
   'SCAI Цель',
+  'Бизнес юнит',
+  'Департамент',
   'Метрические цели',
   'Вес квартал',
   'Вес год',
@@ -61,9 +61,9 @@ export function downloadGoalsTemplate(): void {
 function rowToCells(row: GoalRow): string[] {
   return [
     row.lastName ?? '',
+    row.goal ?? '',
     row.businessUnit ?? '',
     row.department ?? '',
-    row.goal ?? '',
     row.metricGoals ?? '',
     row.weightQ ?? '',
     row.weightYear ?? '',

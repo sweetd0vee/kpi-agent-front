@@ -157,7 +157,11 @@ export function LeaderGoalsPage() {
       return
     }
     void saveLeaderGoalRows(goalsState.rows)
-      .then(() => setDataError(null))
+      .then((rows) => {
+        setDataError(null)
+        skipSyncRef.current = true
+        setGoalsState({ rows })
+      })
       .catch((err) => {
         setDataError(err instanceof Error ? err.message : 'Не удалось сохранить данные.')
       })
@@ -382,7 +386,11 @@ export function LeaderGoalsPage() {
             queueMicrotask(() => {
               skipSyncRef.current = true
               void saveLeaderGoalRows(merged)
-                .then(() => setDataError(null))
+                .then((saved) => {
+                  setDataError(null)
+                  skipSyncRef.current = true
+                  setGoalsState({ rows: saved })
+                })
                 .catch((err) => {
                   setDataError(
                     err instanceof Error

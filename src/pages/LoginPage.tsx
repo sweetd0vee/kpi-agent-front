@@ -16,7 +16,7 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
     }
     setError(null)
     onLogin()
-    navigate('/kpi', { replace: true })
+    navigate('/strategy-goals', { replace: true })
   }
 
   return (
