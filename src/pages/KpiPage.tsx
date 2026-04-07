@@ -89,7 +89,6 @@ export function KpiPage() {
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [savedToChatToast, setSavedToChatToast] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [pendingClearTable, setPendingClearTable] = useState(false)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
@@ -582,12 +581,6 @@ export function KpiPage() {
     setPendingDeleteId(null)
   }, [pendingDeleteId, deleteRow])
 
-  const confirmClearTable = useCallback(() => {
-    setGoalsState({ rows: [] })
-    setPage(1)
-    setPendingClearTable(false)
-  }, [])
-
   const buildFilterDescription = useCallback((): string | undefined => {
     const parts: string[] = []
     if (lastNameFilter.length > 0) parts.push(`ФИО: ${lastNameFilter.join(', ')}`)
@@ -641,15 +634,6 @@ export function KpiPage() {
               title={!isLoaded || isLoading ? 'Дождитесь загрузки таблицы' : 'Импорт из xlsx'}
             >
               Импортировать
-            </button>
-            <button
-              type="button"
-              className={styles.clearTableBtn}
-              onClick={() => setPendingClearTable(true)}
-              disabled={goalsState.rows.length === 0 || !!editingRowId}
-              title="Удалить все записи в таблице"
-            >
-              Очистить таблицу
             </button>
             <button type="button" className={styles.addBtn} onClick={addRow} aria-label="Добавить строку" title="Добавить строку">
               <PlusIcon className={styles.addBtnIcon} />
@@ -1110,17 +1094,6 @@ export function KpiPage() {
         cancelLabel="Отмена"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDeleteId(null)}
-        danger
-      />
-
-      <ConfirmModal
-        open={pendingClearTable}
-        title="Очистить таблицу"
-        message="Удалить все записи в таблице «Цели правления»? Это действие нельзя отменить."
-        confirmLabel="Очистить"
-        cancelLabel="Отмена"
-        onConfirm={confirmClearTable}
-        onCancel={() => setPendingClearTable(false)}
         danger
       />
 

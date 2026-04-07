@@ -158,28 +158,6 @@
   cursor: not-allowed;
 }
 
-.clearTableBtn {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #1e3a8a;
-  background: transparent;
-  border: 1px solid #1e3a8a;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-}
-
-.clearTableBtn:hover:not(:disabled) {
-  background: #eff6ff;
-  color: #1e40af;
-}
-
-.clearTableBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .resetFiltersBtn {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;

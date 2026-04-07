@@ -52,7 +52,6 @@ export function ProcessRegistryPage() {
   const [dataError, setDataError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [pendingClearTable, setPendingClearTable] = useState(false)
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [editingDraft, setEditingDraft] = useState<ProcessRegistryRow | null>(null)
   const [isAddingNewRow, setIsAddingNewRow] = useState(false)
@@ -203,14 +202,6 @@ export function ProcessRegistryPage() {
     }
   }, [editingRowId])
 
-  const confirmClearTable = useCallback(() => {
-    setState({ rows: [] })
-    setPendingClearTable(false)
-    setEditingRowId(null)
-    setEditingDraft(null)
-    setIsAddingNewRow(false)
-  }, [])
-
   const handleImportClick = useCallback(() => {
     if (!isLoaded || isLoading) return
     setImportError(null)
@@ -275,15 +266,6 @@ export function ProcessRegistryPage() {
               title="Загрузить .xlsx (полная замена таблицы в базе)"
             >
               Импортировать
-            </button>
-            <button
-              type="button"
-              className={styles.clearTableBtn}
-              onClick={() => setPendingClearTable(true)}
-              disabled={state.rows.length === 0 || !!editingRowId}
-              title="Удалить все записи"
-            >
-              Очистить таблицу
             </button>
             <button
               type="button"
@@ -558,14 +540,6 @@ export function ProcessRegistryPage() {
           setPendingDeleteId(null)
         }}
         onCancel={() => setPendingDeleteId(null)}
-      />
-      <ConfirmModal
-        open={pendingClearTable}
-        title="Очистить таблицу?"
-        message="Все записи реестра будут удалены из базы. Это действие нельзя отменить."
-        confirmLabel="Очистить"
-        onConfirm={confirmClearTable}
-        onCancel={() => setPendingClearTable(false)}
       />
     </div>
   )
