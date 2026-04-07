@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getStaffRows, saveStaffRows, type StaffRow } from '@/api/registry'
+import { getStaffRows, saveStaffRows, uploadStaffXlsx, type StaffRow } from '@/api/registry'
 import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditRegistryRowModal, type RegistryRowField } from '@/components/EditRegistryRowModal/EditRegistryRowModal'
 import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
@@ -41,6 +41,7 @@ export function StaffPage() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [dataError, setDataError] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingClearTable, setPendingClearTable] = useState(false)
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
@@ -52,6 +53,7 @@ export function StaffPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
   const skipSyncRef = useRef(true)
+  const importInputRef = useRef<HTMLInputElement>(null)
   const { colWidths, startColumnResize } = useColumnResize(editingRowId)
 
   useEffect(() => {
@@ -200,6 +202,42 @@ export function StaffPage() {
     setIsAddingNewRow(false)
   }, [])
 
+  const handleImportClick = useCallback(() => {
+    if (!isLoaded || isLoading) return
+    setImportError(null)
+    importInputRef.current?.click()
+  }, [isLoaded, isLoading])
+
+  const handleImportFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = ''
+      if (!file) return
+      if (!isLoaded || isLoading) {
+        setImportError('Дождитесь окончания загрузки таблицы.')
+        return
+      }
+      if (!/\.xlsx$/i.test(file.name)) {
+        setImportError('Выберите файл .xlsx')
+        return
+      }
+      uploadStaffXlsx(file)
+        .then((rows) => {
+          skipSyncRef.current = true
+          setState({ rows })
+          setDataError(null)
+          setImportError(null)
+          setEditingRowId(null)
+          setEditingDraft(null)
+          setIsAddingNewRow(false)
+        })
+        .catch((err) => {
+          setImportError(err instanceof Error ? err.message : 'Не удалось импортировать файл.')
+        })
+    },
+    [isLoaded, isLoading]
+  )
+
   const hasActiveFilters = filterText.trim().length > 0
 
   return (
@@ -212,6 +250,23 @@ export function StaffPage() {
         <header className={styles.sectionHeader}>
           <div className={styles.sectionSpacer} aria-hidden />
           <div className={styles.sectionActions}>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx"
+              className={styles.hiddenInput}
+              aria-hidden
+              onChange={handleImportFile}
+            />
+            <button
+              type="button"
+              className={styles.importBtn}
+              onClick={handleImportClick}
+              disabled={!isLoaded || isLoading || !!editingRowId}
+              title="Загрузить .xlsx (полная замена таблицы в базе)"
+            >
+              Импортировать
+            </button>
             <button
               type="button"
               className={styles.clearTableBtn}
@@ -242,6 +297,11 @@ export function StaffPage() {
         {isLoading && !dataError && (
           <div className={styles.importError} role="status">
             Загрузка данных...
+          </div>
+        )}
+        {importError && (
+          <div className={styles.importError} role="alert">
+            {importError}
           </div>
         )}
 
@@ -318,7 +378,7 @@ export function StaffPage() {
               {state.rows.length === 0 ? (
                 <tr>
                   <td className={styles.emptyCell} colSpan={COLUMNS.length + 1}>
-                    Нет записей. Добавьте строку или загрузите данные через API.
+                    Нет записей. Импортируйте xlsx или добавьте строку вручную.
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (

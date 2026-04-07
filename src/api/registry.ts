@@ -106,6 +106,20 @@ export async function saveStaffRows(rows: StaffRow[]): Promise<StaffRow[]> {
   return parseTableResponse(res, normalizeStaffRows, 'Штатное расписание')
 }
 
+/** Загрузка .xlsx: полная замена таблицы на сервере. */
+export async function uploadStaffXlsx(file: File): Promise<StaffRow[]> {
+  const base = getBaseUrl()
+  const url = base ? `${base}/api/staff/upload` : '/api/staff/upload'
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(url, {
+    method: 'POST',
+    body: form,
+    headers: { Accept: 'application/json' },
+  })
+  return parseTableResponse(res, normalizeStaffRows, 'Штатное расписание')
+}
+
 export async function getProcessRegistryRows(): Promise<ProcessRegistryRow[]> {
   const res = await apiFetch('/api/process-registry')
   return parseTableResponse(res, normalizeProcessRegistryRows, 'Реестр процессов')
