@@ -53,14 +53,48 @@ export type FileStatusResponse = {
   error?: string
 }
 
+function modelsErrorMessage(status: number, body: string): string {
+  if (status === 401 || status === 403) {
+    return (
+      'Open Web UI отклонил ключ (401/403). В настройках приложения укажите действующий API-ключ: ' +
+      'в интерфейсе Open Web UI — свой профиль → API / Keys → создать и вставить сюда. ' +
+      'Проверьте также URL Open Web UI (например http://localhost:3000).'
+    )
+  }
+  if (status === 404) {
+    return (
+      'Список моделей не найден (404). Проверьте URL Open Web UI в настройках — должен быть корень ' +
+      'инстанса (без лишнего пути), и что Open Web UI запущен.'
+    )
+  }
+  const snippet = body.replace(/\s+/g, ' ').slice(0, 180)
+  return `Не удалось загрузить модели Open Web UI (${status}). ${snippet}`
+}
+
 export async function getModels(apiKey: string, baseUrl?: string): Promise<OpenWebUIModel[]> {
   const base = getBaseUrl(baseUrl)
+  if (!base.trim()) {
+    throw new Error(
+      'Укажите URL Open Web UI в настройках (например http://localhost:3000), иначе список моделей не запросить.'
+    )
+  }
   const res = await fetch(`${base}/api/models`, {
     headers: getHeaders(apiKey),
   })
-  if (!res.ok) throw new Error(`Models: ${res.status} ${await res.text()}`)
-  const data = await res.json()
-  return Array.isArray(data) ? data : data?.data ?? []
+  const raw = await res.text()
+  if (!res.ok) throw new Error(modelsErrorMessage(res.status, raw))
+  let data: unknown
+  try {
+    data = raw.trim() ? JSON.parse(raw) : null
+  } catch {
+    throw new Error(`Ответ /api/models не JSON. Начало: ${raw.slice(0, 120)}…`)
+  }
+  if (data == null) return []
+  if (Array.isArray(data)) return data as OpenWebUIModel[]
+  if (typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
+    return (data as { data: OpenWebUIModel[] }).data
+  }
+  return []
 }
 
 export type KnowledgeItem = {

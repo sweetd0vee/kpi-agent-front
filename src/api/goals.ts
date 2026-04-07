@@ -3,7 +3,6 @@ import { generateId, type GoalRow, type LeaderGoalRow, type StrategyGoalRow } fr
 const getBaseUrl = (): string => {
   const env = (import.meta.env?.VITE_API_URL as string)?.trim() || ''
   if (env) return env.replace(/\/$/, '')
-  if (import.meta.env?.DEV) return 'http://localhost:8000'
   return ''
 }
 

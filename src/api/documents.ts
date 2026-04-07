@@ -1,13 +1,11 @@
 /**
  * API документов базы знаний (бэкенд каскадирования).
- * Base URL: VITE_API_URL или по умолчанию http://localhost:8000 в dev.
+ * Base URL: VITE_API_URL; иначе относительные URL (в dev — proxy Vite на бэкенд).
  */
 
 const getBaseUrl = (): string => {
   const env = (import.meta.env?.VITE_API_URL as string)?.trim() || ''
   if (env) return env.replace(/\/$/, '')
-  // В режиме разработки по умолчанию вызываем бэкенд напрямую (порт 8000)
-  if (import.meta.env?.DEV) return 'http://localhost:8000'
   return ''
 }
 

@@ -3,7 +3,7 @@ import { generateId } from '@/lib/storage'
 const getBaseUrl = (): string => {
   const env = (import.meta.env?.VITE_API_URL as string)?.trim() || ''
   if (env) return env.replace(/\/$/, '')
-  if (import.meta.env?.DEV) return 'http://localhost:8000'
+  // Без VITE_API_URL — относительные /api/* (в dev запросы идут через proxy Vite → тот же origin, без лишнего CORS)
   return ''
 }
 
@@ -39,17 +39,35 @@ export type ProcessRegistryRow = {
   top20: string
 }
 
+/** Строка из API (camelCase или snake_case). */
+function strField(row: Record<string, unknown>, camel: string, snake: string): string {
+  const a = row[camel]
+  const b = row[snake]
+  if (typeof a === 'string') return a
+  if (typeof b === 'string') return b
+  if (a != null && typeof a !== 'object') return String(a)
+  if (b != null && typeof b !== 'object') return String(b)
+  return ''
+}
+
+function rowId(row: Record<string, unknown>): string {
+  const raw = row.id
+  if (typeof raw === 'string' && raw.trim()) return raw.trim()
+  if (raw != null && typeof raw !== 'object') return String(raw).trim() || generateId()
+  return generateId()
+}
+
 function normalizeStaffRows(value: unknown): StaffRow[] {
   if (!Array.isArray(value)) return []
   return value.map((row) => {
-    const item = row as Partial<StaffRow>
+    const item = row as Record<string, unknown>
     return {
-      id: typeof item.id === 'string' && item.id ? item.id : generateId(),
-      orgStructureCode: typeof item.orgStructureCode === 'string' ? item.orgStructureCode : '',
-      unitName: typeof item.unitName === 'string' ? item.unitName : '',
-      head: typeof item.head === 'string' ? item.head : '',
-      businessUnit: typeof item.businessUnit === 'string' ? item.businessUnit : '',
-      functionalBlockCurator: typeof item.functionalBlockCurator === 'string' ? item.functionalBlockCurator : '',
+      id: rowId(item),
+      orgStructureCode: strField(item, 'orgStructureCode', 'org_structure_code'),
+      unitName: strField(item, 'unitName', 'unit_name'),
+      head: strField(item, 'head', 'head'),
+      businessUnit: strField(item, 'businessUnit', 'business_unit'),
+      functionalBlockCurator: strField(item, 'functionalBlockCurator', 'functional_block_curator'),
     }
   })
 }
@@ -57,16 +75,16 @@ function normalizeStaffRows(value: unknown): StaffRow[] {
 function normalizeProcessRegistryRows(value: unknown): ProcessRegistryRow[] {
   if (!Array.isArray(value)) return []
   return value.map((row) => {
-    const item = row as Partial<ProcessRegistryRow>
+    const item = row as Record<string, unknown>
     return {
-      id: typeof item.id === 'string' && item.id ? item.id : generateId(),
-      processArea: typeof item.processArea === 'string' ? item.processArea : '',
-      processCode: typeof item.processCode === 'string' ? item.processCode : '',
-      process: typeof item.process === 'string' ? item.process : '',
-      processOwner: typeof item.processOwner === 'string' ? item.processOwner : '',
-      leader: typeof item.leader === 'string' ? item.leader : '',
-      businessUnit: typeof item.businessUnit === 'string' ? item.businessUnit : '',
-      top20: typeof item.top20 === 'string' ? item.top20 : '',
+      id: rowId(item),
+      processArea: strField(item, 'processArea', 'process_area'),
+      processCode: strField(item, 'processCode', 'process_code'),
+      process: strField(item, 'process', 'process'),
+      processOwner: strField(item, 'processOwner', 'process_owner'),
+      leader: strField(item, 'leader', 'leader'),
+      businessUnit: strField(item, 'businessUnit', 'business_unit'),
+      top20: strField(item, 'top20', 'top_20'),
     }
   })
 }
