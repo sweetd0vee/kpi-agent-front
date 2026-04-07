@@ -8,6 +8,8 @@ import { ChatPage } from '@/pages/Chat'
 import { DashboardsPage } from '@/pages/DashboardsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { StrategyGoalsPage } from '@/pages/StrategyGoalsPage'
+import { ProcessRegistryPage } from '@/pages/ProcessRegistryPage'
+import { StaffPage } from '@/pages/StaffPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { clearAuthenticated, isAuthenticated, setAuthenticated } from '@/lib/auth'
 
@@ -44,6 +46,8 @@ function App() {
         <Route path="/goals" element={<Navigate to="/board-goals" replace />} />
         <Route path="/leader-goals" element={<LeaderGoalsPage />} />
         <Route path="/strategy-goals" element={<StrategyGoalsPage />} />
+        <Route path="/process-registry" element={<ProcessRegistryPage />} />
+        <Route path="/staff" element={<StaffPage />} />
         <Route path="/knowledge" element={<ImportPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/chat" element={<ChatPage />} />

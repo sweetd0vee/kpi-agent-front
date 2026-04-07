@@ -51,12 +51,27 @@ const icons = {
       <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   ),
+  registry: (
+    <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="5" cy="6" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="5" cy="18" r="1.5" fill="currentColor" stroke="none" />
+      <line x1="9" y1="6" x2="21" y2="6" />
+      <line x1="9" y1="12" x2="21" y2="12" />
+      <line x1="9" y1="18" x2="21" y2="18" />
+    </svg>
+  ),
 }
 
 const goalsItems = [
   { to: '/strategy-goals', label: 'Цели стратегии' },
   { to: '/board-goals', label: 'Цели правления' },
   { to: '/leader-goals', label: 'Цели руководителей' },
+] as const
+
+const referenceItems = [
+  { to: '/staff', label: 'Штатное расписание' },
+  { to: '/process-registry', label: 'Реестр процессов' },
 ] as const
 
 const navItems = [
@@ -67,6 +82,7 @@ const navItems = [
 ] as const
 
 const goalsSubnavId = 'sidebar-goals-links'
+const referenceSubnavId = 'sidebar-reference-links'
 
 const isPathActive = (pathname: string, target: string) => pathname === target || pathname.startsWith(`${target}/`)
 
@@ -79,11 +95,17 @@ export function Layout({
 }) {
   const location = useLocation()
   const isGoalsActive = goalsItems.some((item) => isPathActive(location.pathname, item.to))
+  const isReferenceActive = referenceItems.some((item) => isPathActive(location.pathname, item.to))
   const [goalsOpen, setGoalsOpen] = useState(isGoalsActive)
+  const [referenceOpen, setReferenceOpen] = useState(isReferenceActive)
 
   useEffect(() => {
     if (isGoalsActive) setGoalsOpen(true)
   }, [isGoalsActive])
+
+  useEffect(() => {
+    if (isReferenceActive) setReferenceOpen(true)
+  }, [isReferenceActive])
 
   return (
     <div className={styles.root}>
@@ -112,6 +134,41 @@ export function Layout({
             {goalsOpen && (
               <div className={styles.navSubnav} id={goalsSubnavId}>
                 {goalsItems.map(({ to, label }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    className={({ isActive }) =>
+                      [styles.navLink, styles.navSubLink, isActive ? styles.navLinkActive : ''].filter(Boolean).join(' ')
+                    }
+                  >
+                    {label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className={styles.navGroup}>
+            <button
+              type="button"
+              className={[
+                styles.navLink,
+                styles.navGroupButton,
+                isReferenceActive ? styles.navLinkActive : '',
+                referenceOpen ? styles.navGroupOpen : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => setReferenceOpen((prev) => !prev)}
+              aria-expanded={referenceOpen}
+              aria-controls={referenceSubnavId}
+            >
+              <span className={styles.navIcon}>{icons.registry}</span>
+              <span className={styles.navGroupLabel}>Справочно</span>
+              <span className={styles.navCaret} aria-hidden />
+            </button>
+            {referenceOpen && (
+              <div className={styles.navSubnav} id={referenceSubnavId}>
+                {referenceItems.map(({ to, label }) => (
                   <NavLink
                     key={to}
                     to={to}
