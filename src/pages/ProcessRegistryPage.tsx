@@ -9,6 +9,13 @@ import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditRegistryRowModal, type RegistryRowField } from '@/components/EditRegistryRowModal/EditRegistryRowModal'
 import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
 import { useColumnResize } from '@/hooks/useColumnResize'
+import {
+  exportProcessRegistryCSV,
+  exportProcessRegistryDOCX,
+  exportProcessRegistryExcel,
+  exportProcessRegistryHTML,
+  exportProcessRegistryPDF,
+} from '@/lib/exportGoals'
 import { createRuNumericCollator } from '@/lib/goalsTableUtils'
 import { generateId } from '@/lib/storage'
 import styles from './GoalsPage.module.css'
@@ -58,9 +65,11 @@ export function ProcessRegistryPage() {
   const [filterText, setFilterText] = useState('')
   const [sortKey, setSortKey] = useState<ProcessRegistryField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
   const skipSyncRef = useRef(true)
+  const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const { colWidths, startColumnResize } = useColumnResize(editingRowId)
 
@@ -147,6 +156,18 @@ export function ProcessRegistryPage() {
   useEffect(() => {
     setPage(1)
   }, [filterText, sortDirection, sortKey, pageSize])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setExportDropdownOpen(false)
+      }
+    }
+    if (exportDropdownOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [exportDropdownOpen])
 
   const handleSort = useCallback((key: ProcessRegistryField) => {
     setSortKey((prevKey) => {
@@ -237,6 +258,25 @@ export function ProcessRegistryPage() {
     },
     [isLoaded, isLoading]
   )
+
+  const handleExport = useCallback((format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
+    setExportDropdownOpen(false)
+    const rows = sortedRows
+    if (format === 'csv') exportProcessRegistryCSV(rows)
+    else if (format === 'xlsx') exportProcessRegistryExcel(rows)
+    else if (format === 'html') exportProcessRegistryHTML(rows)
+    else if (format === 'pdf') {
+      exportProcessRegistryPDF(rows).catch((err) => {
+        console.error('Ошибка экспорта PDF:', err)
+        alert('Не удалось создать PDF. Проверьте консоль браузера (F12).')
+      })
+    } else if (format === 'docx') {
+      exportProcessRegistryDOCX(rows).catch((err) => {
+        console.error('Ошибка экспорта DOCX:', err)
+        alert('Не удалось создать DOCX. Проверьте консоль браузера (F12).')
+      })
+    }
+  }, [sortedRows])
 
   const hasActiveFilters = filterText.trim().length > 0
 
@@ -439,6 +479,28 @@ export function ProcessRegistryPage() {
                   return `Записи ${from}–${to} из ${sortedRows.length}${pageInfo}`
                 })()}
           </span>
+
+          <div className={styles.exportWrap} ref={exportDropdownRef}>
+            <button
+              type="button"
+              className={styles.exportBtn}
+              onClick={() => setExportDropdownOpen((v) => !v)}
+              disabled={!!editingRowId}
+              aria-expanded={exportDropdownOpen}
+              aria-haspopup="true"
+            >
+              Экспорт
+            </button>
+            {exportDropdownOpen && (
+              <div className={styles.exportDropdown}>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('pdf')}>PDF</button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('xlsx')}>EXCEL</button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('docx')}>DOCX</button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('csv')}>CSV</button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('html')}>HTML</button>
+              </div>
+            )}
+          </div>
 
           <div className={styles.pageSizeWrap}>
             <label className={styles.pageSizeLabel}>

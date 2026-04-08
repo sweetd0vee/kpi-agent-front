@@ -4,6 +4,13 @@ import { ConfirmModal } from '@/components/ConfirmModal/ConfirmModal'
 import { EditRegistryRowModal, type RegistryRowField } from '@/components/EditRegistryRowModal/EditRegistryRowModal'
 import { PlusIcon, TrashIcon, PencilIcon } from '@/components/Icons'
 import { useColumnResize } from '@/hooks/useColumnResize'
+import {
+  exportStaffCSV,
+  exportStaffDOCX,
+  exportStaffExcel,
+  exportStaffHTML,
+  exportStaffPDF,
+} from '@/lib/exportGoals'
 import { createRuNumericCollator } from '@/lib/goalsTableUtils'
 import { generateId } from '@/lib/storage'
 import styles from './GoalsPage.module.css'
@@ -49,9 +56,11 @@ export function StaffPage() {
   const [filterText, setFilterText] = useState('')
   const [sortKey, setSortKey] = useState<StaffField | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number | 'all'>(DEFAULT_PAGE_SIZE)
   const skipSyncRef = useRef(true)
+  const exportDropdownRef = useRef<HTMLDivElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const { colWidths, startColumnResize } = useColumnResize(editingRowId)
 
@@ -138,6 +147,18 @@ export function StaffPage() {
   useEffect(() => {
     setPage(1)
   }, [filterText, sortDirection, sortKey, pageSize])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setExportDropdownOpen(false)
+      }
+    }
+    if (exportDropdownOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [exportDropdownOpen])
 
   const handleSort = useCallback((key: StaffField) => {
     setSortKey((prevKey) => {
@@ -228,6 +249,25 @@ export function StaffPage() {
     },
     [isLoaded, isLoading]
   )
+
+  const handleExport = useCallback((format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
+    setExportDropdownOpen(false)
+    const rows = sortedRows
+    if (format === 'csv') exportStaffCSV(rows)
+    else if (format === 'xlsx') exportStaffExcel(rows)
+    else if (format === 'html') exportStaffHTML(rows)
+    else if (format === 'pdf') {
+      exportStaffPDF(rows).catch((err) => {
+        console.error('Ошибка экспорта PDF:', err)
+        alert('Не удалось создать PDF. Проверьте консоль браузера (F12).')
+      })
+    } else if (format === 'docx') {
+      exportStaffDOCX(rows).catch((err) => {
+        console.error('Ошибка экспорта DOCX:', err)
+        alert('Не удалось создать DOCX. Проверьте консоль браузера (F12).')
+      })
+    }
+  }, [sortedRows])
 
   const hasActiveFilters = filterText.trim().length > 0
 
@@ -429,6 +469,28 @@ export function StaffPage() {
                   return `Записи ${from}–${to} из ${sortedRows.length}${pageInfo}`
                 })()}
           </span>
+
+          <div className={styles.exportWrap} ref={exportDropdownRef}>
+            <button
+              type="button"
+              className={styles.exportBtn}
+              onClick={() => setExportDropdownOpen((v) => !v)}
+              disabled={!!editingRowId}
+              aria-expanded={exportDropdownOpen}
+              aria-haspopup="true"
+            >
+              Экспорт
+            </button>
+            {exportDropdownOpen && (
+              <div className={styles.exportDropdown}>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('pdf')}>PDF</button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('xlsx')}>EXCEL</button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('docx')}>DOCX</button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('csv')}>CSV</button>
+                <button type="button" className={styles.exportOption} onClick={() => handleExport('html')}>HTML</button>
+              </div>
+            )}
+          </div>
 
           <div className={styles.pageSizeWrap}>
             <label className={styles.pageSizeLabel}>

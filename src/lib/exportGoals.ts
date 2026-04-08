@@ -1,3 +1,4 @@
+import type { ProcessRegistryRow, StaffRow } from '@/api/registry'
 import type { GoalRow, LeaderGoalRow, StrategyGoalRow } from '@/lib/storage'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -11,7 +12,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 
 export const EXPORT_HEADERS = [
   'ФИО',
@@ -50,9 +51,67 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
+const EXCEL_HEADER_STYLE = {
+  font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 11 },
+  fill: { fgColor: { rgb: '1E3A8A' } },
+  alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+  border: {
+    top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+    bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+    left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+    right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+  },
+}
+
+const EXCEL_CELL_STYLE = {
+  alignment: { horizontal: 'left', vertical: 'top', wrapText: true },
+  border: {
+    top: { style: 'thin', color: { rgb: 'E2E8F0' } },
+    bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+    left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+    right: { style: 'thin', color: { rgb: 'E2E8F0' } },
+  },
+}
+
+function maxLineLength(value: string): number {
+  return String(value ?? '')
+    .split('\n')
+    .reduce((max, part) => Math.max(max, part.length), 0)
+}
+
+function buildStyledSheet(headers: string[], rows: string[][]): XLSX.WorkSheet {
+  const data = [headers, ...rows]
+  const ws = XLSX.utils.aoa_to_sheet(data)
+
+  ws['!cols'] = headers.map((header, colIndex) => {
+    const contentMax = rows.reduce((max, row) => Math.max(max, maxLineLength(row[colIndex] ?? '')), maxLineLength(header))
+    return { wch: Math.min(Math.max(contentMax + 3, 12), 70) }
+  })
+
+  const rowCount = data.length
+  const colCount = headers.length
+  for (let r = 0; r < rowCount; r += 1) {
+    for (let c = 0; c < colCount; c += 1) {
+      const addr = XLSX.utils.encode_cell({ r, c })
+      const cell = ws[addr]
+      if (!cell) continue
+      cell.s = r === 0 ? EXCEL_HEADER_STYLE : EXCEL_CELL_STYLE
+    }
+  }
+
+  if (ws['!ref']) {
+    const range = XLSX.utils.decode_range(ws['!ref'])
+    ws['!autofilter'] = {
+      ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: range.e.r, c: range.e.c } }),
+    }
+  }
+
+  return ws
+}
+
 /** Скачать шаблон таблицы целей (Excel) для заполнения */
 export function downloadGoalsTemplate(): void {
-  const ws = XLSX.utils.aoa_to_sheet(GOALS_TEMPLATE_ROWS)
+  const ws = buildStyledSheet(EXPORT_HEADERS, GOALS_TEMPLATE_ROWS.slice(1))
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Цели')
   XLSX.writeFile(wb, 'шаблон_целей.xlsx')
@@ -123,8 +182,7 @@ export function exportGoalsCSV(rows: GoalRow[], filenamePrefix = 'ппр'): void
 }
 
 export function exportGoalsExcel(rows: GoalRow[], filenamePrefix = 'ппр'): void {
-  const data = [EXPORT_HEADERS, ...rows.map((row) => rowToCells(row))]
-  const ws = XLSX.utils.aoa_to_sheet(data)
+  const ws = buildStyledSheet(EXPORT_HEADERS, rows.map((row) => rowToCells(row)))
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, filenamePrefix)
   XLSX.writeFile(wb, `${filenamePrefix}.xlsx`)
@@ -260,8 +318,7 @@ export function exportLeaderGoalsCSV(rows: LeaderGoalRow[], filenamePrefix = 'р
 }
 
 export function exportLeaderGoalsExcel(rows: LeaderGoalRow[], filenamePrefix = 'руководители'): void {
-  const data = [LEADER_EXPORT_HEADERS, ...rows.map((row) => leaderRowToCells(row))]
-  const ws = XLSX.utils.aoa_to_sheet(data)
+  const ws = buildStyledSheet(LEADER_EXPORT_HEADERS, rows.map((row) => leaderRowToCells(row)))
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, filenamePrefix)
   XLSX.writeFile(wb, `${filenamePrefix}.xlsx`)
@@ -465,8 +522,7 @@ export function exportStrategyGoalsCSV(rows: StrategyGoalRow[], filenamePrefix =
 }
 
 export function exportStrategyGoalsExcel(rows: StrategyGoalRow[], filenamePrefix = 'цели-стратегии'): void {
-  const data = [STRATEGY_EXPORT_HEADERS, ...rows.map((row) => strategyRowToCells(row))]
-  const ws = XLSX.utils.aoa_to_sheet(data)
+  const ws = buildStyledSheet(STRATEGY_EXPORT_HEADERS, rows.map((row) => strategyRowToCells(row)))
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, filenamePrefix)
   XLSX.writeFile(wb, `${filenamePrefix}.xlsx`)
@@ -559,4 +615,248 @@ export function serializeStrategyGoalsRowsToText(rows: StrategyGoalRow[]): strin
   const headerLine = STRATEGY_EXPORT_HEADERS.map((h) => escapeCsv(h, ';')).join(';')
   const dataLines = rows.map((row) => strategyRowToCells(row).map((c) => escapeCsv(c, ';')).join(';'))
   return [headerLine, ...dataLines].join('\n')
+}
+
+export const STAFF_EXPORT_HEADERS = [
+  'Код оргструктуры',
+  'Наименование',
+  'Руководитель',
+  'Бизнес юнит',
+  'Куратор ф. блока',
+]
+
+function staffRowToCells(row: StaffRow): string[] {
+  return [
+    row.orgStructureCode ?? '',
+    row.unitName ?? '',
+    row.head ?? '',
+    row.businessUnit ?? '',
+    row.functionalBlockCurator ?? '',
+  ]
+}
+
+export function exportStaffCSV(rows: StaffRow[], filenamePrefix = 'штатное-расписание'): void {
+  const escape = (s: string) => {
+    const t = String(s ?? '').replace(/"/g, '""')
+    return t.includes(',') || t.includes('"') || t.includes('\n') ? `"${t}"` : t
+  }
+  const headerLine = STAFF_EXPORT_HEADERS.map(escape).join(',')
+  const dataLines = rows.map((row) => staffRowToCells(row).map(escape).join(','))
+  const csv = '\uFEFF' + [headerLine, ...dataLines].join('\r\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  downloadBlob(blob, `${filenamePrefix}.csv`)
+}
+
+export function exportStaffExcel(rows: StaffRow[], filenamePrefix = 'штатное-расписание'): void {
+  const ws = buildStyledSheet(STAFF_EXPORT_HEADERS, rows.map((row) => staffRowToCells(row)))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, filenamePrefix)
+  XLSX.writeFile(wb, `${filenamePrefix}.xlsx`)
+}
+
+export async function exportStaffPDF(rows: StaffRow[], filenamePrefix = 'штатное-расписание'): Promise<void> {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  const fontLoaded = await loadCyrillicFont(doc)
+  if (fontLoaded) doc.setFont(FONT_NAME)
+  const body = rows.map((row) => staffRowToCells(row))
+  const tableStyles: Record<string, unknown> = { fontSize: 8 }
+  if (fontLoaded) tableStyles.font = FONT_NAME
+  autoTable(doc, {
+    head: [STAFF_EXPORT_HEADERS],
+    body,
+    styles: tableStyles,
+    margin: { left: 10, right: 10 },
+  })
+  doc.save(`${filenamePrefix}.pdf`)
+}
+
+export async function exportStaffDOCX(rows: StaffRow[], filenamePrefix = 'штатное-расписание'): Promise<void> {
+  const tableRows = [
+    new TableRow({
+      children: STAFF_EXPORT_HEADERS.map(
+        (h) =>
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })],
+            width: { size: 20, type: WidthType.PERCENTAGE },
+          })
+      ),
+      tableHeader: true,
+    }),
+    ...rows.map(
+      (row) =>
+        new TableRow({
+          children: staffRowToCells(row).map(
+            (cell) =>
+              new TableCell({
+                children: [new Paragraph({ children: [new TextRun({ text: cell || '—' })] })],
+                width: { size: 20, type: WidthType.PERCENTAGE },
+              })
+          ),
+        })
+    ),
+  ]
+  const table = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: tableRows,
+  })
+  const doc = new Document({ sections: [{ children: [table] }] })
+  const blob = await Packer.toBlob(doc)
+  downloadBlob(blob, `${filenamePrefix}.docx`)
+}
+
+export function exportStaffHTML(rows: StaffRow[], filenamePrefix = 'штатное-расписание'): void {
+  const headersHtml = STAFF_EXPORT_HEADERS.map((h) => `<th>${escapeHtml(h)}</th>`).join('')
+  const rowsHtml = rows
+    .map(
+      (row) =>
+        `<tr>${staffRowToCells(row)
+          .map((cell) => `<td>${escapeHtml(cell)}</td>`)
+          .join('')}</tr>`
+    )
+    .join('')
+  const html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(filenamePrefix)}</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th, td { border: 1px solid #cbd5e1; padding: 0.35rem 0.5rem; text-align: left; }
+    th { background: #1e3a8a; color: #fff; font-weight: 600; }
+    tr:nth-child(even) { background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <table>
+    <thead><tr>${headersHtml}</tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+</body>
+</html>`
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  downloadBlob(blob, `${filenamePrefix}.html`)
+}
+
+export const PROCESS_REGISTRY_EXPORT_HEADERS = [
+  'Процессная область',
+  'Код процесса',
+  'Процесс',
+  'Владелец процесса',
+  'Руководитель',
+  'Бизнес юнит',
+  'ТОП 20',
+]
+
+function processRegistryRowToCells(row: ProcessRegistryRow): string[] {
+  return [
+    row.processArea ?? '',
+    row.processCode ?? '',
+    row.process ?? '',
+    row.processOwner ?? '',
+    row.leader ?? '',
+    row.businessUnit ?? '',
+    row.top20 ?? '',
+  ]
+}
+
+export function exportProcessRegistryCSV(rows: ProcessRegistryRow[], filenamePrefix = 'реестр-процессов'): void {
+  const escape = (s: string) => {
+    const t = String(s ?? '').replace(/"/g, '""')
+    return t.includes(',') || t.includes('"') || t.includes('\n') ? `"${t}"` : t
+  }
+  const headerLine = PROCESS_REGISTRY_EXPORT_HEADERS.map(escape).join(',')
+  const dataLines = rows.map((row) => processRegistryRowToCells(row).map(escape).join(','))
+  const csv = '\uFEFF' + [headerLine, ...dataLines].join('\r\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  downloadBlob(blob, `${filenamePrefix}.csv`)
+}
+
+export function exportProcessRegistryExcel(rows: ProcessRegistryRow[], filenamePrefix = 'реестр-процессов'): void {
+  const ws = buildStyledSheet(PROCESS_REGISTRY_EXPORT_HEADERS, rows.map((row) => processRegistryRowToCells(row)))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, filenamePrefix)
+  XLSX.writeFile(wb, `${filenamePrefix}.xlsx`)
+}
+
+export async function exportProcessRegistryPDF(rows: ProcessRegistryRow[], filenamePrefix = 'реестр-процессов'): Promise<void> {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  const fontLoaded = await loadCyrillicFont(doc)
+  if (fontLoaded) doc.setFont(FONT_NAME)
+  const body = rows.map((row) => processRegistryRowToCells(row))
+  const tableStyles: Record<string, unknown> = { fontSize: 8 }
+  if (fontLoaded) tableStyles.font = FONT_NAME
+  autoTable(doc, {
+    head: [PROCESS_REGISTRY_EXPORT_HEADERS],
+    body,
+    styles: tableStyles,
+    margin: { left: 10, right: 10 },
+  })
+  doc.save(`${filenamePrefix}.pdf`)
+}
+
+export async function exportProcessRegistryDOCX(rows: ProcessRegistryRow[], filenamePrefix = 'реестр-процессов'): Promise<void> {
+  const tableRows = [
+    new TableRow({
+      children: PROCESS_REGISTRY_EXPORT_HEADERS.map(
+        (h) =>
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })],
+            width: { size: 14, type: WidthType.PERCENTAGE },
+          })
+      ),
+      tableHeader: true,
+    }),
+    ...rows.map(
+      (row) =>
+        new TableRow({
+          children: processRegistryRowToCells(row).map(
+            (cell) =>
+              new TableCell({
+                children: [new Paragraph({ children: [new TextRun({ text: cell || '—' })] })],
+                width: { size: 14, type: WidthType.PERCENTAGE },
+              })
+          ),
+        })
+    ),
+  ]
+  const table = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: tableRows,
+  })
+  const doc = new Document({ sections: [{ children: [table] }] })
+  const blob = await Packer.toBlob(doc)
+  downloadBlob(blob, `${filenamePrefix}.docx`)
+}
+
+export function exportProcessRegistryHTML(rows: ProcessRegistryRow[], filenamePrefix = 'реестр-процессов'): void {
+  const headersHtml = PROCESS_REGISTRY_EXPORT_HEADERS.map((h) => `<th>${escapeHtml(h)}</th>`).join('')
+  const rowsHtml = rows
+    .map(
+      (row) =>
+        `<tr>${processRegistryRowToCells(row)
+          .map((cell) => `<td>${escapeHtml(cell)}</td>`)
+          .join('')}</tr>`
+    )
+    .join('')
+  const html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(filenamePrefix)}</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th, td { border: 1px solid #cbd5e1; padding: 0.35rem 0.5rem; text-align: left; }
+    th { background: #1e3a8a; color: #fff; font-weight: 600; }
+    tr:nth-child(even) { background: #f8fafc; }
+  </style>
+</head>
+<body>
+  <table>
+    <thead><tr>${headersHtml}</tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+</body>
+</html>`
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  downloadBlob(blob, `${filenamePrefix}.html`)
 }
