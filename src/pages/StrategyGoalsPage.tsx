@@ -104,6 +104,11 @@ const createFiltersState = (): Record<StrategyGoalField, string> => ({
   targetValue2027: '',
 })
 
+function toggleSortedFilterValue(current: string[], value: string, collator: Intl.Collator): string[] {
+  if (current.includes(value)) return current.filter((v) => v !== value)
+  return [...current, value].sort((a, b) => collator.compare(a, b))
+}
+
 export function StrategyGoalsPage() {
   const [state, setState] = useState<{ rows: StrategyGoalRow[] }>({ rows: [] })
   const [isLoaded, setIsLoaded] = useState(false)
@@ -134,6 +139,30 @@ export function StrategyGoalsPage() {
   const businessUnitRef = useRef<HTMLDivElement>(null)
   const segmentRef = useRef<HTMLDivElement>(null)
   const initiativeTypeRef = useRef<HTMLDivElement>(null)
+
+  const closeAllSelectFilters = useCallback(() => {
+    setBusinessUnitOpen(false)
+    setSegmentOpen(false)
+    setInitiativeTypeOpen(false)
+  }, [])
+
+  const toggleBusinessUnitOpen = useCallback(() => {
+    setBusinessUnitOpen((v) => !v)
+    setSegmentOpen(false)
+    setInitiativeTypeOpen(false)
+  }, [])
+
+  const toggleSegmentOpen = useCallback(() => {
+    setSegmentOpen((v) => !v)
+    setBusinessUnitOpen(false)
+    setInitiativeTypeOpen(false)
+  }, [])
+
+  const toggleInitiativeTypeOpen = useCallback(() => {
+    setInitiativeTypeOpen((v) => !v)
+    setBusinessUnitOpen(false)
+    setSegmentOpen(false)
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -207,10 +236,8 @@ export function StrategyGoalsPage() {
     setBusinessUnitFilter([])
     setSegmentFilter([])
     setInitiativeTypeFilter([])
-    setBusinessUnitOpen(false)
-    setSegmentOpen(false)
-    setInitiativeTypeOpen(false)
-  }, [])
+    closeAllSelectFilters()
+  }, [closeAllSelectFilters])
 
   const updateFilter = useCallback((key: StrategyGoalField, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
@@ -234,13 +261,13 @@ export function StrategyGoalsPage() {
   useEffect(() => setInitiativeTypeFilter((prev) => prev.filter((value) => initiativeTypeOptions.includes(value))), [initiativeTypeOptions])
 
   const toggleBusinessUnit = useCallback((value: string) => {
-    setBusinessUnitFilter((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value].sort((a, b) => collator.compare(a, b))))
+    setBusinessUnitFilter((prev) => toggleSortedFilterValue(prev, value, collator))
   }, [collator])
   const toggleSegment = useCallback((value: string) => {
-    setSegmentFilter((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value].sort((a, b) => collator.compare(a, b))))
+    setSegmentFilter((prev) => toggleSortedFilterValue(prev, value, collator))
   }, [collator])
   const toggleInitiativeType = useCallback((value: string) => {
-    setInitiativeTypeFilter((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value].sort((a, b) => collator.compare(a, b))))
+    setInitiativeTypeFilter((prev) => toggleSortedFilterValue(prev, value, collator))
   }, [collator])
 
   const businessUnitLabel = useMemo(() => buildSelectedLabel(businessUnitFilter, 'Все блоки'), [businessUnitFilter])
@@ -298,16 +325,14 @@ export function StrategyGoalsPage() {
       const insideSegment = segmentRef.current?.contains(target)
       const insideInitiativeType = initiativeTypeRef.current?.contains(target)
       if (!insideBusiness && !insideSegment && !insideInitiativeType) {
-        setBusinessUnitOpen(false)
-        setSegmentOpen(false)
-        setInitiativeTypeOpen(false)
+        closeAllSelectFilters()
       }
     }
     if (businessUnitOpen || segmentOpen || initiativeTypeOpen) {
       document.addEventListener('click', handleClickOutside)
       return () => document.removeEventListener('click', handleClickOutside)
     }
-  }, [businessUnitOpen, segmentOpen, initiativeTypeOpen])
+  }, [businessUnitOpen, closeAllSelectFilters, initiativeTypeOpen, segmentOpen])
 
   const handleExport = useCallback((format: 'csv' | 'xlsx' | 'pdf' | 'docx' | 'html') => {
     setExportDropdownOpen(false)
@@ -525,7 +550,7 @@ export function StrategyGoalsPage() {
               col.key === 'businessUnit' ? (
                 <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={businessUnitRef}>
                   <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={() => { setBusinessUnitOpen((v) => !v); setSegmentOpen(false); setInitiativeTypeOpen(false) }} disabled={!!editingRowId} aria-expanded={businessUnitOpen} aria-haspopup="listbox">
+                  <button type="button" className={styles.filterSelectButton} onClick={toggleBusinessUnitOpen} disabled={!!editingRowId} aria-expanded={businessUnitOpen} aria-haspopup="listbox">
                     <span className={styles.filterSelectText}>{businessUnitLabel}</span>
                     <span className={styles.filterSelectCaret} aria-hidden />
                   </button>
@@ -551,7 +576,7 @@ export function StrategyGoalsPage() {
               ) : col.key === 'segment' ? (
                 <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={segmentRef}>
                   <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={() => { setSegmentOpen((v) => !v); setBusinessUnitOpen(false); setInitiativeTypeOpen(false) }} disabled={!!editingRowId} aria-expanded={segmentOpen} aria-haspopup="listbox">
+                  <button type="button" className={styles.filterSelectButton} onClick={toggleSegmentOpen} disabled={!!editingRowId} aria-expanded={segmentOpen} aria-haspopup="listbox">
                     <span className={styles.filterSelectText}>{segmentLabel}</span>
                     <span className={styles.filterSelectCaret} aria-hidden />
                   </button>
@@ -577,7 +602,7 @@ export function StrategyGoalsPage() {
               ) : col.key === 'initiativeType' ? (
                 <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={initiativeTypeRef}>
                   <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={() => { setInitiativeTypeOpen((v) => !v); setBusinessUnitOpen(false); setSegmentOpen(false) }} disabled={!!editingRowId} aria-expanded={initiativeTypeOpen} aria-haspopup="listbox">
+                  <button type="button" className={styles.filterSelectButton} onClick={toggleInitiativeTypeOpen} disabled={!!editingRowId} aria-expanded={initiativeTypeOpen} aria-haspopup="listbox">
                     <span className={styles.filterSelectText}>{initiativeTypeLabel}</span>
                     <span className={styles.filterSelectCaret} aria-hidden />
                   </button>
