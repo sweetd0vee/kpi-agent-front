@@ -642,25 +642,27 @@ export function SettingsPage() {
                           {doc.preprocessed && <span className={styles.cardJsonBadge}>JSON</span>}
                         </span>
                         <div className={styles.cardFileActions}>
-                          <button
-                            type="button"
-                            className={styles.cardActionBtn}
-                            onClick={() => openTemplateChecklistForDoc(doc, slot.id)}
-                            disabled={isBusy}
-                            title="Проверить JSON"
-                          >
-                            {doc.preprocessed ? 'Проверить JSON' : 'Обработать'}
-                          </button>
                           {doc.preprocessed && (
-                            <button
-                              type="button"
-                              className={styles.cardActionBtnGhost}
-                              onClick={() => openTemplateChecklistForDoc(doc, slot.id, true)}
-                              disabled={isBusy}
-                              title="Повторно обработать через LLM"
-                            >
-                              Переобработать
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                className={styles.cardActionBtn}
+                                onClick={() => openTemplateChecklistForDoc(doc, slot.id)}
+                                disabled={isBusy}
+                                title="Проверить JSON"
+                              >
+                                Проверить JSON
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.cardActionBtnGhost}
+                                onClick={() => openTemplateChecklistForDoc(doc, slot.id, true)}
+                                disabled={isBusy}
+                                title="Повторно обработать через LLM"
+                              >
+                                Переобработать
+                              </button>
+                            </>
                           )}
                           <button
                             type="button"

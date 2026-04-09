@@ -6,6 +6,8 @@ import styles from './DashboardsPage.module.css'
 
 const collatorRu = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
 const norm = (s: string | null | undefined) => String(s ?? '').trim().toLowerCase()
+const normalizePerson = (s: string | null | undefined) =>
+  norm(s).replace(/\s+/g, ' ').replace(/ё/g, 'е').replace(/[.]/g, '').trim()
 
 export function DashboardsPage() {
   const [boardRowsAll, setBoardRowsAll] = useState<GoalRow[]>([])
@@ -14,7 +16,6 @@ export function DashboardsPage() {
   const [staffRowsAll, setStaffRowsAll] = useState<Array<{ head: string; businessUnit: string }>>([])
   const [processRowsAll, setProcessRowsAll] = useState<Array<{ leader: string; businessUnit: string }>>([])
   const [reportYearFilter, setReportYearFilter] = useState<string>('')
-  const [businessUnitFilter, setBusinessUnitFilter] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,27 +31,6 @@ export function DashboardsPage() {
     })
     return Array.from(set).sort((a, b) => collatorRu.compare(a, b))
   }, [boardRowsAll, leaderRowsAll])
-
-  const businessUnitOptions = useMemo(() => {
-    const set = new Set<string>()
-    boardRowsAll.forEach((r) => {
-      const bu = String(r.businessUnit ?? '').trim()
-      if (bu) set.add(bu)
-    })
-    strategyRowsAll.forEach((r) => {
-      const bu = String(r.businessUnit ?? '').trim()
-      if (bu) set.add(bu)
-    })
-    staffRowsAll.forEach((r) => {
-      const bu = String(r.businessUnit ?? '').trim()
-      if (bu) set.add(bu)
-    })
-    processRowsAll.forEach((r) => {
-      const bu = String(r.businessUnit ?? '').trim()
-      if (bu) set.add(bu)
-    })
-    return Array.from(set).sort((a, b) => collatorRu.compare(a, b))
-  }, [boardRowsAll, processRowsAll, staffRowsAll, strategyRowsAll])
 
   useEffect(() => {
     let active = true
@@ -87,59 +67,56 @@ export function DashboardsPage() {
   const boardRows = useMemo(() => {
     return boardRowsAll.filter((r) => {
       const yearOk = !reportYearFilter || String(r.reportYear ?? '').trim() === reportYearFilter
-      const buOk = !businessUnitFilter || String(r.businessUnit ?? '').trim() === businessUnitFilter
-      return yearOk && buOk
+      return yearOk
     })
-  }, [boardRowsAll, businessUnitFilter, reportYearFilter])
+  }, [boardRowsAll, reportYearFilter])
 
   const boardLeaders = useMemo(() => {
-    const set = new Set<string>()
+    const map = new Map<string, string>()
     boardRows.forEach((r) => {
       const v = String(r.lastName ?? '').trim()
-      if (v) set.add(v)
+      const key = normalizePerson(v)
+      if (key && !map.has(key)) map.set(key, v)
     })
-    return set
+    return map
   }, [boardRows])
 
   const leaderRows = useMemo(() => {
     return leaderRowsAll.filter((r) => {
-      const yearOk = !reportYearFilter || String(r.reportYear ?? '').trim() === reportYearFilter
+      const rowYear = String(r.reportYear ?? '').trim()
+      const yearOk = !reportYearFilter || rowYear === reportYearFilter || rowYear === ''
       if (!yearOk) return false
-      if (!businessUnitFilter) return true
-      return boardLeaders.has(String(r.lastName ?? '').trim())
+      return boardLeaders.has(normalizePerson(r.lastName))
     })
-  }, [boardLeaders, businessUnitFilter, leaderRowsAll, reportYearFilter])
+  }, [boardLeaders, leaderRowsAll, reportYearFilter])
 
   const strategyRows = useMemo(
-    () =>
-      strategyRowsAll.filter((r) => {
-        return !businessUnitFilter || String(r.businessUnit ?? '').trim() === businessUnitFilter
-      }),
-    [businessUnitFilter, strategyRowsAll]
+    () => strategyRowsAll,
+    [strategyRowsAll]
   )
 
   const staffRows = useMemo(
-    () =>
-      staffRowsAll.filter((r) => {
-        return !businessUnitFilter || String(r.businessUnit ?? '').trim() === businessUnitFilter
-      }),
-    [businessUnitFilter, staffRowsAll]
+    () => staffRowsAll,
+    [staffRowsAll]
   )
 
   const processRows = useMemo(
-    () =>
-      processRowsAll.filter((r) => {
-        return !businessUnitFilter || String(r.businessUnit ?? '').trim() === businessUnitFilter
-      }),
-    [businessUnitFilter, processRowsAll]
+    () => processRowsAll,
+    [processRowsAll]
   )
 
   const leaderGoalsByLeader = useMemo(() => {
-    const map = new Map<string, number>()
+    const map = new Map<string, { name: string; count: number }>()
     leaderRows.forEach((r) => {
-      const key = String(r.lastName ?? '').trim()
+      const rawName = String(r.lastName ?? '').trim()
+      const key = normalizePerson(rawName)
       if (!key) return
-      map.set(key, (map.get(key) ?? 0) + 1)
+      const prev = map.get(key)
+      if (prev) {
+        map.set(key, { ...prev, count: prev.count + 1 })
+      } else {
+        map.set(key, { name: rawName || '—', count: 1 })
+      }
     })
     return map
   }, [leaderRows])
@@ -147,18 +124,18 @@ export function DashboardsPage() {
   const staffHeadsSet = useMemo(() => {
     const set = new Set<string>()
     staffRows.forEach((r) => {
-      const v = String(r.head ?? '').trim()
+      const v = normalizePerson(r.head)
       if (v) set.add(v)
     })
     return set
   }, [staffRows])
 
   const boardCoverage = useMemo(() => {
-    const leaders = Array.from(boardLeaders)
+    const leaders = Array.from(boardLeaders.keys())
     let withLeaderGoals = 0
     let withStaff = 0
     leaders.forEach((leader) => {
-      if ((leaderGoalsByLeader.get(leader) ?? 0) > 0) withLeaderGoals += 1
+      if ((leaderGoalsByLeader.get(leader)?.count ?? 0) > 0) withLeaderGoals += 1
       if (staffHeadsSet.has(leader)) withStaff += 1
     })
     return {
@@ -170,7 +147,7 @@ export function DashboardsPage() {
     }
   }, [boardLeaders, leaderGoalsByLeader, staffHeadsSet])
 
-  const unitMatrix = useMemo(() => {
+  const unitCoverage = useMemo(() => {
     const units = new Set<string>()
     const add = (v: string) => {
       const t = v.trim()
@@ -181,19 +158,18 @@ export function DashboardsPage() {
     staffRows.forEach((r) => add(String(r.businessUnit ?? '')))
     processRows.forEach((r) => add(String(r.businessUnit ?? '')))
 
-    const list = Array.from(units).sort((a, b) => collatorRu.compare(a, b))
-    return list.map((u) => ({
-      unit: u,
-      board: boardRows.filter((r) => String(r.businessUnit ?? '').trim() === u).length,
-      strategy: strategyRows.filter((r) => String(r.businessUnit ?? '').trim() === u).length,
-      staff: staffRows.filter((r) => String(r.businessUnit ?? '').trim() === u).length,
-      process: processRows.filter((r) => String(r.businessUnit ?? '').trim() === u).length,
-    }))
+    return {
+      total: units.size,
+      withBoard: Array.from(units).filter((u) => boardRows.some((r) => String(r.businessUnit ?? '').trim() === u)).length,
+      withStrategy: Array.from(units).filter((u) => strategyRows.some((r) => String(r.businessUnit ?? '').trim() === u)).length,
+      withStaff: Array.from(units).filter((u) => staffRows.some((r) => String(r.businessUnit ?? '').trim() === u)).length,
+      withProcess: Array.from(units).filter((u) => processRows.some((r) => String(r.businessUnit ?? '').trim() === u)).length,
+    }
   }, [boardRows, processRows, staffRows, strategyRows])
 
   const topLeaders = useMemo(() => {
-    return Array.from(leaderGoalsByLeader.entries())
-      .map(([name, count]) => ({ name, count }))
+    return Array.from(leaderGoalsByLeader.values())
+      .map((v) => ({ name: v.name, count: v.count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
   }, [leaderGoalsByLeader])
@@ -204,9 +180,9 @@ export function DashboardsPage() {
     let linked = 0
     const total = strategyRows.length
     strategyRows.forEach((r) => {
-      const owner = norm(r.responsiblePersonOwner)
+      const owner = normalizePerson(r.responsiblePersonOwner)
       if (!owner) return
-      if (boardLeaders.has(String(r.responsiblePersonOwner ?? '').trim()) || staffHeadsSet.has(String(r.responsiblePersonOwner ?? '').trim())) {
+      if (boardLeaders.has(owner) || staffHeadsSet.has(owner)) {
         linked += 1
       }
     })
@@ -217,7 +193,7 @@ export function DashboardsPage() {
     let linked = 0
     const total = processRows.length
     processRows.forEach((r) => {
-      const leader = String(r.leader ?? '').trim()
+      const leader = normalizePerson(r.leader)
       if (!leader) return
       if (boardLeaders.has(leader) || staffHeadsSet.has(leader)) linked += 1
     })
@@ -263,20 +239,6 @@ export function DashboardsPage() {
                   <option value="">Все годы</option>
                   {reportYearOptions.map((year) => (
                     <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </label>
-              <label className={styles.eulerSelectLabel}>
-                Бизнес/блок
-                <select
-                  className={styles.eulerSelect}
-                  value={businessUnitFilter}
-                  onChange={(e) => setBusinessUnitFilter(e.target.value)}
-                  aria-label="Выберите бизнес-блок"
-                >
-                  <option value="">Все блоки</option>
-                  {businessUnitOptions.map((unit) => (
-                    <option key={unit} value={unit}>{unit}</option>
                   ))}
                 </select>
               </label>
@@ -400,34 +362,28 @@ export function DashboardsPage() {
 
             <div className={`${styles.chartCard} ${styles.chartCardWide}`}>
               <h3 className={styles.chartCardTitle}>Матрица по бизнес-блокам</h3>
-              {unitMatrix.length === 0 ? (
-                <p className={styles.barValue}>Нет данных</p>
-              ) : (
-                <div className={styles.tableWrap}>
-                  <table className={styles.summaryTable}>
-                    <thead>
-                      <tr>
-                        <th>Бизнес/блок</th>
-                        <th>board_goals</th>
-                        <th>strategy_goals</th>
-                        <th>staff</th>
-                        <th>process_registry</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {unitMatrix.map((r) => (
-                        <tr key={r.unit}>
-                          <td>{r.unit}</td>
-                          <td>{r.board}</td>
-                          <td>{r.strategy}</td>
-                          <td>{r.staff}</td>
-                          <td>{r.process}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className={styles.cardsGrid}>
+                <div className={styles.card}>
+                  <div className={styles.cardValue}>{unitCoverage.total}</div>
+                  <div className={styles.cardLabel}>уникальных бизнес-блоков</div>
                 </div>
-              )}
+                <div className={styles.card}>
+                  <div className={styles.cardValue}>{unitCoverage.withBoard}</div>
+                  <div className={styles.cardLabel}>блоков с целями правления</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardValue}>{unitCoverage.withStrategy}</div>
+                  <div className={styles.cardLabel}>блоков со стратегией</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardValue}>{unitCoverage.withStaff}</div>
+                  <div className={styles.cardLabel}>блоков в штатном расписании</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardValue}>{unitCoverage.withProcess}</div>
+                  <div className={styles.cardLabel}>блоков в реестре процессов</div>
+                </div>
+              </div>
             </div>
           </div>
 
