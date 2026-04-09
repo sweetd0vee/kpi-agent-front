@@ -34,7 +34,6 @@ import styles from './ImportPage.module.css'
 
 const CHECKLIST_LABELS: Record<string, string> = {
   business_plan_checklist: 'Бизнес-план',
-  strategy_checklist: 'Стратегия',
   reglament_checklist: 'Регламент',
 }
 
@@ -1190,7 +1189,6 @@ export function ImportPage() {
                                       </button>
                                     )}
                                     {(slot.id === 'business_plan_checklist' ||
-                                      slot.id === 'strategy_checklist' ||
                                       slot.id === 'reglament_checklist') && (
                                       <button
                                         type="button"

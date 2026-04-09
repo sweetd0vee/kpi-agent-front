@@ -51,11 +51,13 @@ export async function exportGoalsXlsx(content: string): Promise<{ blob: Blob; fi
   return { blob, filename }
 }
 
-/** Проверить, похож ли текст на ответ с таблицей целей (РАЗДЕЛ 8 / CSV с ;). */
+/** Проверить, похож ли текст на ответ с таблицей целей (Раздел 8 / CSV / Markdown). */
 export function contentHasGoalsTable(content: string): boolean {
   if (!content || typeof content !== 'string') return false
   const lower = content.toLowerCase()
   if (lower.includes('раздел 8') || lower.includes('таблица целей')) return true
   if (content.includes(';') && (lower.includes('кпэ') || lower.includes('цел') || lower.includes('цели'))) return true
+  // Markdown-таблица: строка с | и признаками колонок целей
+  if (content.includes('|') && (lower.includes('кпэ') || lower.includes('наименование') || lower.includes('фио'))) return true
   return false
 }

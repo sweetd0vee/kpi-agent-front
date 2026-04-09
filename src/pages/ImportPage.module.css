@@ -255,7 +255,7 @@
 /* --- 5 slots grid --- */
 .slotsGrid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1.25rem;
   margin-bottom: 2rem;
 }
@@ -326,6 +326,7 @@
   margin-top: 0.75rem;
   font-size: 0.8125rem;
   color: #64748b;
+  text-align: center;
 }
 
 .cellTemplateLink {
@@ -397,17 +398,19 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.375rem;
 }
 
 .cellFileName {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   font-size: 0.75rem;
   color: #334155;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 }
 
 .cellRemove {
@@ -811,7 +814,7 @@
 /* Сетка слотов в карточке коллекции (как в карточке создания); прокручивается при переполнении */
 .cardSlotsGrid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1.25rem;
   margin-bottom: 1.5rem;
   flex: 1;
