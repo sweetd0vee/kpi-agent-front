@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getBoardGoalRows, getLeaderGoalRows, getStrategyGoalRows } from '@/api/goals'
+import { getBoardGoalRows, getStrategyGoalRows } from '@/api/goals'
 import { getProcessRegistryRows, getStaffRows } from '@/api/registry'
-import type { GoalRow, LeaderGoalRow, StrategyGoalRow } from '@/lib/storage'
+import type { GoalRow, StrategyGoalRow } from '@/lib/storage'
 import styles from './DashboardsPage.module.css'
 
 const collatorRu = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
@@ -11,7 +11,6 @@ const normalizePerson = (s: string | null | undefined) =>
 
 export function DashboardsPage() {
   const [boardRowsAll, setBoardRowsAll] = useState<GoalRow[]>([])
-  const [leaderRowsAll, setLeaderRowsAll] = useState<LeaderGoalRow[]>([])
   const [strategyRowsAll, setStrategyRowsAll] = useState<StrategyGoalRow[]>([])
   const [staffRowsAll, setStaffRowsAll] = useState<Array<{ head: string; businessUnit: string }>>([])
   const [processRowsAll, setProcessRowsAll] = useState<Array<{ leader: string; businessUnit: string }>>([])
@@ -25,27 +24,21 @@ export function DashboardsPage() {
       const y = String(r.reportYear ?? '').trim()
       if (y) set.add(y)
     })
-    leaderRowsAll.forEach((r) => {
-      const y = String(r.reportYear ?? '').trim()
-      if (y) set.add(y)
-    })
     return Array.from(set).sort((a, b) => collatorRu.compare(a, b))
-  }, [boardRowsAll, leaderRowsAll])
+  }, [boardRowsAll])
 
   useEffect(() => {
     let active = true
     setLoading(true)
     Promise.all([
       getBoardGoalRows(),
-      getLeaderGoalRows(),
       getStrategyGoalRows(),
       getStaffRows(),
       getProcessRegistryRows(),
     ])
-      .then(([board, leader, strategy, staff, process]) => {
+      .then(([board, strategy, staff, process]) => {
         if (!active) return
         setBoardRowsAll(board)
-        setLeaderRowsAll(leader)
         setStrategyRowsAll(strategy)
         setStaffRowsAll(staff.map((s) => ({ head: s.head, businessUnit: s.businessUnit })))
         setProcessRowsAll(process.map((p) => ({ leader: p.leader, businessUnit: p.businessUnit })))
@@ -71,25 +64,6 @@ export function DashboardsPage() {
     })
   }, [boardRowsAll, reportYearFilter])
 
-  const boardLeaders = useMemo(() => {
-    const map = new Map<string, string>()
-    boardRows.forEach((r) => {
-      const v = String(r.lastName ?? '').trim()
-      const key = normalizePerson(v)
-      if (key && !map.has(key)) map.set(key, v)
-    })
-    return map
-  }, [boardRows])
-
-  const leaderRows = useMemo(() => {
-    return leaderRowsAll.filter((r) => {
-      const rowYear = String(r.reportYear ?? '').trim()
-      const yearOk = !reportYearFilter || rowYear === reportYearFilter || rowYear === ''
-      if (!yearOk) return false
-      return boardLeaders.has(normalizePerson(r.lastName))
-    })
-  }, [boardLeaders, leaderRowsAll, reportYearFilter])
-
   const strategyRows = useMemo(
     () => strategyRowsAll,
     [strategyRowsAll]
@@ -107,7 +81,7 @@ export function DashboardsPage() {
 
   const leaderGoalsByLeader = useMemo(() => {
     const map = new Map<string, { name: string; count: number }>()
-    leaderRows.forEach((r) => {
+    boardRows.forEach((r) => {
       const rawName = String(r.lastName ?? '').trim()
       const key = normalizePerson(rawName)
       if (!key) return
@@ -119,33 +93,7 @@ export function DashboardsPage() {
       }
     })
     return map
-  }, [leaderRows])
-
-  const staffHeadsSet = useMemo(() => {
-    const set = new Set<string>()
-    staffRows.forEach((r) => {
-      const v = normalizePerson(r.head)
-      if (v) set.add(v)
-    })
-    return set
-  }, [staffRows])
-
-  const boardCoverage = useMemo(() => {
-    const leaders = Array.from(boardLeaders.keys())
-    let withLeaderGoals = 0
-    let withStaff = 0
-    leaders.forEach((leader) => {
-      if ((leaderGoalsByLeader.get(leader)?.count ?? 0) > 0) withLeaderGoals += 1
-      if (staffHeadsSet.has(leader)) withStaff += 1
-    })
-    return {
-      totalLeaders: leaders.length,
-      withLeaderGoals,
-      withStaff,
-      withoutLeaderGoals: Math.max(0, leaders.length - withLeaderGoals),
-      withoutStaff: Math.max(0, leaders.length - withStaff),
-    }
-  }, [boardLeaders, leaderGoalsByLeader, staffHeadsSet])
+  }, [boardRows])
 
   const unitCoverage = useMemo(() => {
     const units = new Set<string>()
@@ -176,32 +124,8 @@ export function DashboardsPage() {
 
   const maxTopLeaders = useMemo(() => Math.max(1, ...topLeaders.map((i) => i.count)), [topLeaders])
 
-  const strategyOwnerCoverage = useMemo(() => {
-    let linked = 0
-    const total = strategyRows.length
-    strategyRows.forEach((r) => {
-      const owner = normalizePerson(r.responsiblePersonOwner)
-      if (!owner) return
-      if (boardLeaders.has(owner) || staffHeadsSet.has(owner)) {
-        linked += 1
-      }
-    })
-    return { linked, total, pct: total > 0 ? Math.round((linked / total) * 100) : 0 }
-  }, [boardLeaders, staffHeadsSet, strategyRows])
-
-  const processLeaderCoverage = useMemo(() => {
-    let linked = 0
-    const total = processRows.length
-    processRows.forEach((r) => {
-      const leader = normalizePerson(r.leader)
-      if (!leader) return
-      if (boardLeaders.has(leader) || staffHeadsSet.has(leader)) linked += 1
-    })
-    return { linked, total, pct: total > 0 ? Math.round((linked / total) * 100) : 0 }
-  }, [boardLeaders, processRows, staffHeadsSet])
-
   const hasAnyData =
-    boardRows.length > 0 || leaderRows.length > 0 || strategyRows.length > 0 || staffRows.length > 0 || processRows.length > 0
+    boardRows.length > 0 || strategyRows.length > 0 || staffRows.length > 0 || processRows.length > 0
 
   return (
     <div className={styles.page}>
@@ -225,7 +149,7 @@ export function DashboardsPage() {
           <section className={styles.yearFilterSection} aria-labelledby="dashboard-report-year-label">
             <h2 id="dashboard-report-year-label" className={styles.sectionTitle}>Фильтры</h2>
             <p className={styles.yearFilterDesc}>
-              Дашборды строятся по связанным таблицам: цели правления, цели руководителей, стратегия, штат и реестр процессов.
+              Дашборды строятся по связанным таблицам: цели правления, стратегия, штат и реестр процессов.
             </p>
             <div className={styles.eulerSelects}>
               <label className={styles.eulerSelectLabel}>
@@ -250,14 +174,10 @@ export function DashboardsPage() {
             <p className={styles.eulerSectionDesc}>
               Метрики показывают, насколько строки из разных таблиц согласованы между собой по ФИО и бизнес-блоку.
             </p>
-            <div className={styles.cardsGrid}>
+            <div className={styles.connectivityCards}>
               <div className={styles.card}>
                 <div className={styles.cardValue}>{boardRows.length}</div>
                 <div className={styles.cardLabel}>строк в целях правления</div>
-              </div>
-              <div className={styles.card}>
-                <div className={styles.cardValue}>{leaderRows.length}</div>
-                <div className={styles.cardLabel}>строк в целях руководителей</div>
               </div>
               <div className={styles.card}>
                 <div className={styles.cardValue}>{strategyRows.length}</div>
@@ -274,34 +194,10 @@ export function DashboardsPage() {
             </div>
           </section>
 
-          <h2 className={styles.sectionTitle}>Связи ФИО между таблицами</h2>
-          <div className={styles.cardsGrid}>
-            <div className={styles.card}>
-              <div className={styles.cardValue}>{boardCoverage.totalLeaders}</div>
-              <div className={styles.cardLabel}>уникальных ФИО в целях правления</div>
-            </div>
-            <div className={styles.card}>
-              <div className={styles.cardValue}>{boardCoverage.withLeaderGoals}</div>
-              <div className={styles.cardLabel}>есть в целях руководителей</div>
-            </div>
-            <div className={styles.card}>
-              <div className={styles.cardValue}>{boardCoverage.withStaff}</div>
-              <div className={styles.cardLabel}>есть в штатном расписании</div>
-            </div>
-            <div className={styles.card}>
-              <div className={styles.cardValue}>{boardCoverage.withoutLeaderGoals}</div>
-              <div className={styles.cardLabel}>без связи с leader_goals</div>
-            </div>
-            <div className={styles.card}>
-              <div className={styles.cardValue}>{boardCoverage.withoutStaff}</div>
-              <div className={styles.cardLabel}>без связи со staff</div>
-            </div>
-          </div>
-
           <h2 className={styles.sectionTitle}>Кросс-табличные дашборды</h2>
           <div className={styles.dashboardsGrid}>
-            <div className={styles.chartCard}>
-              <h3 className={styles.chartCardTitle}>Топ ФИО по количеству целей руководителей</h3>
+            <div className={`${styles.chartCard} ${styles.chartCardTopLeaders}`}>
+              <h3 className={styles.chartCardTitle}>Топ ФИО по количеству целей правления</h3>
               {topLeaders.length === 0 ? (
                 <p className={styles.barValue}>Нет данных</p>
               ) : (
@@ -322,42 +218,6 @@ export function DashboardsPage() {
                   ))}
                 </div>
               )}
-            </div>
-
-            <div className={styles.chartCard}>
-              <h3 className={styles.chartCardTitle}>Покрытие стратегии ответственными</h3>
-              <div className={styles.cardsGrid}>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{strategyOwnerCoverage.linked}</div>
-                  <div className={styles.cardLabel}>инициатив связаны с ФИО из board/staff</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{strategyOwnerCoverage.total}</div>
-                  <div className={styles.cardLabel}>инициатив всего</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{strategyOwnerCoverage.pct}%</div>
-                  <div className={styles.cardLabel}>доля связности</div>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.chartCard}>
-              <h3 className={styles.chartCardTitle}>Покрытие реестра процессов ФИО</h3>
-              <div className={styles.cardsGrid}>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{processLeaderCoverage.linked}</div>
-                  <div className={styles.cardLabel}>процессов с ФИО из board/staff</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{processLeaderCoverage.total}</div>
-                  <div className={styles.cardLabel}>процессов всего</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{processLeaderCoverage.pct}%</div>
-                  <div className={styles.cardLabel}>доля связности</div>
-                </div>
-              </div>
             </div>
 
             <div className={`${styles.chartCard} ${styles.chartCardWide}`}>

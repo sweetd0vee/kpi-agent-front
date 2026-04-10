@@ -410,11 +410,7 @@ export async function getResponsibles(): Promise<string[]> {
 }
 
 /** Типы шаблонных документов (загружаются один раз в Настройках). */
-export const TEMPLATE_DOCUMENT_TYPES = [
-  'business_plan_checklist',
-  'strategy_checklist',
-  'reglament_checklist',
-] as const
+export const TEMPLATE_DOCUMENT_TYPES = ['strategy_checklist', 'reglament_checklist'] as const
 
 export type TemplateDocumentTypeId = (typeof TEMPLATE_DOCUMENT_TYPES)[number]
 
@@ -422,7 +418,7 @@ export type TemplateDocumentsResponse = Record<string, DocumentMeta | null>
 
 const SETTINGS_REQUEST_TIMEOUT_MS = 8_000
 
-/** Список шаблонных документов (Бизнес-план, Стратегия, Регламент). */
+/** Список шаблонных документов (Стратегия, Регламент). */
 export async function getTemplateDocuments(
   externalSignal?: AbortSignal
 ): Promise<TemplateDocumentsResponse> {

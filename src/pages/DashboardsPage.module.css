@@ -60,6 +60,28 @@
   margin-bottom: 2rem;
 }
 
+/* Карточки «Связность таблиц» — ровный ряд по центру */
+.connectivityCards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0 auto 2rem;
+  max-width: 100%;
+}
+
+.connectivityCards .card {
+  flex: 0 1 11.5rem;
+  min-width: 10rem;
+  max-width: 13rem;
+  text-align: center;
+}
+
+.connectivityCards .cardValue,
+.connectivityCards .cardLabel {
+  text-align: center;
+}
+
 .card {
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -1009,4 +1031,20 @@
 
 .chartCardWide {
   grid-column: 1 / -1;
+}
+
+/* «Топ ФИО» — карточка по центру под заголовком раздела */
+.chartCardTopLeaders {
+  grid-column: 1 / -1;
+  max-width: 32rem;
+  width: 100%;
+  justify-self: center;
+}
+
+.chartCardTopLeaders .chartCardTitle {
+  text-align: center;
+}
+
+.chartCardTopLeaders .barValue {
+  text-align: center;
 }

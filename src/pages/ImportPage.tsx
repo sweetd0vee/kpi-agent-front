@@ -33,7 +33,6 @@ import { SLOT_TYPES, TEMPLATE_SLOT_IDS, createInitialFiles, type SlotTypeId } fr
 import styles from './ImportPage.module.css'
 
 const CHECKLIST_LABELS: Record<string, string> = {
-  business_plan_checklist: 'Бизнес-план',
   reglament_checklist: 'Регламент',
 }
 
@@ -1188,8 +1187,7 @@ export function ImportPage() {
                                         Сформировать чеклист
                                       </button>
                                     )}
-                                    {(slot.id === 'business_plan_checklist' ||
-                                      slot.id === 'reglament_checklist') && (
+                                    {slot.id === 'reglament_checklist' && (
                                       <button
                                         type="button"
                                         className={styles.cardSlotBtn}

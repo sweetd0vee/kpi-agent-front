@@ -252,10 +252,10 @@
   color: #94a3b8;
 }
 
-/* --- 5 slots grid --- */
+/* --- Слоты файлов коллекции (сетка) --- */
 .slotsGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
   margin-bottom: 2rem;
 }
@@ -306,7 +306,7 @@
   background: #eff6ff;
 }
 
-/* Слот, заполненный из настроек (Бизнес-план, Стратегия, Регламент) — только отображение */
+/* Слот, заполненный из настроек (Регламент и др. шаблоны) — только отображение */
 .cellFromTemplate {
   border-style: solid;
   border-color: #e2e8f0;
@@ -814,7 +814,7 @@
 /* Сетка слотов в карточке коллекции (как в карточке создания); прокручивается при переполнении */
 .cardSlotsGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
   margin-bottom: 1.5rem;
   flex: 1;
