@@ -424,7 +424,7 @@ export function LeaderGoalsPage() {
         })
       }
     },
-    [goalsState.rows]
+    [sortedRows]
   )
 
   const allLastNamesSelected =
