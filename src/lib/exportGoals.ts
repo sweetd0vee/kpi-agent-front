@@ -860,3 +860,63 @@ export function exportProcessRegistryHTML(rows: ProcessRegistryRow[], filenamePr
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
   downloadBlob(blob, `${filenamePrefix}.html`)
 }
+
+export const CASCADE_EXPORT_HEADERS = [
+  'Руководитель',
+  'Заместитель',
+  'Источник',
+  'ID источника',
+  'Цель',
+  'Метрика',
+  'Бизнес юнит',
+  'Департамент',
+  'Отчётный год',
+  'Trace',
+]
+
+type CascadeExportRow = {
+  managerName: string
+  deputyName: string
+  sourceType: string
+  sourceRowId: string
+  sourceGoalTitle: string
+  sourceMetric: string
+  businessUnit: string
+  department: string
+  reportYear: string
+  traceRule: string
+}
+
+function cascadeRowToCells(row: CascadeExportRow): string[] {
+  return [
+    row.managerName ?? '',
+    row.deputyName ?? '',
+    row.sourceType ?? '',
+    row.sourceRowId ?? '',
+    row.sourceGoalTitle ?? '',
+    row.sourceMetric ?? '',
+    row.businessUnit ?? '',
+    row.department ?? '',
+    row.reportYear ?? '',
+    row.traceRule ?? '',
+  ]
+}
+
+export function exportCascadeGoalsCSV(rows: CascadeExportRow[], filenamePrefix = 'каскадирование-целей'): void {
+  const escape = (s: string) => {
+    const t = String(s ?? '').replace(/"/g, '""')
+    return t.includes(',') || t.includes('"') || t.includes('\n') ? `"${t}"` : t
+  }
+  const headerLine = CASCADE_EXPORT_HEADERS.map(escape).join(',')
+  const dataLines = rows.map((row) => cascadeRowToCells(row).map(escape).join(','))
+  const csv = '\uFEFF' + [headerLine, ...dataLines].join('\r\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  downloadBlob(blob, `${filenamePrefix}.csv`)
+}
+
+export function exportCascadeGoalsExcel(rows: CascadeExportRow[], filenamePrefix = 'каскадирование-целей'): void {
+  const ws = buildStyledSheet(CASCADE_EXPORT_HEADERS, rows.map((row) => cascadeRowToCells(row)))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, filenamePrefix)
+  XLSX.writeFile(wb, `${filenamePrefix}.xlsx`)
+}

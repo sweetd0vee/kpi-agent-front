@@ -6,6 +6,7 @@ import { LeaderGoalsPage } from '@/pages/LeaderGoalsPage'
 import { ImportPage } from '@/pages/ImportPage'
 import { ChatPage } from '@/pages/Chat'
 import { DashboardsPage } from '@/pages/DashboardsPage'
+import { CascadePage } from '@/pages/CascadePage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { StrategyGoalsPage } from '@/pages/StrategyGoalsPage'
 import { ProcessRegistryPage } from '@/pages/ProcessRegistryPage'
@@ -51,6 +52,7 @@ function App() {
         <Route path="/knowledge" element={<ImportPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/chat" element={<ChatPage />} />
+        <Route path="/cascade" element={<CascadePage />} />
         <Route path="/dashboards" element={<DashboardsPage />} />
       </Routes>
     </Layout>

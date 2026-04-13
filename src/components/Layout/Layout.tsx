@@ -38,6 +38,14 @@ const icons = {
       <rect x="3" y="16" width="7" height="5" rx="1" />
     </svg>
   ),
+  cascade: (
+    <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 7h11" />
+      <path d="M11 3l4 4-4 4" />
+      <path d="M20 17H9" />
+      <path d="M13 13l-4 4 4 4" />
+    </svg>
+  ),
   settings: (
     <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -76,6 +84,7 @@ const referenceItems = [
 
 const navItems = [
   { to: '/knowledge', label: 'База знаний', icon: icons.knowledge },
+  { to: '/cascade', label: 'Каскадирование', icon: icons.cascade },
   { to: '/chat', label: 'Чат с моделью', icon: icons.chat },
   { to: '/dashboards', label: 'Дашборды', icon: icons.dashboards },
   { to: '/settings', label: 'Настройки', icon: icons.settings },

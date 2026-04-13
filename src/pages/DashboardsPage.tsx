@@ -95,26 +95,6 @@ export function DashboardsPage() {
     return map
   }, [boardRows])
 
-  const unitCoverage = useMemo(() => {
-    const units = new Set<string>()
-    const add = (v: string) => {
-      const t = v.trim()
-      if (t) units.add(t)
-    }
-    boardRows.forEach((r) => add(String(r.businessUnit ?? '')))
-    strategyRows.forEach((r) => add(String(r.businessUnit ?? '')))
-    staffRows.forEach((r) => add(String(r.businessUnit ?? '')))
-    processRows.forEach((r) => add(String(r.businessUnit ?? '')))
-
-    return {
-      total: units.size,
-      withBoard: Array.from(units).filter((u) => boardRows.some((r) => String(r.businessUnit ?? '').trim() === u)).length,
-      withStrategy: Array.from(units).filter((u) => strategyRows.some((r) => String(r.businessUnit ?? '').trim() === u)).length,
-      withStaff: Array.from(units).filter((u) => staffRows.some((r) => String(r.businessUnit ?? '').trim() === u)).length,
-      withProcess: Array.from(units).filter((u) => processRows.some((r) => String(r.businessUnit ?? '').trim() === u)).length,
-    }
-  }, [boardRows, processRows, staffRows, strategyRows])
-
   const topLeaders = useMemo(() => {
     return Array.from(leaderGoalsByLeader.values())
       .map((v) => ({ name: v.name, count: v.count }))
@@ -220,31 +200,6 @@ export function DashboardsPage() {
               )}
             </div>
 
-            <div className={`${styles.chartCard} ${styles.chartCardWide}`}>
-              <h3 className={styles.chartCardTitle}>Матрица по бизнес-блокам</h3>
-              <div className={styles.cardsGrid}>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{unitCoverage.total}</div>
-                  <div className={styles.cardLabel}>уникальных бизнес-блоков</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{unitCoverage.withBoard}</div>
-                  <div className={styles.cardLabel}>блоков с целями правления</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{unitCoverage.withStrategy}</div>
-                  <div className={styles.cardLabel}>блоков со стратегией</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{unitCoverage.withStaff}</div>
-                  <div className={styles.cardLabel}>блоков в штатном расписании</div>
-                </div>
-                <div className={styles.card}>
-                  <div className={styles.cardValue}>{unitCoverage.withProcess}</div>
-                  <div className={styles.cardLabel}>блоков в реестре процессов</div>
-                </div>
-              </div>
-            </div>
           </div>
 
         </>
