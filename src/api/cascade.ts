@@ -42,6 +42,7 @@ export type CascadeUnmatched = {
 export type CascadeFallbackGoal = {
   id: string
   managerName: string
+  deputyName: string
   sourceType: string
   sourceRowId: string
   sourceGoalTitle: string

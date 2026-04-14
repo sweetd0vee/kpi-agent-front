@@ -354,13 +354,16 @@ export function CascadePage() {
           <section className={styles.panel}>
             <h2>Резервные цели для несопоставленных</h2>
             {result.fallbackGoals.length === 0 ? (
-              <div className={styles.muted}>Нет</div>
+              <div className={styles.muted}>
+                Резервные цели не сформированы: у руководителя не найдены исходные цели для случайного каскадирования.
+              </div>
             ) : (
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
                       <th>Руководитель</th>
+                      <th>Несопоставленный заместитель</th>
                       <th>Причина несопоставления</th>
                       <th>Источник</th>
                       <th>Цель руководителя</th>
@@ -371,6 +374,7 @@ export function CascadePage() {
                     {result.fallbackGoals.map((goal) => (
                       <tr key={goal.id}>
                         <td>{goal.managerName}</td>
+                        <td>{goal.deputyName || '—'}</td>
                         <td>{goal.reason}</td>
                         <td>{goal.sourceType}</td>
                         <td>{goal.sourceGoalTitle}</td>
