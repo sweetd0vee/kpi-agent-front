@@ -21,6 +21,11 @@
   gap: 12px;
 }
 
+.panel h2 {
+  margin: 0;
+  color: #1e3a8a;
+}
+
 .formGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -57,6 +62,29 @@
   gap: 8px;
 }
 
+.progressText {
+  font-size: 0.875rem;
+  color: #1e3a8a;
+  font-weight: 500;
+}
+
+.stepsBox {
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  max-height: 180px;
+  overflow: auto;
+  display: grid;
+  gap: 4px;
+}
+
+.stepLine {
+  font-size: 0.8125rem;
+  color: #1e3a8a;
+  line-height: 1.35;
+}
+
 .sectionHead {
   display: flex;
   align-items: center;
@@ -71,13 +99,41 @@
   flex-wrap: wrap;
 }
 
-.btn {
-  border: 1px solid #2563eb;
+.exportBtn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
   color: #fff;
-  background: #2563eb;
+  background: #1e3a8a;
+  border: 1px solid #1e3a8a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.exportBtn:hover:not(:disabled) {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: #fff;
+}
+
+.exportBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn {
+  border: 1px solid #1e3a8a;
+  color: #fff;
+  background: #1e3a8a;
   border-radius: 8px;
   padding: 8px 12px;
   cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: #1e40af;
+  border-color: #1e40af;
 }
 
 .btn:disabled {

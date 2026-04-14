@@ -1,18 +1,33 @@
-import { useEffect, useMemo, useState } from 'react'
-import { getCascadeRun, listCascadeRuns, runCascade, type CascadeRunResponse, type CascadeRunSummary } from '@/api/cascade'
-import { exportCascadeGoalsCSV, exportCascadeGoalsExcel } from '@/lib/exportGoals'
+import { useMemo, useState } from 'react'
+import { runCascade, type CascadeRunResponse } from '@/api/cascade'
+import { getStaffRows } from '@/api/registry'
+import { exportCascadeGoalsExcel } from '@/lib/exportGoals'
 import styles from './CascadePage.module.css'
+
+const normalizeName = (value: string): string =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[.]/g, '')
+    .replace(/\s+/g, ' ')
 
 export function CascadePage() {
   const [reportYear, setReportYear] = useState('')
   const [managersInput, setManagersInput] = useState('')
-  const [maxItemsPerDeputy, setMaxItemsPerDeputy] = useState(25)
+  const [maxItemsPerDeputyInput, setMaxItemsPerDeputyInput] = useState('25')
   const [persist, setPersist] = useState(true)
+  const [useLlm, setUseLlm] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [loadingRuns, setLoadingRuns] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [runs, setRuns] = useState<CascadeRunSummary[]>([])
   const [result, setResult] = useState<CascadeRunResponse | null>(null)
+  const [processingSteps, setProcessingSteps] = useState<string[]>([])
+  const [progress, setProgress] = useState<{ total: number; done: number; current: string; currentDeputies: number }>({
+    total: 0,
+    done: 0,
+    current: '',
+    currentDeputies: 0,
+  })
 
   const managers = useMemo(
     () =>
@@ -23,64 +38,153 @@ export function CascadePage() {
     [managersInput]
   )
 
-  const refreshRuns = async () => {
-    setLoadingRuns(true)
-    try {
-      const history = await listCascadeRuns(20)
-      setRuns(history)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось загрузить историю запусков')
-    } finally {
-      setLoadingRuns(false)
-    }
-  }
-
-  useEffect(() => {
-    void refreshRuns()
-  }, [])
-
   const onRun = async () => {
     setLoading(true)
     setError(null)
+    setResult(null)
+    setProcessingSteps([])
     try {
-      const response = await runCascade({
-        reportYear: reportYear.trim() || '',
-        managers,
-        persist,
-        useLlm: false,
-        maxItemsPerDeputy,
+      setProcessingSteps((prev) => [...prev, 'Инициализация каскадирования...'])
+      const parsedMax = Number.parseInt(maxItemsPerDeputyInput, 10)
+      const maxItemsPerDeputy = Number.isFinite(parsedMax) ? Math.min(200, Math.max(1, parsedMax)) : 25
+      const reportYearValue = reportYear.trim() || ''
+
+      const staffRows = await getStaffRows()
+      setProcessingSteps((prev) => [...prev, `Загружено строк штатного расписания: ${staffRows.length}`])
+      const managerToDeputies = new Map<string, Set<string>>()
+      staffRows.forEach((row) => {
+        const managerRaw = String(row.functionalBlockCurator ?? '').trim()
+        const deputyRaw = String(row.head ?? '').trim()
+        const managerKey = normalizeName(managerRaw)
+        const deputyKey = normalizeName(deputyRaw)
+        if (!managerKey || !deputyKey || managerKey === deputyKey) return
+        const set = managerToDeputies.get(managerKey) ?? new Set<string>()
+        set.add(deputyKey)
+        managerToDeputies.set(managerKey, set)
       })
-      setResult(response)
-      await refreshRuns()
+
+      const managerList =
+        managers.length > 0
+          ? managers
+          : Array.from(
+              new Set(
+                staffRows
+                  .map((row) => String(row.functionalBlockCurator ?? '').trim())
+                  .filter(Boolean)
+              )
+            )
+
+      if (managerList.length === 0) {
+        throw new Error('Не найдено руководителей для запуска каскадирования.')
+      }
+      setProcessingSteps((prev) => [...prev, `К обработке выбрано руководителей: ${managerList.length}`])
+
+      const batchRunId = `batch-${Date.now()}`
+      const createdAt = new Date().toISOString()
+      const mergedItems: CascadeRunResponse['items'] = []
+      const mergedUnmatched: CascadeRunResponse['unmatched'] = []
+      const warningsSet = new Set<string>()
+      const deputySet = new Set<string>()
+
+      setProgress({ total: managerList.length, done: 0, current: '', currentDeputies: 0 })
+      for (let i = 0; i < managerList.length; i += 1) {
+        const managerName = managerList[i]
+        const deputiesCount = managerToDeputies.get(normalizeName(managerName))?.size ?? 0
+        setProcessingSteps((prev) => [
+          ...prev,
+          `[${i + 1}/${managerList.length}] Руководитель: ${managerName}. Заместителей: ${deputiesCount}. Запуск...`,
+        ])
+        setProgress({
+          total: managerList.length,
+          done: i,
+          current: managerName,
+          currentDeputies: deputiesCount,
+        })
+        try {
+          const response = await runCascade({
+            reportYear: reportYearValue,
+            managers: [managerName],
+            persist,
+            useLlm,
+            maxItemsPerDeputy,
+          })
+          mergedItems.push(...response.items)
+          mergedUnmatched.push(...response.unmatched)
+          response.items.forEach((item) => deputySet.add(item.deputyName))
+          response.run.warnings.forEach((w) => warningsSet.add(w))
+          setProcessingSteps((prev) => [
+            ...prev,
+            `[${i + 1}/${managerList.length}] ${managerName}: добавлено назначений ${response.items.length}, несопоставленных ${response.unmatched.length}.`,
+          ])
+        } catch (err) {
+          const reason =
+            err instanceof Error ? err.message : 'Ошибка запуска каскадирования по руководителю'
+          mergedUnmatched.push({
+            managerName,
+            reason,
+            reportYear: reportYearValue,
+          })
+          warningsSet.add(`Руководитель "${managerName}": ${reason}`)
+          setProcessingSteps((prev) => [
+            ...prev,
+            `[${i + 1}/${managerList.length}] ${managerName}: ошибка — ${reason}`,
+          ])
+        }
+
+        setResult({
+          run: {
+            runId: batchRunId,
+            createdAt,
+            status: 'running',
+            reportYear: reportYearValue,
+            totalManagers: managerList.length,
+            totalDeputies: deputySet.size,
+            totalItems: mergedItems.length,
+            unmatchedManagers: mergedUnmatched.length,
+            warnings: Array.from(warningsSet),
+          },
+          items: [...mergedItems],
+          unmatched: [...mergedUnmatched],
+        })
+      }
+
+      setProgress({ total: managerList.length, done: managerList.length, current: '', currentDeputies: 0 })
+      setProcessingSteps((prev) => [
+        ...prev,
+        `Каскадирование завершено. Итого назначений: ${mergedItems.length}, несопоставленных: ${mergedUnmatched.length}.`,
+      ])
+      setResult({
+        run: {
+          runId: batchRunId,
+          createdAt,
+          status: 'success',
+          reportYear: reportYearValue,
+          totalManagers: managerList.length,
+          totalDeputies: deputySet.size,
+          totalItems: mergedItems.length,
+          unmatchedManagers: mergedUnmatched.length,
+          warnings: Array.from(warningsSet),
+        },
+        items: mergedItems,
+        unmatched: mergedUnmatched,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось выполнить каскадирование')
+      setProcessingSteps((prev) => [
+        ...prev,
+        `Завершено с ошибкой: ${err instanceof Error ? err.message : 'Не удалось выполнить каскадирование'}`,
+      ])
     } finally {
+      setProgress((prev) => ({ ...prev, current: '', currentDeputies: 0 }))
       setLoading(false)
     }
   }
 
-  const onOpenRun = async (runId: string) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await getCascadeRun(runId)
-      setResult(response)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось загрузить запуск')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleExport = (format: 'csv' | 'xlsx') => {
+  const handleExport = () => {
     if (!result || result.items.length === 0) return
     const yearSuffix = result.run.reportYear ? `-${result.run.reportYear}` : ''
     const prefix = `цели-заместителей${yearSuffix}`
-    if (format === 'csv') {
-      exportCascadeGoalsCSV(result.items, prefix)
-    } else {
-      exportCascadeGoalsExcel(result.items, prefix)
-    }
+    exportCascadeGoalsExcel(result.items, prefix)
   }
 
   return (
@@ -107,8 +211,8 @@ export function CascadePage() {
               min={1}
               max={200}
               className={styles.input}
-              value={maxItemsPerDeputy}
-              onChange={(e) => setMaxItemsPerDeputy(Number(e.target.value) || 25)}
+              value={maxItemsPerDeputyInput}
+              onChange={(e) => setMaxItemsPerDeputyInput(e.target.value)}
             />
           </label>
         </div>
@@ -132,29 +236,37 @@ export function CascadePage() {
           <span>Сохранять запуск в историю</span>
         </label>
 
+        <label className={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={useLlm}
+            onChange={(e) => setUseLlm(e.target.checked)}
+          />
+          <span>Использовать LLM-фильтрацию целей по реестру процессов</span>
+        </label>
+
         <div className={styles.actions}>
           <button type="button" className={styles.btn} onClick={onRun} disabled={loading}>
             {loading ? 'Выполняется...' : 'Запустить каскадирование'}
           </button>
         </div>
-        {error && <div className={styles.error}>{error}</div>}
-      </section>
-
-      <section className={styles.panel}>
-        <h2>История запусков</h2>
-        {loadingRuns ? (
-          <div className={styles.muted}>Загрузка...</div>
-        ) : runs.length === 0 ? (
-          <div className={styles.muted}>Запусков пока нет</div>
-        ) : (
-          <div className={styles.runList}>
-            {runs.map((run) => (
-              <button key={run.runId} className={styles.runBtn} type="button" onClick={() => onOpenRun(run.runId)}>
-                {new Date(run.createdAt).toLocaleString()} — {run.totalItems} назначений, {run.unmatchedManagers} несопоставленных
-              </button>
+        {loading && progress.total > 0 && (
+          <div className={styles.progressText}>
+            Обработано {progress.done} из {progress.total}
+            {progress.current ? ` — ${progress.current}` : ''}
+            {progress.current ? ` (заместителей: ${progress.currentDeputies})` : ''}
+          </div>
+        )}
+        {processingSteps.length > 0 && (
+          <div className={styles.stepsBox} aria-live="polite">
+            {processingSteps.map((step, idx) => (
+              <div key={`${idx}-${step}`} className={styles.stepLine}>
+                {step}
+              </div>
             ))}
           </div>
         )}
+        {error && <div className={styles.error}>{error}</div>}
       </section>
 
       {result && (
@@ -208,19 +320,11 @@ export function CascadePage() {
               <div className={styles.exportActions}>
                 <button
                   type="button"
-                  className={styles.btn}
-                  onClick={() => handleExport('xlsx')}
+                  className={styles.exportBtn}
+                  onClick={handleExport}
                   disabled={result.items.length === 0}
                 >
                   Экспорт Excel
-                </button>
-                <button
-                  type="button"
-                  className={styles.btn}
-                  onClick={() => handleExport('csv')}
-                  disabled={result.items.length === 0}
-                >
-                  Экспорт CSV
                 </button>
               </div>
             </div>
