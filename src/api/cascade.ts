@@ -39,10 +39,24 @@ export type CascadeUnmatched = {
   reportYear: string
 }
 
+export type CascadeFallbackGoal = {
+  id: string
+  managerName: string
+  sourceType: string
+  sourceRowId: string
+  sourceGoalTitle: string
+  sourceMetric: string
+  businessUnit: string
+  department: string
+  reportYear: string
+  reason: string
+}
+
 export type CascadeRunResponse = {
   run: CascadeRunSummary
   items: CascadeGoalItem[]
   unmatched: CascadeUnmatched[]
+  fallbackGoals: CascadeFallbackGoal[]
 }
 
 const getBaseUrl = (): string => {

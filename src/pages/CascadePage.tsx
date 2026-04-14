@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { runCascade, type CascadeRunResponse } from '@/api/cascade'
-import { getStaffRows } from '@/api/registry'
+import { getStaffRows, type StaffRow } from '@/api/registry'
 import { exportCascadeGoalsExcel } from '@/lib/exportGoals'
 import styles from './CascadePage.module.css'
 
@@ -14,9 +14,11 @@ const normalizeName = (value: string): string =>
 
 export function CascadePage() {
   const [reportYear, setReportYear] = useState('')
-  const [managersInput, setManagersInput] = useState('')
+  const [selectedManager, setSelectedManager] = useState('')
+  const [staffRows, setStaffRows] = useState<StaffRow[]>([])
+  const [managerOptions, setManagerOptions] = useState<string[]>([])
+  const [loadingManagers, setLoadingManagers] = useState(false)
   const [maxItemsPerDeputyInput, setMaxItemsPerDeputyInput] = useState('25')
-  const [persist, setPersist] = useState(true)
   const [useLlm, setUseLlm] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -29,30 +31,67 @@ export function CascadePage() {
     currentDeputies: 0,
   })
 
-  const managers = useMemo(
-    () =>
-      managersInput
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    [managersInput]
-  )
+  useEffect(() => {
+    let active = true
+    const loadManagers = async () => {
+      setLoadingManagers(true)
+      try {
+        const rows = await getStaffRows()
+        if (!active) return
+        setStaffRows(rows)
+        const options = Array.from(
+          new Set(
+            rows
+              .map((row) => String(row.functionalBlockCurator ?? '').trim())
+              .filter(Boolean)
+          )
+        ).sort((a, b) => a.localeCompare(b, 'ru'))
+        setManagerOptions(options)
+      } finally {
+        if (active) setLoadingManagers(false)
+      }
+    }
+    void loadManagers()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const onRun = async () => {
     setLoading(true)
     setError(null)
     setResult(null)
     setProcessingSteps([])
+    const startedAt = performance.now()
     try {
+      if (!selectedManager.trim()) {
+        throw new Error('Выберите руководителя из списка перед запуском каскадирования.')
+      }
       setProcessingSteps((prev) => [...prev, 'Инициализация каскадирования...'])
       const parsedMax = Number.parseInt(maxItemsPerDeputyInput, 10)
       const maxItemsPerDeputy = Number.isFinite(parsedMax) ? Math.min(200, Math.max(1, parsedMax)) : 25
       const reportYearValue = reportYear.trim() || ''
 
-      const staffRows = await getStaffRows()
-      setProcessingSteps((prev) => [...prev, `Загружено строк штатного расписания: ${staffRows.length}`])
+      let localStaffRows = staffRows
+      if (localStaffRows.length === 0) {
+        setProcessingSteps((prev) => [
+          ...prev,
+          'Запрашиваю штатное расписание для расчёта заместителей по руководителям...',
+        ])
+        localStaffRows = await getStaffRows()
+        setStaffRows(localStaffRows)
+        const options = Array.from(
+          new Set(
+            localStaffRows
+              .map((row) => String(row.functionalBlockCurator ?? '').trim())
+              .filter(Boolean)
+          )
+        ).sort((a, b) => a.localeCompare(b, 'ru'))
+        setManagerOptions(options)
+      }
+      setProcessingSteps((prev) => [...prev, `Загружено строк штатного расписания: ${localStaffRows.length}`])
       const managerToDeputies = new Map<string, Set<string>>()
-      staffRows.forEach((row) => {
+      localStaffRows.forEach((row) => {
         const managerRaw = String(row.functionalBlockCurator ?? '').trim()
         const deputyRaw = String(row.head ?? '').trim()
         const managerKey = normalizeName(managerRaw)
@@ -63,16 +102,7 @@ export function CascadePage() {
         managerToDeputies.set(managerKey, set)
       })
 
-      const managerList =
-        managers.length > 0
-          ? managers
-          : Array.from(
-              new Set(
-                staffRows
-                  .map((row) => String(row.functionalBlockCurator ?? '').trim())
-                  .filter(Boolean)
-              )
-            )
+      const managerList = [selectedManager]
 
       if (managerList.length === 0) {
         throw new Error('Не найдено руководителей для запуска каскадирования.')
@@ -83,6 +113,7 @@ export function CascadePage() {
       const createdAt = new Date().toISOString()
       const mergedItems: CascadeRunResponse['items'] = []
       const mergedUnmatched: CascadeRunResponse['unmatched'] = []
+      const mergedFallbackGoals: CascadeRunResponse['fallbackGoals'] = []
       const warningsSet = new Set<string>()
       const deputySet = new Set<string>()
 
@@ -104,12 +135,13 @@ export function CascadePage() {
           const response = await runCascade({
             reportYear: reportYearValue,
             managers: [managerName],
-            persist,
+            persist: false,
             useLlm,
             maxItemsPerDeputy,
           })
           mergedItems.push(...response.items)
           mergedUnmatched.push(...response.unmatched)
+          mergedFallbackGoals.push(...(response.fallbackGoals ?? []))
           response.items.forEach((item) => deputySet.add(item.deputyName))
           response.run.warnings.forEach((w) => warningsSet.add(w))
           setProcessingSteps((prev) => [
@@ -145,13 +177,14 @@ export function CascadePage() {
           },
           items: [...mergedItems],
           unmatched: [...mergedUnmatched],
+          fallbackGoals: [...mergedFallbackGoals],
         })
       }
 
       setProgress({ total: managerList.length, done: managerList.length, current: '', currentDeputies: 0 })
       setProcessingSteps((prev) => [
         ...prev,
-        `Каскадирование завершено. Итого назначений: ${mergedItems.length}, несопоставленных: ${mergedUnmatched.length}.`,
+        `Каскадирование завершено за ${((performance.now() - startedAt) / 1000).toFixed(1)}с. Итого назначений: ${mergedItems.length}, несопоставленных: ${mergedUnmatched.length}.`,
       ])
       setResult({
         run: {
@@ -167,12 +200,15 @@ export function CascadePage() {
         },
         items: mergedItems,
         unmatched: mergedUnmatched,
+        fallbackGoals: mergedFallbackGoals,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось выполнить каскадирование')
       setProcessingSteps((prev) => [
         ...prev,
-        `Завершено с ошибкой: ${err instanceof Error ? err.message : 'Не удалось выполнить каскадирование'}`,
+        `Завершено с ошибкой через ${((performance.now() - startedAt) / 1000).toFixed(1)}с: ${
+          err instanceof Error ? err.message : 'Не удалось выполнить каскадирование'
+        }`,
       ])
     } finally {
       setProgress((prev) => ({ ...prev, current: '', currentDeputies: 0 }))
@@ -218,22 +254,23 @@ export function CascadePage() {
         </div>
 
         <label className={styles.field}>
-          <span>Руководители (через запятую, пусто = все)</span>
-          <textarea
-            className={styles.textarea}
-            value={managersInput}
-            onChange={(e) => setManagersInput(e.target.value)}
-            placeholder="Иванов И.И., Петров П.П."
-          />
-        </label>
-
-        <label className={styles.checkbox}>
-          <input
-            type="checkbox"
-            checked={persist}
-            onChange={(e) => setPersist(e.target.checked)}
-          />
-          <span>Сохранять запуск в историю</span>
+          <span>Руководитель</span>
+          <select
+            className={styles.input}
+            value={selectedManager}
+            onChange={(e) => setSelectedManager(e.target.value)}
+            disabled={loadingManagers || loading}
+          >
+            <option value="">Выберите руководителя</option>
+            {managerOptions.map((manager) => (
+              <option key={manager} value={manager}>
+                {manager}
+              </option>
+            ))}
+          </select>
+          <span className={styles.muted}>
+            {loadingManagers ? 'Загружаю список руководителей...' : 'Список из поля "Куратор ф. блока" штатного расписания.'}
+          </span>
         </label>
 
         <label className={styles.checkbox}>
@@ -277,7 +314,7 @@ export function CascadePage() {
             <div>Статус: {result.run.status}</div>
             <div>Руководителей: {result.run.totalManagers}</div>
             <div>Заместителей: {result.run.totalDeputies}</div>
-            <div>Назначений: {result.run.totalItems}</div>
+            <div>Каскадированных целей: {result.run.totalItems}</div>
             <div>Несопоставленных: {result.run.unmatchedManagers}</div>
             {result.run.warnings.length > 0 && (
               <ul>
@@ -315,8 +352,40 @@ export function CascadePage() {
           </section>
 
           <section className={styles.panel}>
+            <h2>Резервные цели для несопоставленных</h2>
+            {result.fallbackGoals.length === 0 ? (
+              <div className={styles.muted}>Нет</div>
+            ) : (
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Руководитель</th>
+                      <th>Причина несопоставления</th>
+                      <th>Источник</th>
+                      <th>Цель руководителя</th>
+                      <th>Метрика</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.fallbackGoals.map((goal) => (
+                      <tr key={goal.id}>
+                        <td>{goal.managerName}</td>
+                        <td>{goal.reason}</td>
+                        <td>{goal.sourceType}</td>
+                        <td>{goal.sourceGoalTitle}</td>
+                        <td>{goal.sourceMetric}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className={styles.panel}>
             <div className={styles.sectionHead}>
-              <h2>Каскадированные назначения</h2>
+              <h2>Каскадированные цели</h2>
               <div className={styles.exportActions}>
                 <button
                   type="button"
