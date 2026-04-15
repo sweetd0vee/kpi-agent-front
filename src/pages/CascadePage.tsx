@@ -1,5 +1,13 @@
-import { useEffect, useState } from 'react'
-import { runCascade, type CascadeRunResponse } from '@/api/cascade'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  deleteCascadeRun,
+  getCascadeRun,
+  listCascadeRuns,
+  runCascade,
+  type CascadeRunResponse,
+  type CascadeRunSummary,
+} from '@/api/cascade'
+import { getBoardGoalRows, getLeaderGoalRows } from '@/api/goals'
 import { getStaffRows, type StaffRow } from '@/api/registry'
 import { exportCascadeGoalsExcel } from '@/lib/exportGoals'
 import styles from './CascadePage.module.css'
@@ -12,17 +20,33 @@ const normalizeName = (value: string): string =>
     .replace(/[.]/g, '')
     .replace(/\s+/g, ' ')
 
+const managerSurnameForFilename = (value: string): string => {
+  const raw = String(value ?? '').trim()
+  if (!raw) return 'руководитель'
+  const firstToken = raw.split(/\s+/)[0] || 'руководитель'
+  return firstToken.replace(/[\\/:*?"<>|]/g, '')
+}
+
 export function CascadePage() {
   const [reportYear, setReportYear] = useState('')
+  const [reportYearOptions, setReportYearOptions] = useState<string[]>([])
   const [selectedManager, setSelectedManager] = useState('')
   const [staffRows, setStaffRows] = useState<StaffRow[]>([])
   const [managerOptions, setManagerOptions] = useState<string[]>([])
   const [loadingManagers, setLoadingManagers] = useState(false)
-  const [maxItemsPerDeputyInput, setMaxItemsPerDeputyInput] = useState('25')
+  const [loadingYears, setLoadingYears] = useState(false)
   const [useLlm, setUseLlm] = useState(true)
+  const [persistHistory, setPersistHistory] = useState(true)
+  const [useHistoryCache, setUseHistoryCache] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<CascadeRunResponse | null>(null)
+  const [historyRuns, setHistoryRuns] = useState<CascadeRunSummary[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [loadingHistoryRunId, setLoadingHistoryRunId] = useState<string | null>(null)
+  const [deletingHistoryRunId, setDeletingHistoryRunId] = useState<string | null>(null)
+  const [historyCollapsed, setHistoryCollapsed] = useState(false)
   const [processingSteps, setProcessingSteps] = useState<string[]>([])
   const [progress, setProgress] = useState<{ total: number; done: number; current: string; currentDeputies: number }>({
     total: 0,
@@ -33,10 +57,15 @@ export function CascadePage() {
 
   useEffect(() => {
     let active = true
-    const loadManagers = async () => {
+    const loadInitialFilters = async () => {
       setLoadingManagers(true)
+      setLoadingYears(true)
       try {
-        const rows = await getStaffRows()
+        const [rows, boardRows, leaderRows] = await Promise.all([
+          getStaffRows(),
+          getBoardGoalRows(),
+          getLeaderGoalRows(),
+        ])
         if (!active) return
         setStaffRows(rows)
         const options = Array.from(
@@ -47,15 +76,115 @@ export function CascadePage() {
           )
         ).sort((a, b) => a.localeCompare(b, 'ru'))
         setManagerOptions(options)
+
+        const yearSet = new Set<string>()
+        boardRows.forEach((row) => {
+          const value = String(row.reportYear ?? row.year ?? '').trim()
+          if (value) yearSet.add(value)
+        })
+        leaderRows.forEach((row) => {
+          const value = String(row.reportYear ?? '').trim()
+          if (value) yearSet.add(value)
+        })
+        setReportYearOptions(
+          Array.from(yearSet).sort((a, b) =>
+            a.localeCompare(b, 'ru', { numeric: true, sensitivity: 'base' })
+          )
+        )
       } finally {
-        if (active) setLoadingManagers(false)
+        if (active) {
+          setLoadingManagers(false)
+          setLoadingYears(false)
+        }
       }
     }
-    void loadManagers()
+    void loadInitialFilters()
     return () => {
       active = false
     }
   }, [])
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true)
+    setHistoryError(null)
+    try {
+      const runs = await listCascadeRuns(30)
+      setHistoryRuns(runs)
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : 'Не удалось загрузить историю запусков')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadHistory()
+  }, [loadHistory])
+
+  const runContainsManager = (run: CascadeRunResponse, managerName: string): boolean => {
+    const managerKey = normalizeName(managerName)
+    return (
+      run.items.some((item) => normalizeName(item.managerName) === managerKey) ||
+      run.unmatched.some((item) => normalizeName(item.managerName) === managerKey)
+    )
+  }
+
+  const findCachedRun = useCallback(
+    async ({
+      managerName,
+      reportYearValue,
+      useLlmValue,
+    }: {
+      managerName: string
+      reportYearValue: string
+      useLlmValue: boolean
+    }): Promise<CascadeRunResponse | null> => {
+      const managerKey = normalizeName(managerName)
+      const candidates = historyRuns.filter((run) => {
+        if ((run.reportYear || '') !== reportYearValue) return false
+        if (Boolean(run.useLlm) !== useLlmValue) return false
+        if (!Array.isArray(run.managers) || run.managers.length === 0) return false
+        return run.managers.some((name) => normalizeName(name) === managerKey)
+      })
+      for (const run of candidates) {
+        const details = await getCascadeRun(run.runId)
+        if (runContainsManager(details, managerName)) {
+          return details
+        }
+      }
+      return null
+    },
+    [historyRuns]
+  )
+
+  const handleLoadHistoryRun = useCallback(async (runId: string) => {
+    setLoadingHistoryRunId(runId)
+    setError(null)
+    try {
+      const details = await getCascadeRun(runId)
+      setResult(details)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить запуск из истории')
+    } finally {
+      setLoadingHistoryRunId(null)
+    }
+  }, [])
+
+  const handleDeleteHistoryRun = useCallback(
+    async (runId: string) => {
+      setDeletingHistoryRunId(runId)
+      setHistoryError(null)
+      try {
+        await deleteCascadeRun(runId)
+        setHistoryRuns((prev) => prev.filter((run) => run.runId !== runId))
+      } catch (err) {
+        setHistoryError(err instanceof Error ? err.message : 'Не удалось удалить запуск из истории')
+      } finally {
+        setDeletingHistoryRunId(null)
+      }
+    },
+    []
+  )
 
   const onRun = async () => {
     setLoading(true)
@@ -68,8 +197,6 @@ export function CascadePage() {
         throw new Error('Выберите руководителя из списка перед запуском каскадирования.')
       }
       setProcessingSteps((prev) => [...prev, 'Инициализация каскадирования...'])
-      const parsedMax = Number.parseInt(maxItemsPerDeputyInput, 10)
-      const maxItemsPerDeputy = Number.isFinite(parsedMax) ? Math.min(200, Math.max(1, parsedMax)) : 25
       const reportYearValue = reportYear.trim() || ''
 
       let localStaffRows = staffRows
@@ -132,12 +259,30 @@ export function CascadePage() {
           currentDeputies: deputiesCount,
         })
         try {
+          if (useHistoryCache) {
+            const cached = await findCachedRun({
+              managerName,
+              reportYearValue,
+              useLlmValue: useLlm,
+            })
+            if (cached) {
+              mergedItems.push(...cached.items)
+              mergedUnmatched.push(...cached.unmatched)
+              mergedFallbackGoals.push(...(cached.fallbackGoals ?? []))
+              cached.items.forEach((item) => deputySet.add(item.deputyName))
+              cached.run.warnings.forEach((w) => warningsSet.add(w))
+              setProcessingSteps((prev) => [
+                ...prev,
+                `[${i + 1}/${managerList.length}] ${managerName}: найдено в истории, пересчёт пропущен (runId=${cached.run.runId}).`,
+              ])
+              continue
+            }
+          }
           const response = await runCascade({
             reportYear: reportYearValue,
             managers: [managerName],
-            persist: false,
+            persist: persistHistory,
             useLlm,
-            maxItemsPerDeputy,
           })
           mergedItems.push(...response.items)
           mergedUnmatched.push(...response.unmatched)
@@ -202,6 +347,9 @@ export function CascadePage() {
         unmatched: mergedUnmatched,
         fallbackGoals: mergedFallbackGoals,
       })
+      if (persistHistory) {
+        void loadHistory()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось выполнить каскадирование')
       setProcessingSteps((prev) => [
@@ -219,8 +367,33 @@ export function CascadePage() {
   const handleExport = () => {
     if (!result || result.items.length === 0) return
     const yearSuffix = result.run.reportYear ? `-${result.run.reportYear}` : ''
-    const prefix = `цели-заместителей${yearSuffix}`
+    const managerName = result.run.managers?.[0] || result.items[0]?.managerName || selectedManager
+    const managerSurname = managerSurnameForFilename(managerName)
+    const prefix = `цели-заместителей-${managerSurname}${yearSuffix}`
     exportCascadeGoalsExcel(result.items, prefix)
+  }
+
+  const handleExportFallback = () => {
+    if (!result || result.fallbackGoals.length === 0) return
+    const yearSuffix = result.run.reportYear ? `-${result.run.reportYear}` : ''
+    const managerName = result.run.managers?.[0] || result.fallbackGoals[0]?.managerName || selectedManager
+    const managerSurname = managerSurnameForFilename(managerName)
+    const prefix = `резервные-цели-${managerSurname}${yearSuffix}`
+    exportCascadeGoalsExcel(
+      result.fallbackGoals.map((goal) => ({
+        managerName: goal.managerName,
+        deputyName: goal.deputyName || '',
+        sourceType: goal.sourceType,
+        sourceRowId: goal.sourceRowId,
+        sourceGoalTitle: goal.sourceGoalTitle,
+        sourceMetric: goal.sourceMetric,
+        businessUnit: goal.businessUnit,
+        department: goal.department,
+        reportYear: goal.reportYear,
+        traceRule: `fallback_reason: ${goal.reason}`,
+      })),
+      prefix
+    )
   }
 
   return (
@@ -228,50 +401,107 @@ export function CascadePage() {
       <h1 className={styles.title}>Каскадирование целей</h1>
 
       <section className={styles.panel}>
+        <div className={styles.sectionHead}>
+          <h2>История запросов</h2>
+          <div className={styles.exportActions}>
+            <button
+              type="button"
+              className={styles.exportBtn}
+              onClick={() => setHistoryCollapsed((prev) => !prev)}
+            >
+              {historyCollapsed ? 'Развернуть' : 'Свернуть'}
+            </button>
+            <button
+              type="button"
+              className={styles.exportBtn}
+              onClick={() => void loadHistory()}
+              disabled={historyLoading}
+            >
+              {historyLoading ? 'Обновление...' : 'Обновить'}
+            </button>
+          </div>
+        </div>
+        {!historyCollapsed && (
+          <>
+            {historyError && <div className={styles.error}>{historyError}</div>}
+            {historyRuns.length === 0 ? (
+              <div className={styles.muted}>
+                {historyLoading ? 'Загрузка истории...' : 'История пока пустая'}
+              </div>
+            ) : (
+              <div className={styles.runList}>
+                {historyRuns.map((run) => (
+                  <div key={run.runId} className={styles.runRow}>
+                    <button
+                      type="button"
+                      className={styles.runBtn}
+                      onClick={() => void handleLoadHistoryRun(run.runId)}
+                      disabled={loadingHistoryRunId === run.runId || deletingHistoryRunId === run.runId}
+                    >
+                      <strong>{run.reportYear || 'Без года'}</strong> |{' '}
+                      {run.managers?.join(', ') || 'Без фильтра руководителей'} |{' '}
+                      {run.useLlm ? 'LLM: вкл' : 'LLM: выкл'} | Целей: {run.totalItems} |{' '}
+                      {new Date(run.createdAt).toLocaleString('ru-RU')}
+                      {loadingHistoryRunId === run.runId ? ' (загрузка...)' : ''}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.deleteBtn}
+                      title="Удалить из истории"
+                      aria-label="Удалить из истории"
+                      onClick={() => void handleDeleteHistoryRun(run.runId)}
+                      disabled={deletingHistoryRunId === run.runId || loadingHistoryRunId === run.runId}
+                    >
+                      🗑
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className={styles.panel}>
         <h2>Параметры запуска</h2>
-        <div className={styles.formGrid}>
+        <div className={`${styles.formGrid} ${styles.primaryFiltersRow}`}>
+          <label className={styles.field}>
+            <span>Руководитель</span>
+            <select
+              className={styles.input}
+              value={selectedManager}
+              onChange={(e) => setSelectedManager(e.target.value)}
+              disabled={loadingManagers || loading}
+            >
+              <option value="">Выберите руководителя</option>
+              {managerOptions.map((manager) => (
+                <option key={manager} value={manager}>
+                  {manager}
+                </option>
+              ))}
+            </select>
+            <span className={styles.muted}>
+              {loadingManagers ? 'Загружаю список руководителей...' : 'Список из поля "Куратор ф. блока" штатного расписания.'}
+            </span>
+          </label>
+
           <label className={styles.field}>
             <span>Отчётный год</span>
-            <input
+            <select
               className={styles.input}
               value={reportYear}
               onChange={(e) => setReportYear(e.target.value)}
-              placeholder="Например, 2026"
-            />
-          </label>
-
-          <label className={styles.field}>
-            <span>Максимум целей на заместителя</span>
-            <input
-              type="number"
-              min={1}
-              max={200}
-              className={styles.input}
-              value={maxItemsPerDeputyInput}
-              onChange={(e) => setMaxItemsPerDeputyInput(e.target.value)}
-            />
+              disabled={loadingYears || loading}
+            >
+              <option value="">Выберите отчётный год</option>
+              {reportYearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
-
-        <label className={styles.field}>
-          <span>Руководитель</span>
-          <select
-            className={styles.input}
-            value={selectedManager}
-            onChange={(e) => setSelectedManager(e.target.value)}
-            disabled={loadingManagers || loading}
-          >
-            <option value="">Выберите руководителя</option>
-            {managerOptions.map((manager) => (
-              <option key={manager} value={manager}>
-                {manager}
-              </option>
-            ))}
-          </select>
-          <span className={styles.muted}>
-            {loadingManagers ? 'Загружаю список руководителей...' : 'Список из поля "Куратор ф. блока" штатного расписания.'}
-          </span>
-        </label>
 
         <label className={styles.checkbox}>
           <input
@@ -280,6 +510,26 @@ export function CascadePage() {
             onChange={(e) => setUseLlm(e.target.checked)}
           />
           <span>Использовать LLM-фильтрацию целей по реестру процессов</span>
+        </label>
+
+        <label className={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={persistHistory}
+            onChange={(e) => setPersistHistory(e.target.checked)}
+            disabled={loading}
+          />
+          <span>Сохранять результаты каскадирования в историю</span>
+        </label>
+
+        <label className={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={useHistoryCache}
+            onChange={(e) => setUseHistoryCache(e.target.checked)}
+            disabled={loading}
+          />
+          <span>Использовать историю (если запрос уже выполнялся)</span>
         </label>
 
         <div className={styles.actions}>
@@ -352,7 +602,19 @@ export function CascadePage() {
           </section>
 
           <section className={styles.panel}>
-            <h2>Резервные цели для несопоставленных</h2>
+            <div className={styles.sectionHead}>
+              <h2>Резервные цели для несопоставленных</h2>
+              <div className={styles.exportActions}>
+                <button
+                  type="button"
+                  className={styles.exportBtn}
+                  onClick={handleExportFallback}
+                  disabled={result.fallbackGoals.length === 0}
+                >
+                  Экспорт Excel
+                </button>
+              </div>
+            </div>
             {result.fallbackGoals.length === 0 ? (
               <div className={styles.muted}>
                 Резервные цели не сформированы: у руководителя не найдены исходные цели для случайного каскадирования.

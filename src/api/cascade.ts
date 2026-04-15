@@ -11,6 +11,8 @@ export type CascadeRunSummary = {
   createdAt: string
   status: string
   reportYear: string
+  managers: string[]
+  useLlm: boolean
   totalManagers: number
   totalDeputies: number
   totalItems: number
@@ -111,4 +113,19 @@ export async function listCascadeRuns(limit = 20): Promise<CascadeRunSummary[]> 
 export async function getCascadeRun(runId: string): Promise<CascadeRunResponse> {
   const res = await apiFetch(`/api/cascade/runs/${encodeURIComponent(runId)}`)
   return parseJsonResponse<CascadeRunResponse>(res, 'Детали запуска')
+}
+
+export async function deleteCascadeRun(runId: string): Promise<void> {
+  const path = `/api/cascade/runs/${encodeURIComponent(runId)}`
+  const deleteRes = await apiFetch(path, { method: 'DELETE' })
+  if (deleteRes.ok) {
+    await parseJsonResponse<{ ok?: boolean }>(deleteRes, 'Удаление запуска')
+    return
+  }
+  if (deleteRes.status !== 405) {
+    await parseJsonResponse<{ ok?: boolean }>(deleteRes, 'Удаление запуска')
+    return
+  }
+  const postFallbackRes = await apiFetch(`${path}/delete`, { method: 'POST' })
+  await parseJsonResponse<{ ok?: boolean }>(postFallbackRes, 'Удаление запуска')
 }
