@@ -173,6 +173,76 @@
   color: #94a3b8;
 }
 
+.strategyYearsChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.85rem;
+  min-height: 14rem;
+  padding: 0.75rem 0.25rem 0.25rem;
+  overflow-x: auto;
+}
+
+.strategyYearsHalf {
+  width: min(100%, calc((100% - 1.5rem) / 2));
+}
+
+@media (max-width: 980px) {
+  .strategyYearsHalf {
+    width: 100%;
+  }
+}
+
+.strategyYearsGroup {
+  flex: 1;
+  min-width: 2.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.strategyYearsBarWrap {
+  width: 100%;
+  height: 11rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border: 1px solid #dbe5f5;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  padding: 0.2rem;
+}
+
+.strategyYearsBar {
+  width: 100%;
+  min-height: 6px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #60a5fa 0%, #1e40af 100%);
+  transition: height 0.3s ease;
+}
+
+.strategyYearsLabel {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strategyYearsValue {
+  font-size: 0.75rem;
+  color: #1e3a8a;
+  background: #e8f0ff;
+  border: 1px solid #bfd3ff;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-weight: 600;
+}
+
 .weightBars {
   display: flex;
   flex-direction: column;

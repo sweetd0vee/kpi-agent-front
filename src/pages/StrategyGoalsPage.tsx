@@ -74,35 +74,6 @@ const createRow = (): StrategyGoalRow => ({
 })
 
 const DEFAULT_PAGE_SIZE = 15
-const FILTER_SELECT_FIELDS: StrategyGoalField[] = ['businessUnit', 'segment', 'initiativeType']
-const FILTER_DISABLED_FIELDS: StrategyGoalField[] = ['goalObjective', 'initiative', 'strategicPriority', 'kpi']
-/** Колонки без строки фильтра (данные в таблице и в модалке сохраняются). */
-const FILTER_HIDDEN_FIELDS: StrategyGoalField[] = [
-  'otherUnitsInvolved',
-  'budget',
-  'startDate',
-  'endDate',
-  'unitOfMeasure',
-]
-
-const createFiltersState = (): Record<StrategyGoalField, string> => ({
-  businessUnit: '',
-  segment: '',
-  strategicPriority: '',
-  goalObjective: '',
-  initiative: '',
-  initiativeType: '',
-  responsiblePersonOwner: '',
-  otherUnitsInvolved: '',
-  budget: '',
-  startDate: '',
-  endDate: '',
-  kpi: '',
-  unitOfMeasure: '',
-  targetValue2025: '',
-  targetValue2026: '',
-  targetValue2027: '',
-})
 
 function toggleSortedFilterValue(current: string[], value: string, collator: Intl.Collator): string[] {
   if (current.includes(value)) return current.filter((v) => v !== value)
@@ -117,7 +88,7 @@ export function StrategyGoalsPage() {
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [editingDraft, setEditingDraft] = useState<StrategyGoalRow | null>(null)
   const [page, setPage] = useState(1)
-  const [filters, setFilters] = useState<Record<StrategyGoalField, string>>(createFiltersState)
+  const [globalSearch, setGlobalSearch] = useState('')
   const [businessUnitFilter, setBusinessUnitFilter] = useState<string[]>([])
   const [segmentFilter, setSegmentFilter] = useState<string[]>([])
   const [initiativeTypeFilter, setInitiativeTypeFilter] = useState<string[]>([])
@@ -202,23 +173,13 @@ export function StrategyGoalsPage() {
       })
   }, [isLoaded, state])
 
-  const normalizedFilters = useMemo(
-    () =>
-      (Object.entries(filters) as Array<[StrategyGoalField, string]>)
-        .map(([key, value]) => [key, value.trim().toLowerCase()] as const)
-        .filter(
-          ([key, value]) =>
-            value.length > 0 &&
-            !FILTER_DISABLED_FIELDS.includes(key) &&
-            !FILTER_SELECT_FIELDS.includes(key) &&
-            !FILTER_HIDDEN_FIELDS.includes(key)
-        ),
-    [filters]
-  )
+  const normalizedGlobalSearch = useMemo(() => globalSearch.trim().toLowerCase(), [globalSearch])
 
   const filteredRows = state.rows.filter((row) => {
-    const matchesText = normalizedFilters.every(([key, value]) => String(row[key] ?? '').toLowerCase().includes(value))
-    if (!matchesText) return false
+    if (normalizedGlobalSearch) {
+      const searchable = COLUMNS.map((column) => String(row[column.key] ?? '')).join(' ').toLowerCase()
+      if (!searchable.includes(normalizedGlobalSearch)) return false
+    }
     if (businessUnitFilter.length > 0 && !businessUnitFilter.includes(String(row.businessUnit ?? '').trim())) return false
     if (segmentFilter.length > 0 && !segmentFilter.includes(String(row.segment ?? '').trim())) return false
     if (initiativeTypeFilter.length > 0 && !initiativeTypeFilter.includes(String(row.initiativeType ?? '').trim())) return false
@@ -226,22 +187,18 @@ export function StrategyGoalsPage() {
   })
 
   const hasActiveFilters =
-    normalizedFilters.length > 0 ||
+    normalizedGlobalSearch.length > 0 ||
     businessUnitFilter.length > 0 ||
     segmentFilter.length > 0 ||
     initiativeTypeFilter.length > 0
 
   const resetFilters = useCallback(() => {
-    setFilters(createFiltersState())
+    setGlobalSearch('')
     setBusinessUnitFilter([])
     setSegmentFilter([])
     setInitiativeTypeFilter([])
     closeAllSelectFilters()
   }, [closeAllSelectFilters])
-
-  const updateFilter = useCallback((key: StrategyGoalField, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }))
-  }, [])
 
   const collator = useMemo(() => createRuNumericCollator(), [])
   const businessUnitOptions = useMemo(
@@ -306,7 +263,7 @@ export function StrategyGoalsPage() {
   }, [totalPages])
   useEffect(() => {
     setPage(1)
-  }, [filters, businessUnitFilter, segmentFilter, initiativeTypeFilter, sortDirection, sortKey, pageSize])
+  }, [globalSearch, businessUnitFilter, segmentFilter, initiativeTypeFilter, sortDirection, sortKey, pageSize])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -409,10 +366,6 @@ export function StrategyGoalsPage() {
     multiline: Boolean(column.multiline),
   }))
 
-  const filterableColumns = COLUMNS.filter(
-    (col) => !FILTER_DISABLED_FIELDS.includes(col.key) && !FILTER_HIDDEN_FIELDS.includes(col.key)
-  )
-
   const addRow = useCallback(() => {
     const newRow = createRow()
     setState((prev) => ({ ...prev, rows: [...prev.rows, newRow] }))
@@ -469,19 +422,12 @@ export function StrategyGoalsPage() {
 
   const buildFilterDescription = useCallback((): string | undefined => {
     const parts: string[] = []
+    if (normalizedGlobalSearch) parts.push(`Поиск: ${normalizedGlobalSearch}`)
     if (businessUnitFilter.length > 0) parts.push(`Бизнес/блок: ${businessUnitFilter.join(', ')}`)
     if (segmentFilter.length > 0) parts.push(`Сегмент: ${segmentFilter.map(formatFilterValue).join(', ')}`)
     if (initiativeTypeFilter.length > 0) parts.push(`Тип инициативы: ${initiativeTypeFilter.map(formatFilterValue).join(', ')}`)
-    const textFilterKeys = COLUMNS.map((c) => c.key).filter(
-      (key) => !FILTER_SELECT_FIELDS.includes(key) && !FILTER_HIDDEN_FIELDS.includes(key)
-    )
-    const columnByKey = Object.fromEntries(COLUMNS.map((c) => [c.key, c]))
-    for (const key of textFilterKeys) {
-      const v = (filters[key] ?? '').trim()
-      if (v) parts.push(`${columnByKey[key]?.label ?? key}: ${v}`)
-    }
     return parts.length > 0 ? parts.join('; ') : undefined
-  }, [businessUnitFilter, filters, initiativeTypeFilter, segmentFilter])
+  }, [businessUnitFilter, initiativeTypeFilter, normalizedGlobalSearch, segmentFilter])
 
   const saveToChatContext = useCallback(() => {
     const content = serializeStrategyGoalsRowsToText(sortedRows)
@@ -546,99 +492,92 @@ export function StrategyGoalsPage() {
 
         <div className={styles.filtersPanel}>
           <div className={styles.filtersGrid}>
-            {filterableColumns.map((col) =>
-              col.key === 'businessUnit' ? (
-                <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={businessUnitRef}>
-                  <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={toggleBusinessUnitOpen} disabled={!!editingRowId} aria-expanded={businessUnitOpen} aria-haspopup="listbox">
-                    <span className={styles.filterSelectText}>{businessUnitLabel}</span>
-                    <span className={styles.filterSelectCaret} aria-hidden />
-                  </button>
-                  {businessUnitOpen && (
-                    <div className={styles.filterSelectMenu} role="listbox" aria-label="Бизнес/блок">
-                      {businessUnitOptions.length === 0 ? <div className={styles.filterSelectEmpty}>Нет данных</div> : (
-                        <>
-                          <label className={styles.filterSelectOption}>
-                            <input type="checkbox" checked={allBusinessUnitsSelected} onChange={() => setBusinessUnitFilter((prev) => prev.length === businessUnitOptions.length ? [] : [...businessUnitOptions])} />
-                            <span>Выбрать все</span>
-                          </label>
-                          {businessUnitOptions.map((value) => (
-                            <label key={value} className={styles.filterSelectOption}>
-                              <input type="checkbox" checked={businessUnitFilter.includes(value)} onChange={() => toggleBusinessUnit(value)} />
-                              <span>{formatFilterValue(value)}</span>
-                            </label>
-                          ))}
-                        </>
-                      )}
-                    </div>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Поиск</span>
+              <input
+                type="search"
+                className={styles.filterInput}
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                placeholder="Поиск по всем полям"
+                disabled={!!editingRowId}
+              />
+            </label>
+            <div className={`${styles.filterField} ${styles.filterSelect}`} ref={businessUnitRef}>
+              <span className={styles.filterLabel}>Бизнес/блок</span>
+              <button type="button" className={styles.filterSelectButton} onClick={toggleBusinessUnitOpen} disabled={!!editingRowId} aria-expanded={businessUnitOpen} aria-haspopup="listbox">
+                <span className={styles.filterSelectText}>{businessUnitLabel}</span>
+                <span className={styles.filterSelectCaret} aria-hidden />
+              </button>
+              {businessUnitOpen && (
+                <div className={styles.filterSelectMenu} role="listbox" aria-label="Бизнес/блок">
+                  {businessUnitOptions.length === 0 ? <div className={styles.filterSelectEmpty}>Нет данных</div> : (
+                    <>
+                      <label className={styles.filterSelectOption}>
+                        <input type="checkbox" checked={allBusinessUnitsSelected} onChange={() => setBusinessUnitFilter((prev) => prev.length === businessUnitOptions.length ? [] : [...businessUnitOptions])} />
+                        <span>Выбрать все</span>
+                      </label>
+                      {businessUnitOptions.map((value) => (
+                        <label key={value} className={styles.filterSelectOption}>
+                          <input type="checkbox" checked={businessUnitFilter.includes(value)} onChange={() => toggleBusinessUnit(value)} />
+                          <span>{formatFilterValue(value)}</span>
+                        </label>
+                      ))}
+                    </>
                   )}
                 </div>
-              ) : col.key === 'segment' ? (
-                <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={segmentRef}>
-                  <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={toggleSegmentOpen} disabled={!!editingRowId} aria-expanded={segmentOpen} aria-haspopup="listbox">
-                    <span className={styles.filterSelectText}>{segmentLabel}</span>
-                    <span className={styles.filterSelectCaret} aria-hidden />
-                  </button>
-                  {segmentOpen && (
-                    <div className={styles.filterSelectMenu} role="listbox" aria-label="Сегмент">
-                      {segmentOptions.length === 0 ? <div className={styles.filterSelectEmpty}>Нет данных</div> : (
-                        <>
-                          <label className={styles.filterSelectOption}>
-                            <input type="checkbox" checked={allSegmentsSelected} onChange={() => setSegmentFilter((prev) => prev.length === segmentOptions.length ? [] : [...segmentOptions])} />
-                            <span>Выбрать все</span>
-                          </label>
-                          {segmentOptions.map((value) => (
-                            <label key={value} className={styles.filterSelectOption}>
-                              <input type="checkbox" checked={segmentFilter.includes(value)} onChange={() => toggleSegment(value)} />
-                              <span>{formatFilterValue(value)}</span>
-                            </label>
-                          ))}
-                        </>
-                      )}
-                    </div>
+              )}
+            </div>
+            <div className={`${styles.filterField} ${styles.filterSelect}`} ref={segmentRef}>
+              <span className={styles.filterLabel}>Сегмент</span>
+              <button type="button" className={styles.filterSelectButton} onClick={toggleSegmentOpen} disabled={!!editingRowId} aria-expanded={segmentOpen} aria-haspopup="listbox">
+                <span className={styles.filterSelectText}>{segmentLabel}</span>
+                <span className={styles.filterSelectCaret} aria-hidden />
+              </button>
+              {segmentOpen && (
+                <div className={styles.filterSelectMenu} role="listbox" aria-label="Сегмент">
+                  {segmentOptions.length === 0 ? <div className={styles.filterSelectEmpty}>Нет данных</div> : (
+                    <>
+                      <label className={styles.filterSelectOption}>
+                        <input type="checkbox" checked={allSegmentsSelected} onChange={() => setSegmentFilter((prev) => prev.length === segmentOptions.length ? [] : [...segmentOptions])} />
+                        <span>Выбрать все</span>
+                      </label>
+                      {segmentOptions.map((value) => (
+                        <label key={value} className={styles.filterSelectOption}>
+                          <input type="checkbox" checked={segmentFilter.includes(value)} onChange={() => toggleSegment(value)} />
+                          <span>{formatFilterValue(value)}</span>
+                        </label>
+                      ))}
+                    </>
                   )}
                 </div>
-              ) : col.key === 'initiativeType' ? (
-                <div key={col.key} className={`${styles.filterField} ${styles.filterSelect}`} ref={initiativeTypeRef}>
-                  <span className={styles.filterLabel}>{col.label}</span>
-                  <button type="button" className={styles.filterSelectButton} onClick={toggleInitiativeTypeOpen} disabled={!!editingRowId} aria-expanded={initiativeTypeOpen} aria-haspopup="listbox">
-                    <span className={styles.filterSelectText}>{initiativeTypeLabel}</span>
-                    <span className={styles.filterSelectCaret} aria-hidden />
-                  </button>
-                  {initiativeTypeOpen && (
-                    <div className={styles.filterSelectMenu} role="listbox" aria-label="Тип инициативы">
-                      {initiativeTypeOptions.length === 0 ? <div className={styles.filterSelectEmpty}>Нет данных</div> : (
-                        <>
-                          <label className={styles.filterSelectOption}>
-                            <input type="checkbox" checked={allInitiativeTypesSelected} onChange={() => setInitiativeTypeFilter((prev) => prev.length === initiativeTypeOptions.length ? [] : [...initiativeTypeOptions])} />
-                            <span>Выбрать все</span>
-                          </label>
-                          {initiativeTypeOptions.map((value) => (
-                            <label key={value} className={styles.filterSelectOption}>
-                              <input type="checkbox" checked={initiativeTypeFilter.includes(value)} onChange={() => toggleInitiativeType(value)} />
-                              <span>{formatFilterValue(value)}</span>
-                            </label>
-                          ))}
-                        </>
-                      )}
-                    </div>
+              )}
+            </div>
+            <div className={`${styles.filterField} ${styles.filterSelect}`} ref={initiativeTypeRef}>
+              <span className={styles.filterLabel}>Тип инициативы</span>
+              <button type="button" className={styles.filterSelectButton} onClick={toggleInitiativeTypeOpen} disabled={!!editingRowId} aria-expanded={initiativeTypeOpen} aria-haspopup="listbox">
+                <span className={styles.filterSelectText}>{initiativeTypeLabel}</span>
+                <span className={styles.filterSelectCaret} aria-hidden />
+              </button>
+              {initiativeTypeOpen && (
+                <div className={styles.filterSelectMenu} role="listbox" aria-label="Тип инициативы">
+                  {initiativeTypeOptions.length === 0 ? <div className={styles.filterSelectEmpty}>Нет данных</div> : (
+                    <>
+                      <label className={styles.filterSelectOption}>
+                        <input type="checkbox" checked={allInitiativeTypesSelected} onChange={() => setInitiativeTypeFilter((prev) => prev.length === initiativeTypeOptions.length ? [] : [...initiativeTypeOptions])} />
+                        <span>Выбрать все</span>
+                      </label>
+                      {initiativeTypeOptions.map((value) => (
+                        <label key={value} className={styles.filterSelectOption}>
+                          <input type="checkbox" checked={initiativeTypeFilter.includes(value)} onChange={() => toggleInitiativeType(value)} />
+                          <span>{formatFilterValue(value)}</span>
+                        </label>
+                      ))}
+                    </>
                   )}
                 </div>
-              ) : (
-                <label key={col.key} className={styles.filterField}>
-                  <span className={styles.filterLabel}>{col.label}</span>
-                  <input
-                    type="search"
-                    className={styles.filterInput}
-                    value={filters[col.key]}
-                    onChange={(e) => updateFilter(col.key, e.target.value)}
-                    placeholder={col.placeholder || 'Фильтр'}
-                    disabled={!!editingRowId}
-                  />
-                </label>
-              )
-            )}
+              )}
+            </div>
           </div>
           <div className={styles.filtersActions}>
             <button
@@ -646,7 +585,7 @@ export function StrategyGoalsPage() {
               className={styles.resetFiltersBtn}
               onClick={resetFilters}
               disabled={!!editingRowId || !hasActiveFilters}
-              title="Сбросить все фильтры по колонкам"
+              title="Сбросить все фильтры"
             >
               Сбросить фильтры
             </button>
