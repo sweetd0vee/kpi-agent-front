@@ -509,7 +509,7 @@ export function CascadePage() {
             checked={useLlm}
             onChange={(e) => setUseLlm(e.target.checked)}
           />
-          <span>Использовать LLM-фильтрацию целей по реестру процессов</span>
+          <span>Использовать LLM-фильтрацию целей по реестру процессов и стратегии</span>
         </label>
 
         <label className={styles.checkbox}>
