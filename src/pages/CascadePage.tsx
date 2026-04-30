@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   deleteCascadeRun,
   getCascadeRun,
@@ -28,6 +28,7 @@ const managerSurnameForFilename = (value: string): string => {
 }
 
 export function CascadePage() {
+  type CascadeSortKey = 'managerName' | 'deputyName' | 'sourceType' | 'sourceGoalTitle' | 'sourceMetric' | 'traceRule'
   const [reportYear, setReportYear] = useState('')
   const [reportYearOptions, setReportYearOptions] = useState<string[]>([])
   const [selectedManager, setSelectedManager] = useState('')
@@ -48,6 +49,8 @@ export function CascadePage() {
   const [deletingHistoryRunId, setDeletingHistoryRunId] = useState<string | null>(null)
   const [historyCollapsed, setHistoryCollapsed] = useState(false)
   const [processingSteps, setProcessingSteps] = useState<string[]>([])
+  const [sortKey, setSortKey] = useState<CascadeSortKey>('managerName')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [progress, setProgress] = useState<{ total: number; done: number; current: string; currentDeputies: number }>({
     total: 0,
     done: 0,
@@ -370,7 +373,7 @@ export function CascadePage() {
     const managerName = result.run.managers?.[0] || result.items[0]?.managerName || selectedManager
     const managerSurname = managerSurnameForFilename(managerName)
     const prefix = `цели-заместителей-${managerSurname}${yearSuffix}`
-    exportCascadeGoalsExcel(result.items, prefix)
+    exportCascadeGoalsExcel(sortedCascadeItems, prefix)
   }
 
   const handleExportFallback = () => {
@@ -394,6 +397,30 @@ export function CascadePage() {
       })),
       prefix
     )
+  }
+
+  const sortedCascadeItems = useMemo(() => {
+    if (!result) return []
+    const collator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
+    return [...result.items]
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => {
+        const av = String(a.item[sortKey] ?? '').trim()
+        const bv = String(b.item[sortKey] ?? '').trim()
+        const cmp = collator.compare(av, bv)
+        if (cmp === 0) return a.index - b.index
+        return sortDirection === 'asc' ? cmp : -cmp
+      })
+      .map(({ item }) => item)
+  }, [result, sortDirection, sortKey])
+
+  const toggleSort = (key: CascadeSortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortKey(key)
+    setSortDirection('asc')
   }
 
   return (
@@ -670,16 +697,106 @@ export function CascadePage() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Руководитель</th>
-                      <th>Заместитель</th>
-                      <th>Источник</th>
-                      <th>Цель</th>
-                      <th>Метрика</th>
-                      <th>Trace</th>
+                      <th>
+                        <button type="button" className={styles.sortThBtn} onClick={() => toggleSort('managerName')}>
+                          <span className={styles.headerLabel}>Руководитель</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              sortKey === 'managerName'
+                                ? sortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ].join(' ')}
+                            aria-hidden
+                          />
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortThBtn} onClick={() => toggleSort('deputyName')}>
+                          <span className={styles.headerLabel}>Заместитель</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              sortKey === 'deputyName'
+                                ? sortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ].join(' ')}
+                            aria-hidden
+                          />
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortThBtn} onClick={() => toggleSort('sourceType')}>
+                          <span className={styles.headerLabel}>Источник</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              sortKey === 'sourceType'
+                                ? sortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ].join(' ')}
+                            aria-hidden
+                          />
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortThBtn} onClick={() => toggleSort('sourceGoalTitle')}>
+                          <span className={styles.headerLabel}>SCAI цель</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              sortKey === 'sourceGoalTitle'
+                                ? sortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ].join(' ')}
+                            aria-hidden
+                          />
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortThBtn} onClick={() => toggleSort('sourceMetric')}>
+                          <span className={styles.headerLabel}>Метрическая цель</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              sortKey === 'sourceMetric'
+                                ? sortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ].join(' ')}
+                            aria-hidden
+                          />
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortThBtn} onClick={() => toggleSort('traceRule')}>
+                          <span className={styles.headerLabel}>Trace</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              sortKey === 'traceRule'
+                                ? sortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ].join(' ')}
+                            aria-hidden
+                          />
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {result.items.map((item) => (
+                    {sortedCascadeItems.map((item) => (
                       <tr key={item.id}>
                         <td>{item.managerName}</td>
                         <td>{item.deputyName}</td>

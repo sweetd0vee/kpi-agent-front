@@ -186,6 +186,74 @@
 .table th {
   background: #f9fafb;
   font-weight: 600;
+  text-align: center;
+}
+
+.sortThBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.headerLabel {
+  font-weight: 600;
+}
+
+.sortIndicator {
+  position: relative;
+  width: 10px;
+  height: 14px;
+  display: inline-block;
+}
+
+.sortIndicator::before,
+.sortIndicator::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+}
+
+.sortIndicator::before {
+  top: 1px;
+  border-bottom: 5px solid rgba(71, 85, 105, 0.55);
+}
+
+.sortIndicator::after {
+  bottom: 1px;
+  border-top: 5px solid rgba(71, 85, 105, 0.55);
+}
+
+.sortIndicatorInactive::before,
+.sortIndicatorInactive::after {
+  border-bottom-color: rgba(71, 85, 105, 0.45);
+  border-top-color: rgba(71, 85, 105, 0.45);
+}
+
+.sortIndicatorAsc::before {
+  border-bottom-color: #1e3a8a;
+}
+
+.sortIndicatorAsc::after {
+  border-top-color: rgba(71, 85, 105, 0.35);
+}
+
+.sortIndicatorDesc::before {
+  border-bottom-color: rgba(71, 85, 105, 0.35);
+}
+
+.sortIndicatorDesc::after {
+  border-top-color: #1e3a8a;
 }
 
 .runList {
