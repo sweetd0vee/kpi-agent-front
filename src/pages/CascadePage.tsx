@@ -27,8 +27,55 @@ const managerSurnameForFilename = (value: string): string => {
   return firstToken.replace(/[\\/:*?"<>|]/g, '')
 }
 
+const getUnmatchedDeputyName = (entry: { deputyName?: string; reason?: string }): string => {
+  const explicit = String(entry.deputyName ?? '').trim()
+  if (explicit) return explicit
+  const reason = String(entry.reason ?? '')
+  const match = reason.match(/Для заместителя\s+'([^']+)'/i)
+  if (match?.[1]) return match[1].trim()
+  return ''
+}
+
+const formatUnmatchedReason = (entry: { deputyName?: string; reason?: string }): string => {
+  const reason = String(entry.reason ?? '').trim()
+  if (!reason) return reason
+  if (reason.includes('не найдены процессы в реестре процессов')) {
+    const deputy = getUnmatchedDeputyName(entry)
+    if (deputy) {
+      return `Для заместителя '${deputy}' не найдены процессы в реестре процессов и цели в стратегии.`
+    }
+    return 'Для заместителя не найдены процессы в реестре процессов и цели в стратегии.'
+  }
+  return reason
+}
+
+const formatTraceRule = (item: {
+  sourceType: string
+  deputyName: string
+  sourceGoalTitle: string
+  sourceMetric: string
+  traceRule: string
+}): string => {
+  const trace = String(item.traceRule ?? '').trim()
+  if (!trace) return trace
+  const legacyDirectMatch = 'match: strategy_goals.responsible_person_owner ~= deputy; responsible: direct_name_match'
+  if (item.sourceType === 'strategy' && trace === legacyDirectMatch) {
+    return [
+      "match: strategy_goals.responsible_person_owner ~= deputy",
+      `deputy='${item.deputyName}'`,
+      "responsible: direct_name_match",
+      "strategy_context: старый запуск (расширенный trace недоступен в истории)",
+      `goal='${item.sourceGoalTitle}'`,
+      `metric='${item.sourceMetric}'`,
+      'classification: strategy',
+    ].join('; ')
+  }
+  return trace
+}
+
 export function CascadePage() {
   type CascadeSortKey = 'managerName' | 'deputyName' | 'sourceType' | 'sourceGoalTitle' | 'sourceMetric' | 'traceRule'
+  type UnmatchedSortKey = 'managerName' | 'deputyName' | 'reason'
   const [reportYear, setReportYear] = useState('')
   const [reportYearOptions, setReportYearOptions] = useState<string[]>([])
   const [selectedManager, setSelectedManager] = useState('')
@@ -51,6 +98,8 @@ export function CascadePage() {
   const [processingSteps, setProcessingSteps] = useState<string[]>([])
   const [sortKey, setSortKey] = useState<CascadeSortKey>('managerName')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [unmatchedSortKey, setUnmatchedSortKey] = useState<UnmatchedSortKey>('managerName')
+  const [unmatchedSortDirection, setUnmatchedSortDirection] = useState<'asc' | 'desc'>('asc')
   const [progress, setProgress] = useState<{ total: number; done: number; current: string; currentDeputies: number }>({
     total: 0,
     done: 0,
@@ -301,6 +350,7 @@ export function CascadePage() {
             err instanceof Error ? err.message : 'Ошибка запуска каскадирования по руководителю'
           mergedUnmatched.push({
             managerName,
+            deputyName: '',
             reason,
             reportYear: reportYearValue,
           })
@@ -414,6 +464,27 @@ export function CascadePage() {
       .map(({ item }) => item)
   }, [result, sortDirection, sortKey])
 
+  const sortedUnmatchedItems = useMemo(() => {
+    if (!result) return []
+    const collator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
+    return [...result.unmatched]
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => {
+        const aval =
+          unmatchedSortKey === 'deputyName'
+            ? getUnmatchedDeputyName(a.item)
+            : String(a.item[unmatchedSortKey] ?? '').trim()
+        const bval =
+          unmatchedSortKey === 'deputyName'
+            ? getUnmatchedDeputyName(b.item)
+            : String(b.item[unmatchedSortKey] ?? '').trim()
+        const cmp = collator.compare(aval, bval)
+        if (cmp === 0) return a.index - b.index
+        return unmatchedSortDirection === 'asc' ? cmp : -cmp
+      })
+      .map(({ item }) => item)
+  }, [result, unmatchedSortDirection, unmatchedSortKey])
+
   const toggleSort = (key: CascadeSortKey) => {
     if (sortKey === key) {
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
@@ -421,6 +492,15 @@ export function CascadePage() {
     }
     setSortKey(key)
     setSortDirection('asc')
+  }
+
+  const toggleUnmatchedSort = (key: UnmatchedSortKey) => {
+    if (unmatchedSortKey === key) {
+      setUnmatchedSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setUnmatchedSortKey(key)
+    setUnmatchedSortDirection('asc')
   }
 
   return (
@@ -587,7 +667,6 @@ export function CascadePage() {
         <>
           <section className={styles.panel}>
             <h2>Сводка запуска</h2>
-            <div>Run ID: {result.run.runId}</div>
             <div>Статус: {result.run.status}</div>
             <div>Руководителей: {result.run.totalManagers}</div>
             <div>Заместителей: {result.run.totalDeputies}</div>
@@ -611,63 +690,74 @@ export function CascadePage() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Руководитель</th>
-                      <th>Причина</th>
+                      <th>
+                        <button
+                          type="button"
+                          className={styles.sortThBtn}
+                          onClick={() => toggleUnmatchedSort('managerName')}
+                        >
+                          <span className={styles.headerLabel}>Руководитель</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              unmatchedSortKey === 'managerName'
+                                ? unmatchedSortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ].join(' ')}
+                            aria-hidden
+                          />
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          type="button"
+                          className={styles.sortThBtn}
+                          onClick={() => toggleUnmatchedSort('deputyName')}
+                        >
+                          <span className={styles.headerLabel}>Заместитель</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              unmatchedSortKey === 'deputyName'
+                                ? unmatchedSortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ].join(' ')}
+                            aria-hidden
+                          />
+                        </button>
+                      </th>
+                      <th>
+                        <button
+                          type="button"
+                          className={styles.sortThBtn}
+                          onClick={() => toggleUnmatchedSort('reason')}
+                        >
+                          <span className={styles.headerLabel}>Причина</span>
+                          <span
+                            className={[
+                              styles.sortIndicator,
+                              unmatchedSortKey === 'reason'
+                                ? unmatchedSortDirection === 'asc'
+                                  ? styles.sortIndicatorAsc
+                                  : styles.sortIndicatorDesc
+                                : styles.sortIndicatorInactive,
+                            ].join(' ')}
+                            aria-hidden
+                          />
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {result.unmatched.map((u) => (
-                      <tr key={`${u.managerName}-${u.reason}`}>
+                    {sortedUnmatchedItems.map((u) => (
+                      <tr key={`${u.managerName}-${u.deputyName}-${u.reason}`}>
                         <td>{u.managerName}</td>
-                        <td>{u.reason}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className={styles.panel}>
-            <div className={styles.sectionHead}>
-              <h2>Резервные цели для несопоставленных</h2>
-              <div className={styles.exportActions}>
-                <button
-                  type="button"
-                  className={styles.exportBtn}
-                  onClick={handleExportFallback}
-                  disabled={result.fallbackGoals.length === 0}
-                >
-                  Экспорт Excel
-                </button>
-              </div>
-            </div>
-            {result.fallbackGoals.length === 0 ? (
-              <div className={styles.muted}>
-                Резервные цели не сформированы: у руководителя не найдены исходные цели для случайного каскадирования.
-              </div>
-            ) : (
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Руководитель</th>
-                      <th>Несопоставленный заместитель</th>
-                      <th>Причина несопоставления</th>
-                      <th>Источник</th>
-                      <th>Цель руководителя</th>
-                      <th>Метрика</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.fallbackGoals.map((goal) => (
-                      <tr key={goal.id}>
-                        <td>{goal.managerName}</td>
-                        <td>{goal.deputyName || '—'}</td>
-                        <td>{goal.reason}</td>
-                        <td>{goal.sourceType}</td>
-                        <td>{goal.sourceGoalTitle}</td>
-                        <td>{goal.sourceMetric}</td>
+                        <td>{getUnmatchedDeputyName(u) || '—'}</td>
+                        <td>{formatUnmatchedReason(u)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -803,7 +893,7 @@ export function CascadePage() {
                         <td>{item.sourceType}</td>
                         <td>{item.sourceGoalTitle}</td>
                         <td>{item.sourceMetric}</td>
-                        <td>{item.traceRule}</td>
+                        <td>{formatTraceRule(item)}</td>
                       </tr>
                     ))}
                   </tbody>

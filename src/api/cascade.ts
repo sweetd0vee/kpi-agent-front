@@ -37,6 +37,7 @@ export type CascadeGoalItem = {
 
 export type CascadeUnmatched = {
   managerName: string
+  deputyName: string
   reason: string
   reportYear: string
 }
